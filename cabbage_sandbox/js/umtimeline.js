@@ -75,6 +75,7 @@
 			context.translate(x, y);
 			context.rotate(Math.PI / 4);
 			context.fillRect(- r, - r, r * 2, r * 2);
+			context.strokeRect(- r, - r, r * 2, r * 2);
 			context.restore();
 			return true;
 		} else {

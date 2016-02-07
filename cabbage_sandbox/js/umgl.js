@@ -45,7 +45,7 @@
 		canvas.width = mainview.clientWidth;
 		canvas.height = mainview.clientHeight;
 		gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
-		//console.log(mainview.clientWidth, mainview.clientHeight);
+		console.log(mainview.clientWidth, mainview.clientHeight);
 		scene.resize(canvas.width, canvas.height);
 		drawonce();
 	}
@@ -288,6 +288,13 @@
 				cancelAnimationFrame(mainloop_handle);
 			};
 		}
+		setInterval(function () {
+			var mainview = document.getElementById('mainview');
+			if (mainview.clientWidth !== canvas.clientWidth || mainview.clientHeight !== canvas.clientHeight) {
+				resize();
+			}
+		}, 30);
+
 		init_tools();
 		init_edit_tool();
 		init_open_tool();
