@@ -1,0 +1,12 @@
+{
+  "name": "cabbage_sandbox",
+  "main": "main.js",
+  "window": {
+    "toolbar": false,
+    "resizable": false,
+    "fullscreen": false,
+    "frame": true,
+    "width": 1280,
+    "height": 800
+  }
+}
