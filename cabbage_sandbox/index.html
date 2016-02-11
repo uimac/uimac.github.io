@@ -5,7 +5,6 @@
 	<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 	<link href="css/3rd/dockspawn/dock-manager.css" rel="stylesheet" />
 	<link href="css/3rd/dockspawn/font-awesome.css" rel="stylesheet" />
-	<link href="css/dock.css" rel="stylesheet" />
 	<link href="css/index.css" rel="stylesheet" />
 	<script type="text/javascript" src="js/ummath.js"></script>
 	<script type="text/javascript" src="js/umcamera.js"></script>
@@ -26,7 +25,6 @@
 	<script type="text/javascript" src="js/pyummath.js"></script>
 	<script type="text/javascript" src="js/3rd/ace/ace.js"></script>
 	<script type="text/javascript" src="js/umeditor.js"></script>
-	<script type="text/javascript" src="js/3rd/dockspawn.js"></script>
 	<script type="text/javascript" src="js/umlayout.js"></script>
 	<script type="text/javascript" src="js/index.js"></script>
 
@@ -313,7 +311,14 @@
 
 </head>
 <body>
-    <div id="dock_manager" class="dock_manager"></div>
+	<div id="layout" style="width:100%; height:100%"></div>
+	<div id="layout2"></div>
+	<div id="menuview">
+		<div id="tool_open_wrap" class="other_tool">
+			<img src="img/open.png" id="tool_open_image"/>
+			<input id="tool_open" type="file" />
+		</div>
+	</div>
 	<div id="mainview">
 		<canvas id="canvas" style="background-color:red"></canvas>
 		<img src="img/edit.png" id="tool_edit" class="other_tool" style="display:none"/>
@@ -324,14 +329,12 @@
 		<img src="img/play.png" id="tool_play" class="other_tool" />
 		<img src="img/pause.png" id="tool_pause" class="other_tool" />
 		<img src="img/stop.png" id="tool_stop" class="other_tool" />
+		<img id="tool_test" class="other_tool" />
+		<img id="tool_test2" class="other_tool" />
 	</div>
 	<div id="toolview">
 		<img src="img/camera.png" id="tool_camera" class="tool selected" />
 		<img src="img/pen.png" id="tool_pen" class="tool" />
-		<div id="tool_open_wrap" class="other_tool">
-			<img src="img/open.png" id="tool_open_image"/>
-			<input id="tool_open" type="file" />
-		</div>
 	</div>
 	<div id="scriptview">
 		<div style="width:200px;float:left"></div>
