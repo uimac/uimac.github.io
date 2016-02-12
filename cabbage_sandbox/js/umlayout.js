@@ -34,7 +34,7 @@
 					}
 					topSum = topSum + parent.contents[i].currentSize;
 				}
-				console.log(target.id, topSum);
+				//console.log(target.id, topSum);
 				target.style.top = topSum + "px";
 			}
 		}
@@ -58,6 +58,10 @@
 		}
 	};
 
+	function toNumber(s) {
+		return Number(s.split("px").join(""));
+	}
+
 	UMLayout.prototype.resize = function () {
 		var panel,
 			id,
@@ -74,22 +78,22 @@
 			if (setting.hasOwnProperty('size')) {
 				size = setting.size;
 				if (direction === 'horizontal') {
-					if (size.indexOf('px') > 0 && Number(size.split('px').join('')) < 0) {
-						size = (window.innerHeight + Number(size.split('px').join(''))) + "px";
+					if (size.indexOf('px') > 0 && toNumber(size) < 0) {
+						size = (window.innerHeight + toNumber(size)) + "px";
 					}
 					panel.style.height = size;
-					setting.currentSize = Number(size.split('px').join(''));
+					setting.currentSize = toNumber(size);
 					if (document.getElementById(parent.id).style.width) {
 						panel.style.width = document.getElementById(parent.id).style.width;
 					} else {
 						panel.style.width = "100%";
 					}
 				} else {
-					if (size.indexOf('px') > 0 && Number(size.split('px').join('')) < 0) {
-						size = (window.innerWidth + Number(size.split('px').join(''))) + "px";
+					if (size.indexOf('px') > 0 && toNumber(size) < 0) {
+						size = (window.innerWidth + toNumber(size)) + "px";
 					}
 					panel.style.width = size;
-					setting.currentSize = Number(size.split('px').join(''));
+					setting.currentSize = toNumber(size);
 					if (document.getElementById(parent.id).style.height) {
 						panel.style.height = document.getElementById(parent.id).style.height;
 					} else {
@@ -99,6 +103,62 @@
 			}
 		}
 	};
+
+	UMLayout.prototype.setSplitBehavior = function (contents, splitter, i) {
+		var prePos = 0,
+			isLeftDown = false;
+
+		splitter.addEventListener('mousedown', function (ev) {
+			if (ev.button === 0) {
+				isLeftDown = true;
+			}
+		});
+		window.addEventListener('mousemove', function (ev) {
+			var s,
+				ca,
+				cb,
+				sa = null,
+				sb = null,
+				rect,
+				mv;
+			if (isLeftDown) {
+				if (splitter.className === "ns_splitter") {
+					rect = splitter.getBoundingClientRect();
+					mv = ev.clientY - rect.top;
+				} else {
+					rect = splitter.getBoundingClientRect();
+					mv = ev.clientX - rect.left;
+				}
+				ca = contents[i-1];
+				cb = contents[i+1];
+				if (ca.hasOwnProperty("size")) {
+					s = toNumber(ca.size);
+					sa = s + mv;
+					if (ca.hasOwnProperty("minSize") && sa <= toNumber(ca.minSize)) {
+						return;
+					}
+				}
+				if (cb.hasOwnProperty("size")) {
+					s = toNumber(cb.size);
+					sb = s - mv;
+					if (cb.hasOwnProperty("minSize") && sb <= toNumber(cb.minSize)) {
+						return;
+					}
+				}
+				if (sa !== null && sb !== null) {
+					contents[i-1].size = String(sa) + "px";
+					contents[i-1].currentSize = sa;
+					contents[i+1].size = String(sb) + "px";
+					contents[i+1].currentSize = sb;
+					this.resize();
+					this.relocate();
+				}
+			}
+		}.bind(this));
+		window.addEventListener('mouseup', function (ev) {
+			isLeftDown = false;
+		});
+	}
 
 	UMLayout.prototype.layout = function (parent, setting, i) {
 		var i,
@@ -140,6 +200,7 @@
 					splitter.style.height = "100%";
 					splitter.className = "ew_splitter";
 				}
+				this.setSplitBehavior(parent.contents, splitter, i);
 				setting.id = splitter.id;
 				panels[splitter.id] = {
 					direction : parent.direction,
@@ -161,53 +222,57 @@
 		var setting = {
 			id : 'layout',
 			direction : 'horizontal',
-			color : 'black',
+			color : 'rgb(35, 35, 35)',
 			contents : [
 				{
 					id : 'menuview',
 					position : 'top',
-					size : "40px"
+					size : "40px",
+					minSize : "40px"
 				},
 				{
-					size : "2px",
-					splitter : "2px"
+					size : "3px",
+					splitter : "3px"
 				},
 				{
 					id : 'layout2',
-					size : "-244px",
+					size : "-246px",
 					direction : 'vertical',
 					contents : [
 						{
 							id : 'toolview',
 							position : 'left',
-							size : "45px"
+							size : "42px",
+							minSize : "42px"
 						},
 						{
-							size : "2px",
-							splitter : "2px"
+							size : "3px",
+							splitter : "3px"
 						},
 						{
 							id : 'mainview',
-							size : "-94px"
+							size : "-90px"
 						},
 						{
-							size : "2px",
-							splitter : "2px"
+							size : "3px",
+							splitter : "3px"
 						},
 						{
 							id : 'settingview',
 							position : 'right',
-							size : "45px"
+							size : "42px",
+							minSize : "42px"
 						}
 					]
 				},
 				{
-					size : "2px",
-					splitter : "2px"
+					size : "3px",
+					splitter : "3px"
 				},
 				{
 					id : 'timeline',
-					size : "200px"
+					size : "200px",
+					minSize : "50px"
 				}]
 			},
 			layout = new UMLayout(setting);
