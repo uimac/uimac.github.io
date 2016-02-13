@@ -123,6 +123,13 @@
 		}
 	}
 
+	function fillText(context, text, x, y, textSize, rect) {
+		var irect = intersects({ x : x, y : y - textSize, w : textSize, h : textSize}, rect);
+		if (irect) {
+			context.fillText(text, x, y);
+		}
+	}
+
 	UMTimeline.prototype.drawSplitter = function (rect) {
 		var context = this.canvas.getContext('2d'),
 			splitx = this.splitX(),
@@ -153,6 +160,47 @@
 		context.strokeStyle = this.setting.lineColor;
 		strokeRect(context, context, lw, lw, this.width - lw2, this.height - lw2, rect);
 		//drawLine(context, splitx, 1, splitx, this.height - 2);
+	};
+
+	UMTimeline.prototype.drawMeasure = function (rect) {
+		var context = this.canvas.getContext('2d'),
+			splitx = this.splitX(),
+			scale = this.setting.scale,
+			offsetX = this.setting.offsetX,
+			mh = this.setting.measureHeight,
+			i,
+			x,
+			startFrame,
+			endFrame,
+			step,
+			valueRect;
+
+		startFrame = offsetX / scale;
+		endFrame = (this.width + offsetX) / scale;
+
+		step = 10;
+		if (scale <= 3) {
+			step = 50;
+		}
+		if (scale <= 0.8) {
+			step = 100;
+		}
+		if (scale < 0.5) {
+			step = 500;
+		}
+
+		valueRect = JSON.parse(JSON.stringify(rect));
+		valueRect.x = splitx;
+
+		startFrame = Math.floor(startFrame - startFrame % step);
+		endFrame = Math.floor(endFrame - endFrame % step);
+
+		for (i = startFrame; i < endFrame; i = i + step) {
+			x = splitx + i * scale - offsetX - mh / 2;
+			context.fillStyle = this.setting.propTextColor;
+			context.font = "normal " + mh + "px sans-serif";
+			fillText(context, String(i), x, mh, mh, valueRect);
+		}
 	};
 
 	UMTimeline.prototype.drawBackground = function (rect) {
@@ -316,7 +364,7 @@
 			k,
 			contents = this.data.contents,
 			content,
-			height = 0;
+			height = this.setting.measureHeight;
 
 		this.keyRects = [];
 		for (i = 0; i < contents.length; i = i + 1) {
@@ -349,6 +397,7 @@
 		}
 		this.drawBackground(rect);
 		this.drawBounds(rect);
+		this.drawMeasure(rect);
 		this.drawData(rect);
 		this.drawSplitter(rect);
 		this.drawSeekLine(rect);
@@ -494,9 +543,17 @@
 		canvas.addEventListener('mousewheel', function (ev) {
 			var data = ev.wheelDelta;
 			if (data > 0) {
-				timeline.setScale(timeline.setting.scale + 2.0);
+				if (timeline.setting.scale > 1.0) {
+					timeline.setScale(timeline.setting.scale + 1.0);
+				} else {
+					timeline.setScale(timeline.setting.scale * 2.0);
+				}
 			} else {
-				timeline.setScale(timeline.setting.scale - 1.0);
+				if (timeline.setting.scale > 1.0) {
+					timeline.setScale(timeline.setting.scale - 1.0);
+				} else if (timeline.setting.scale > 0.125){
+					timeline.setScale(timeline.setting.scale * 0.5);
+				}
 			}
 		});
 	}
@@ -522,7 +579,8 @@
 				spiltterSize : 3.0,
 				scale : 10.0,
 				offsetX : 0.0,
-				offsetY : 0.0
+				offsetY : 0.0,
+				measureHeight : 11.0
 			},
 			data = {
 				contents : [
