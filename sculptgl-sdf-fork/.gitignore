@@ -1,0 +1,8 @@
+.DS_Store
+build/*
+nodewebkit/*
+cache/*
+node_modules
+*~
+.idea/*
+*.log
