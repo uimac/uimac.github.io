@@ -4,11 +4,11 @@
 (function (umgl) {
 	"use strict";
 
-	window.onload = function () {
+	window.addEventListener('load', function () {
 		umgl.init();
 	};
 
-	window.onunload = function () {
+	window.addEventListener('unload', function () {
 		umgl.dispose();
 	};
 
