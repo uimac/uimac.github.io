@@ -249,13 +249,11 @@ define(function (require, exports, module) {
 	  }
     },
 	onUndo : function () {
-		var data;
 		if (!this.isUndoRedo && this.undoBuffer.length > 0) {
 			if (this.redoBuffer.length === 0) {
-				data = this.undoBuffer.pop();
-				this.redoBuffer.push(data);
+				this.redoBuffer.push(this.undoBuffer.pop());
 			}
-			data = this.undoBuffer.pop();
+			var data = this.undoBuffer.pop();
 			this.redoBuffer.push(data);
 			this.isUndoRedo = true;
 			this._mainSDF.createRootFromJSON(JSON.stringify(data));
@@ -265,14 +263,12 @@ define(function (require, exports, module) {
 		}
 	},
 	onRedo : function () {
-		var data;
 		if (!this.isUndoRedo && this.redoBuffer.length > 0) {
 			if (this.isInitialRedo) {
-				data = this.redoBuffer.pop();
-				this.undoBuffer.push(data);
+				this.undoBuffer.push(this.redoBuffer.pop());
 				this.isInitialRedo = false;
 			}
-			data = this.redoBuffer.pop();
+			var data = this.redoBuffer.pop();
 			this.undoBuffer.push(data);
 			this.isUndoRedo = true;
 			this._mainSDF.createRootFromJSON(JSON.stringify(data));

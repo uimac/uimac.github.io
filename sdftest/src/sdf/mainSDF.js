@@ -203,11 +203,11 @@ define(function (require, exports, module) {
       this._sdfGUI.applyPrimitive();
       this._sdfGUI._ctrlBlendColor.setValue(scene.blendColor);
 
-  	  this._sdfGUI.undoBuffer = [];
-  	  this._sdfGUI.redoBuffer = [];
-  	  this._sdfGUI.isInitialRedo = true;
-  	  this._sdfGUI.isInitialUndo = true;
 	  if (scene.hasOwnProperty('undoBuffer')) {
+    	  this._sdfGUI.undoBuffer = [];
+    	  this._sdfGUI.redoBuffer = [];
+    	  this._sdfGUI.isInitialRedo = true;
+    	  this._sdfGUI.isInitialUndo = true;
 		  this._sdfGUI.undoBuffer = scene.undoBuffer;
 	  }
       this._main.render();
