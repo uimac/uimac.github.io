@@ -6,10 +6,10 @@
 
 	window.addEventListener('load', function () {
 		umgl.init();
-	};
+	});
 
 	window.addEventListener('unload', function () {
 		umgl.dispose();
-	};
+	});
 
 }(window.umgl));
