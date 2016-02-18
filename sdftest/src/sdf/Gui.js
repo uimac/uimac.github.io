@@ -235,7 +235,6 @@ define(function (require, exports, module) {
       this._mainSDF._lastPrim = undefined;
       this._ctrlPrimitive.setValue('PRIMITIVE');
       this._main.render();
-		  console.log("applyPrimitive")
 	  if (!this.isUndoRedo) {
 		  if (this.isInitialRedo && this.redoBuffer.length > 0) {
 			  this.undoBuffer.push(this.redoBuffer.pop());
@@ -250,12 +249,13 @@ define(function (require, exports, module) {
 	  }
     },
 	onUndo : function () {
+		var data;
 		if (!this.isUndoRedo && this.undoBuffer.length > 0) {
 			if (this.redoBuffer.length === 0) {
-				var data = this.undoBuffer.pop();
+				data = this.undoBuffer.pop();
 				this.redoBuffer.push(data);
 			}
-			var data = this.undoBuffer.pop();
+			data = this.undoBuffer.pop();
 			this.redoBuffer.push(data);
 			this.isUndoRedo = true;
 			this._mainSDF.createRootFromJSON(JSON.stringify(data));
@@ -265,14 +265,14 @@ define(function (require, exports, module) {
 		}
 	},
 	onRedo : function () {
-		console.log("onredo")
+		var data;
 		if (!this.isUndoRedo && this.redoBuffer.length > 0) {
 			if (this.isInitialRedo) {
-				var data = this.redoBuffer.pop();
+				data = this.redoBuffer.pop();
 				this.undoBuffer.push(data);
 				this.isInitialRedo = false;
 			}
-			var data = this.redoBuffer.pop();
+			data = this.redoBuffer.pop();
 			this.undoBuffer.push(data);
 			this.isUndoRedo = true;
 			this._mainSDF.createRootFromJSON(JSON.stringify(data));
