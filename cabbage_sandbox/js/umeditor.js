@@ -12,6 +12,20 @@
 		tool_pen;
 
 	tool_camera = `
+
+
+import ummath
+from ummath import *
+
+u = vec3(1, 2, 3)
+v = vec3(0, 1, 2)
+a = u.cross(v)
+b = u.add(v)
+c = u.sub(v)
+print(a[0], a[1], a[2])
+print(b[0], b[1], b[2])
+print(c[0], c[1], c[2])
+
 class CameraTool:
 	def __init__(self):
 		self.camera = Camera()
