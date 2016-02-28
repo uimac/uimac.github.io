@@ -9,6 +9,10 @@
 		this.material_list = [];
 		this.vertex_vbo = gl.createBuffer();
 		this.normal_vbo = gl.createBuffer();
+		this.verts = [];
+		this.normals = [];
+		this.uvs = [];
+		this.indices = [];
 
 		if (uvs && uvs.length > 0) {
 			this.uv_vbo = gl.createBuffer();
@@ -33,37 +37,46 @@
 	UMMesh.prototype.update = function (verts, normals, uvs, indices) {
 		var gl = this.gl,
 			i;
-		gl.bindBuffer(gl.ARRAY_BUFFER, this.vertex_vbo);
-		gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(verts), gl.STATIC_DRAW);
-		gl.bindBuffer(gl.ARRAY_BUFFER, null);
 
-		gl.bindBuffer(gl.ARRAY_BUFFER, this.normal_vbo);
-		gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(normals), gl.STATIC_DRAW);
-		gl.bindBuffer(gl.ARRAY_BUFFER, null);
+		if (verts) {
+			gl.bindBuffer(gl.ARRAY_BUFFER, this.vertex_vbo);
+			gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(verts), gl.STATIC_DRAW);
+			gl.bindBuffer(gl.ARRAY_BUFFER, null);
+			this.verts = verts;
+		}
+
+		if (normals) {
+			gl.bindBuffer(gl.ARRAY_BUFFER, this.normal_vbo);
+			gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(normals), gl.STATIC_DRAW);
+			gl.bindBuffer(gl.ARRAY_BUFFER, null);
+			this.normals = normals;
+		}
 
 		if (uvs && uvs.length > 0) {
 			gl.bindBuffer(gl.ARRAY_BUFFER, this.uv_vbo);
 			gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(uvs), gl.STATIC_DRAW);
 			gl.bindBuffer(gl.ARRAY_BUFFER, null);
+			this.uvs = uvs;
 		}
 
 		if (indices && indices.length > 0) {
 			gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.index_buffer);
 			gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint32Array(indices), gl.STATIC_DRAW);
 			gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
+			this.indices = indices;
 		}
 
-		this.verts = verts;
-		this.normals = normals;
-		this.uvs = uvs;
-		this.indices = indices;
 		//this.update_box();
 	}
 
 	UMMesh.prototype.dispose = function () {
 		var gl = this.gl;
-		gl.deleteBuffer(this.vertex_vbo);
-		gl.deleteBuffer(this.normal_vbo);
+		if (this.vertex_vbo) {
+			gl.deleteBuffer(this.vertex_vbo);
+		}
+		if (this.normal_vbo) {
+			gl.deleteBuffer(this.normal_vbo);
+		}
 		if (this.uv_vbo) {
 			gl.deleteBuffer(this.uv_vbo);
 		}
@@ -82,42 +95,48 @@
 			barycentric,
 			i;
 
-		gl.bindBuffer(gl.ARRAY_BUFFER, this.vertex_vbo);
-		position_attr = gl.getAttribLocation(shader.program_object(), 'a_position');
-		gl.enableVertexAttribArray(position_attr);
-		gl.vertexAttribPointer(position_attr, 3, gl.FLOAT, false, 0, 0);
+		if (this.vertex_vbo) {
+			gl.bindBuffer(gl.ARRAY_BUFFER, this.vertex_vbo);
+			position_attr = gl.getAttribLocation(shader.program_object(), 'a_position');
+			gl.enableVertexAttribArray(position_attr);
+			gl.vertexAttribPointer(position_attr, 3, gl.FLOAT, false, 0, 0);
+		}
 
-		gl.bindBuffer(gl.ARRAY_BUFFER, this.normal_vbo);
-		normal_attr = gl.getAttribLocation(shader.program_object(), 'a_normal');
-		gl.enableVertexAttribArray(normal_attr);
-		gl.vertexAttribPointer(normal_attr, 3, gl.FLOAT, false, 0, 0);
+		if (this.normal_vbo) {
+			gl.bindBuffer(gl.ARRAY_BUFFER, this.normal_vbo);
+			normal_attr = gl.getAttribLocation(shader.program_object(), 'a_normal');
+			gl.enableVertexAttribArray(normal_attr);
+			gl.vertexAttribPointer(normal_attr, 3, gl.FLOAT, false, 0, 0);
+		}
 
-		barycentric_attr = gl.getAttribLocation(shader.program_object(), 'a_barycentric');
-		if (barycentric_attr >= 0) {
-			if (!this.barycentric_vbo) {
-				this.barycentric_vbo = gl.createBuffer();
-				if (this.indices && this.indices.length > 0) {
-					barycentric = new Float32Array(this.indices.length * 3 * 3);
-					for (i = 0; i < this.indices.length; i = i + 1) {
-						barycentric[i * 3 + 0] = ((i % 3) == 0) ? 1 : 0;
-						barycentric[i * 3 + 1] = ((i % 3) == 1) ? 1 : 0;
-						barycentric[i * 3 + 2] = ((i % 3) == 2) ? 1 : 0;
+		if (this.indices.length > 0) {
+			barycentric_attr = gl.getAttribLocation(shader.program_object(), 'a_barycentric');
+			if (barycentric_attr >= 0) {
+				if (!this.barycentric_vbo) {
+					this.barycentric_vbo = gl.createBuffer();
+					if (this.indices && this.indices.length > 0) {
+						barycentric = new Float32Array(this.indices.length * 3 * 3);
+						for (i = 0; i < this.indices.length; i = i + 1) {
+							barycentric[i * 3 + 0] = ((i % 3) == 0) ? 1 : 0;
+							barycentric[i * 3 + 1] = ((i % 3) == 1) ? 1 : 0;
+							barycentric[i * 3 + 2] = ((i % 3) == 2) ? 1 : 0;
+						}
+					} else {
+						barycentric = new Float32Array(this.verts.length);
+						for (i = 0; i < this.verts.length / 3; i = i + 1) {
+							barycentric[i * 3 + 0] = ((i % 3) == 0) ? 1 : 0;
+							barycentric[i * 3 + 1] = ((i % 3) == 1) ? 1 : 0;
+							barycentric[i * 3 + 2] = ((i % 3) == 2) ? 1 : 0;
+						}
 					}
+					gl.bindBuffer(gl.ARRAY_BUFFER, this.barycentric_vbo)
+					gl.bufferData(gl.ARRAY_BUFFER, barycentric, gl.STATIC_DRAW);
 				} else {
-					barycentric = new Float32Array(this.verts.length);
-					for (i = 0; i < this.verts.length / 3; i = i + 1) {
-						barycentric[i * 3 + 0] = ((i % 3) == 0) ? 1 : 0;
-						barycentric[i * 3 + 1] = ((i % 3) == 1) ? 1 : 0;
-						barycentric[i * 3 + 2] = ((i % 3) == 2) ? 1 : 0;
-					}
+					gl.bindBuffer(gl.ARRAY_BUFFER, this.barycentric_vbo);
 				}
-				gl.bindBuffer(gl.ARRAY_BUFFER, this.barycentric_vbo)
-				gl.bufferData(gl.ARRAY_BUFFER, barycentric, gl.STATIC_DRAW);
-			} else {
-				gl.bindBuffer(gl.ARRAY_BUFFER, this.barycentric_vbo);
+				gl.enableVertexAttribArray(barycentric_attr);
+				gl.vertexAttribPointer(barycentric_attr, 3, gl.FLOAT, false, 0, 0);
 			}
-			gl.enableVertexAttribArray(barycentric_attr);
-			gl.vertexAttribPointer(barycentric_attr, 3, gl.FLOAT, false, 0, 0);
 		}
 
 		if (this.uv_vbo) {
@@ -141,6 +160,8 @@
 			index_offset = 0,
 			material;
 
+		if (!this.vertex_vbo) { return; }
+
 		gl.useProgram(shader.program_object());
 		this.init_attrib(shader);
 
@@ -150,7 +171,10 @@
 		gl.uniformMatrix4fv(this.global_matrix_location_, false, this.global_matrix.value());
 
 		gl.bindBuffer(gl.ARRAY_BUFFER, this.vertex_vbo);
-		gl.bindBuffer(gl.ARRAY_BUFFER, this.normal_vbo);
+
+		if (this.normal_vbo) {
+			gl.bindBuffer(gl.ARRAY_BUFFER, this.normal_vbo);
+		}
 		if (this.uv_vbo) {
 			gl.bindBuffer(gl.ARRAY_BUFFER, this.uv_vbo);
 		}
@@ -188,13 +212,16 @@
 	UMMesh.prototype.update_box = function () {
 		var i,
 			vlen;
-		this.box.set_min(new ummath.UMVec3d(Infinity, Infinity, Infinity));
-		this.box.set_max(new ummath.UMVec3d(-Infinity, -Infinity, -Infinity));
- 		vlen = this.verts.length / 3;
-		for (i = 0; i < vlen; i = i + 1) {
-			this.box.extend([this.verts[i * 3 + 0], this.verts[i * 3 + 1], this.verts[i * 3 + 2]]);
+
+		if (this.verts.length > 0) {
+			this.box.set_min(new ummath.UMVec3d(Infinity, Infinity, Infinity));
+			this.box.set_max(new ummath.UMVec3d(-Infinity, -Infinity, -Infinity));
+	 		vlen = this.verts.length / 3;
+			for (i = 0; i < vlen; i = i + 1) {
+				this.box.extend([this.verts[i * 3 + 0], this.verts[i * 3 + 1], this.verts[i * 3 + 2]]);
+			}
+			console.log("box updated", this.box.min(), this.box.max());
 		}
-		console.log("box updated", this.box.min(), this.box.max());
 	};
 
 	UMMesh.prototype.get_vert = function (faceindex, i) {
@@ -203,6 +230,22 @@
 			this.verts[(faceindex * 3 + i) * 3 + 1],
 			this.verts[(faceindex * 3 + i) * 3 + 2]
 		);
+	};
+
+	UMMesh.prototype.add_triangle = function (v1, v2, v3, min_time, max_time) {
+		var normal;
+
+		this.verts = this.verts.concat(v1.xyz);
+		this.verts = this.verts.concat(v2.xyz);
+		this.verts = this.verts.concat(v3.xyz);
+
+		normal = (v1.sub(v2)).cross(v2.sub(v3)).normalized();
+		this.normals = this.normals.concat(normal.xyz);
+		this.normals = this.normals.concat(normal.xyz);
+		this.normals = this.normals.concat(normal.xyz);
+
+		this.material_list[0].set_polygon_count(this.verts.length / 3 / 3);
+		this.update(this.verts, this.normals);
 	};
 
 	window.ummesh = {};

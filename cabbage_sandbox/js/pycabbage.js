@@ -2,7 +2,8 @@
 
 $builtinmodule = function(name) {
 	var mod = {},
-		ummath = window.ummath;
+		ummath = window.ummath,
+		umscene = window.umgl.get_scene();
 
 	vec3 = function ($gbl, $loc) {
 		$loc.__init__ = new Sk.builtin.func(function (self, x, y, z) {
@@ -163,6 +164,55 @@ $builtinmodule = function(name) {
 
 	};
 	mod.mat44 = Sk.misceval.buildClass(mod, mat44, 'mat44', []);
+
+	// -----------------------------------------------------------------------
+	// -----------------------------------------------------------------------
+
+	camera = function ($gbl, $loc) {
+		$loc.__init__ = new Sk.builtin.func(function (self, ummesh) {
+			self.mesh = ummesh;
+		});
+		$loc.dolly = new Sk.builtin.func(function (self, mx, my) {
+			umscene.camera.dolly(mx.v, my.v);
+		});
+		$loc.rotate = new Sk.builtin.func(function (self, mx, my) {
+			umscene.camera.rotate(mx.v, my.v);
+		});
+		$loc.pan = new Sk.builtin.func(function (self, mx, my) {
+			umscene.camera.pan(mx.v, my.v);
+		});
+		$loc.ray_dir = new Sk.builtin.func(function (self, px, py) {
+			var dir = umscene.camera.generate_ray_dir(px.v, py.v);
+			var dst = Sk.misceval.callsim(mod.vec3);
+			dst.vec = dir;
+			return dst;
+		});
+	};
+	mod.camera = Sk.misceval.buildClass(mod, camera, 'camera', []);
+
+	// -----------------------------------------------------------------------
+
+	mesh = function ($gbl, $loc) {
+		$loc.__init__ = new Sk.builtin.func(function (self, ummesh) {
+			self.mesh = ummesh;
+		});
+
+		$loc.add_triangle = new Sk.builtin.func(function (self, v1, v2, v3, min_time, max_time) {
+			var min = min_time ? min_time.v : null;
+			var max = max_time ? max_time.v : null;
+			self.mesh.add_triangle(v1.vec, v2.vec, v3.vec, min, max);
+		});
+	};
+	create_mesh = Sk.misceval.buildClass(mod, mesh, 'mesh', []);
+
+	mod.add_mesh = new Sk.builtin.func(function () {
+		var mesh = umscene.add_mesh(),
+			dst;
+
+		dst = Sk.misceval.callsim(create_mesh);
+		dst.mesh = mesh;
+		return dst;
+	});
 
 	return mod;
 };

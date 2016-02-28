@@ -453,6 +453,17 @@
 		this.update_func_list.push(update_func);
 	};
 
+	UMScene.prototype.add_mesh = function () {
+		var mesh = new ummesh.UMMesh(this.gl, null, null, null),
+			meshmat;
+
+		meshmat = new ummaterial.UMMaterial(this.gl);
+		meshmat.set_polygon_count(0);
+		mesh.material_list.push(meshmat);
+		this.mesh_list.push(mesh);
+		return mesh;
+	};
+
 	UMScene.prototype.dispose = function () {
 		var i = 0;
 		for (i = 0; i < this.mesh_list.length; i = i + 1) {

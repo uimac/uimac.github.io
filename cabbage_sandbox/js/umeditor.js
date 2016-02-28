@@ -12,19 +12,21 @@
 		tool_pen;
 
 	tool_camera = `
-import ummath
-from ummath import *
+import cabbage
+from cabbage import *
 
-u = mat44()
-for i in range(4):
-    for k in range(4):
-        u[i * 4 + k] = i * 4 + k
-print(u)
+a = camera().ray_dir(100, 200)
+print("ray", a[0], a[1], a[2])
 
+mesh = add_mesh()
+v1 = vec3(0, 0, 0)
+v2 = vec3(20, 0, 0)
+v3 = vec3(0, 20, 0)
+mesh.add_triangle(v1, v2, v3)
 
 class CameraTool:
 	def __init__(self):
-		self.camera = Camera()
+		self.camera = camera()
 		self.is_dragging = False
 		self.is_middle_down = False
 		self.is_right_down = False
@@ -87,6 +89,7 @@ print("python camera tool loaded")
 `;
 
 	tool_pen = `
+
 def mousemove(x, y, button):
 	return
 
@@ -146,30 +149,11 @@ print("python pen tool loaded")
 		}
 	}
 
-	var Camera = function () {
-		if (!(this instanceof Sk.builtin.Camera)) {
-			return new Sk.builtin.Camera();
-		}
-		return this;
-	};
-	Sk.builtin.Camera = Camera;
-	Sk.abstr.setUpInheritance("Camera", Camera, Sk.builtin.object);
-	Sk.builtin.Camera.prototype.pan = new Sk.builtin.func(function (self, mx, my) {
-		umgl.get_scene().camera.pan(mx.v, my.v);
-	});
-	Sk.builtin.Camera.prototype.dolly = new Sk.builtin.func(function (self, mx, my) {
-		umgl.get_scene().camera.dolly(mx.v, my.v);
-	});
-	Sk.builtin.Camera.prototype.rotate = new Sk.builtin.func(function (self, mx, my) {
-		umgl.get_scene().camera.rotate(mx.v, my.v);
-	});
-
 	function execute_script() {
 		var editor = ace.edit("editor"),
 			myPromise = Sk.misceval.asyncToPromise(function () {
 				var module;
 				clear_output();
-				Sk.builtins.Camera = Sk.builtin.Camera;
 
 				module = Sk.importMainWithBody("<stdin>", false, editor.getValue(), true);
 				py_mousemove = module.tp$getattr('mousemove');
@@ -213,8 +197,8 @@ print("python pen tool loaded")
 		Sk.configure({output : builtinOutput, read : builtinRead});
 
 		Sk.externalLibraries = {
-			"ummath" : {
-				path: 'js/pyummath.js',
+			"cabbage" : {
+				path: 'js/pycabbage.js'
 			}
 		};
 

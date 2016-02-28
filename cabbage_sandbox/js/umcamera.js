@@ -17,6 +17,8 @@
 		this.up = new ummath.UMVec3d(0, 1, 0);
 		this.rotation = new ummath.UMVec3d(0, 0, 0);
 		this.view_projection_location_ = {};
+		this.width = w;
+		this.height = h;
 
 		ummath.um_matrix_look_at_rh(this.view_matrix_, this.position, this.target, this.up);
 		ummath.um_matrix_perspective_fov_rh(this.projection_matrix_, ummath.um_to_radian(this.fov_y), this.aspect, this.near, this.far);
@@ -114,8 +116,28 @@
 	};
 
 	UMCamera.prototype.resize = function (w, h) {
+		this.width = w;
+		this.height = h;
 		this.aspect = parseFloat(w) / parseFloat(h);
 		ummath.um_matrix_perspective_fov_rh(this.projection_matrix_, ummath.um_to_radian(this.fov_y), this.aspect, this.near, this.far);
+	};
+
+	UMCamera.prototype.generate_ray_dir = function (px, py) {
+		var vpm = this.view_projection_matrix_,
+			right = new ummath.UMVec3d(vpm.m[0][0], vpm.m[1][0], vpm.m[2][0]),
+			up = new ummath.UMVec3d(vpm.m[0][1], vpm.m[1][1], vpm.m[2][1]),
+			dir = new ummath.UMVec3d(vpm.m[0][2], vpm.m[1][2], vpm.m[2][2]);
+
+		console.log(this, vpm, right, up, dir);
+		var inv_yscale = Math.tan(ummath.um_to_radian(this.fov_y * 0.5));
+		var inv_xscale = this.aspect * inv_yscale;
+		right = right.scale(inv_xscale);
+		up = up.scale(inv_yscale);
+		var xx = px * (1.0 / this.width) * 2.0 - 1.0;
+		var yy = py * (1.0 / this.height) * 2.0 - 1.0;
+		var xdir = right.scale(this.aspect).scale(xx);
+		var ydir = up.scale(yy);
+		return xdir.add(ydir).add(dir.scale(1.0 / inv_yscale)).normalized();
 	};
 
 	window.umcamera = {};
