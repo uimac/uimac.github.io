@@ -31,25 +31,37 @@ $builtinmodule = function(name) {
 		});
 
 		$loc.cross = new Sk.builtin.func(function (self, src) {
-			var dst = Sk.misceval.callsim(mod.vec4);
+			var dst = Sk.misceval.callsim(mod.vec3);
 			dst.vec = self.vec.cross(src.vec);
 			return dst;
 		});
 
 		$loc.add = new Sk.builtin.func(function (self, src) {
-			var dst = Sk.misceval.callsim(mod.vec4);
+			var dst = Sk.misceval.callsim(mod.vec3);
+			dst.vec = self.vec.add(src.vec);
+			return dst;
+		});
+
+		$loc.__add__ =  new Sk.builtin.func(function (self, src) {
+			var dst = Sk.misceval.callsim(mod.vec3);
 			dst.vec = self.vec.add(src.vec);
 			return dst;
 		});
 
 		$loc.sub = new Sk.builtin.func(function (self, src) {
-			var dst = Sk.misceval.callsim(mod.vec4);
+			var dst = Sk.misceval.callsim(mod.vec3);
+			dst.vec = self.vec.sub(src.vec);
+			return dst;
+		});
+
+		$loc.__sub__ = new Sk.builtin.func(function (self, src) {
+			var dst = Sk.misceval.callsim(mod.vec3);
 			dst.vec = self.vec.sub(src.vec);
 			return dst;
 		});
 
 		$loc.multiply = new Sk.builtin.func(function (self, src) {
-			var dst = Sk.misceval.callsim(mod.vec4);
+			var dst = Sk.misceval.callsim(mod.vec3);
 			dst.vec = self.vec.multiply(src.vec);
 			return dst;
 		});
@@ -59,8 +71,19 @@ $builtinmodule = function(name) {
 			return self;
 		});
 
+		$loc.__mul__ = new Sk.builtin.func(function (self, src) {
+			if (src.v) {
+				self.vec.scale(src.v);
+				return self;
+			} else {
+				var dst = Sk.misceval.callsim(mod.vec3);
+				dst.vec = self.vec.multiply(src.vec);
+				return dst;
+			}
+		});
+
 		$loc.normalized = new Sk.builtin.func(function (self) {
-			var dst = Sk.misceval.callsim(mod.vec4);
+			var dst = Sk.misceval.callsim(mod.vec3);
 			dst.vec = self.vec.normalized(self.vec);
 			return dst;
 		});
@@ -112,7 +135,19 @@ $builtinmodule = function(name) {
 			return dst;
 		});
 
+		$loc.__add__ =  new Sk.builtin.func(function (self, src) {
+			var dst = Sk.misceval.callsim(mod.vec4);
+			dst.vec = self.vec.add(src.vec);
+			return dst;
+		});
+
 		$loc.sub = new Sk.builtin.func(function (self, src) {
+			var dst = Sk.misceval.callsim(mod.vec4);
+			dst.vec = self.vec.sub(src.vec);
+			return dst;
+		});
+
+		$loc.__sub__ = new Sk.builtin.func(function (self, src) {
 			var dst = Sk.misceval.callsim(mod.vec4);
 			dst.vec = self.vec.sub(src.vec);
 			return dst;
@@ -127,6 +162,17 @@ $builtinmodule = function(name) {
 		$loc.scale = new Sk.builtin.func(function (self, scale) {
 			self.vec.scale(scale.v);
 			return self;
+		});
+
+		$loc.__mul__ = new Sk.builtin.func(function (self, src) {
+			if (src.v) {
+				self.vec.scale(src.v);
+				return self;
+			} else {
+				var dst = Sk.misceval.callsim(mod.vec4);
+				dst.vec = self.vec.multiply(src.vec);
+				return dst;
+			}
 		});
 
 		$loc.normalized = new Sk.builtin.func(function (self) {
@@ -186,6 +232,17 @@ $builtinmodule = function(name) {
 			var dst = Sk.misceval.callsim(mod.vec3);
 			dst.vec = dir;
 			return dst;
+		});
+		$loc.position = new Sk.builtin.func(function (self) {
+			var dst = Sk.misceval.callsim(mod.vec3);
+			dst.vec = umscene.camera.position;
+			return dst;
+		});
+		$loc.width = new Sk.builtin.func(function (self) {
+			return Sk.builtin.float_(umscene.camera.width);
+		});
+		$loc.height = new Sk.builtin.func(function (self) {
+			return Sk.builtin.float_(umscene.camera.height);
 		});
 	};
 	mod.camera = Sk.misceval.buildClass(mod, camera, 'camera', []);

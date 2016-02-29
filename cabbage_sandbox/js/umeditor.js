@@ -90,14 +90,114 @@ print("python camera tool loaded")
 
 	tool_pen = `
 
+import cabbage
+from cabbage import *
+import math
+
+
+def pos(x, y):
+	dir = camera().ray_dir(x, camera().height() - y)
+	org = camera().position()
+	return org.add(dir * 100.0);
+
+class SimplePen:
+	def __init__(self):
+		self.mesh = None
+		self.is_dragging = False
+		self.pre_dir = None
+		self.pre_point = None
+		self.pre_points = None
+		self.count = 0
+
+	def circle_point(self, p0, p1):
+		dir = (p1 - p0).normalized()
+		dp = dir.dot(p1)
+		dir11 = (vec3(dp / dir[0], 0, 0) - p1).normalized()
+		dir12 = (vec3(0, dp / dir[1], 0) - p1).normalized()
+		dir13 = (vec3(0, 0, dp / dir[2]) - p1).normalized()
+		v10 = p1 + dir11 * 3
+		v11 = p1 + dir12 * 3
+		v12 = p1 + dir13 * 3
+		self.pre_points = (v10, v11, v12)
+		return (v10, v11, v12)
+
+	def circle_points(self, p0, p1):
+		dir = (p1 - p0).normalized()
+		dp = dir.dot(p1)
+		if not self.pre_dir:
+			self.pre_dir = dir
+		dpp = self.pre_dir.dot(p0)
+		dir11 = vec3((1.0, 0.0, 0.0))
+		if math.fabs(dir[0]) > 0.001:
+			dir11 = (vec3((dp / dir[0], 0.0, 0.0)) - p1).normalized()
+		elif math.fabs(dir[1]) > 0.001:
+			dir11 = (vec3((0.0, dp / dir[1], 0.0)) - p1).normalized()
+		elif math.fabs(dir[2]) > 0.001:
+			dir11 = (vec3((0.0, 0.0, dp / dir[2])) - p1).normalized()
+		else:
+			print("oops")
+		dir12 = dir.cross(dir11).normalized()
+		dir13 = dir.cross(dir12).normalized()
+		v00 = self.pre_points[0]
+		v01 = self.pre_points[1]
+		v02 = self.pre_points[2]
+		v10 = (p1 + dir11 * 0.5)
+		v11 = (p1 + dir12 * 0.5)
+		v12 = (p1 + dir13 * 0.5)
+		self.pre_dir = dir
+		self.pre_points = (v10, v11, v12)
+		return [(v00, v10, v01), (v01, v10, v11),\
+			(v01, v11, v02), (v02, v11, v12),\
+			(v02, v12, v00), (v00, v12, v10)]
+
+	def start_stroke(self, v):
+		self.start_point = v
+		self.count = self.count + 1
+		print("start stroke")
+
+	def on_stroke(self, v):
+		if self.start_point:
+			p = self.circle_point(self.start_point, v)
+			self.mesh = add_mesh()
+			self.pre_point = self.start_point
+			self.start_point = None
+
+		if self.mesh:
+			p0 = self.pre_point
+			p1 = v
+			ps = self.circle_points(p0, p1)
+			for p in ps:
+				self.mesh.add_triangle(p[2], p[1], p[0])
+		self.pre_point = v
+
+	def end_stroke(self, v):
+		self.mesh = None
+		print("end stroke")
+
+	def mousemove(self, x, y, button):
+		if self.is_dragging:
+			self.on_stroke(pos(x, y))
+
+	def mousedown(self, x, y, button):
+		if button == 0:
+			self.is_dragging = True
+			self.start_stroke(pos(x, y))
+
+	def mouseup(self, x, y, button):
+		if self.is_dragging:
+			self.end_stroke(pos(x,y))
+			self.is_dragging = False
+
+tool = SimplePen()
+
 def mousemove(x, y, button):
-	return
+	tool.mousemove(x, y, button)
 
 def mousedown(x, y, button):
-	print(x, y, button)
+	tool.mousedown(x, y, button)
 
 def mouseup(x, y, button):
-	print(x, y, button)
+	tool.mouseup(x, y, button)
 
 print("python pen tool loaded")
 	`;
