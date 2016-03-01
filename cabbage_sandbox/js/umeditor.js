@@ -287,7 +287,8 @@ print("python pen tool loaded")
 
 	function init() {
 		var editor = ace.edit("editor"),
-			canvas = document.getElementById('canvas');
+			canvas = document.getElementById('canvas'),
+			getPos;
 
 		document.getElementById('editor').style.height = "100%";
 		editor.getSession().setMode("ace/mode/python");
@@ -304,14 +305,23 @@ print("python pen tool loaded")
 
 		console.log("Sk.builtins", Sk.builtins);
 
+		getPos = function (evt) {
+			var rect = canvas.getBoundingClientRect();
+			return [evt.clientX - rect.left - canvas.clientLeft,
+					evt.clientY - rect.top - canvas.clientTop]
+		};
+
 		canvas.addEventListener('mousedown', function (evt) {
-			mousedown(evt.pageX, evt.pageY, evt.button);
+			var pos = getPos(evt);
+			mousedown(pos[0], pos[1], evt.button);
 		});
 		window.addEventListener('mouseup', function (evt) {
-			mouseup(evt.pageX, evt.pageY, evt.button);
+			var pos = getPos(evt);
+			mouseup(pos[0], pos[1], evt.button);
 		});
 		canvas.addEventListener('mousemove', function (evt) {
-			mousemove(evt.pageX, evt.pageY, evt.button);
+			var pos = getPos(evt);
+			mousemove(pos[0], pos[1], evt.button);
 		});
 		window.addEventListener('keydown', function (evt) {
 			keydown(evt.shiftKey, evt.ctrlKey);
