@@ -209,6 +209,38 @@
 		}());
 */
 
+		canvas.addEventListener('touchstart', function (evt) {
+			is_dragging = true;
+			pre_x = evt.changedTouches[0].pageX;
+			pre_y = evt.changedTouches[0].pageY;
+			if (!scene.is_playing) {
+				mainloop_handle = requestAnimationFrame(main_loop);
+			}
+		});
+
+		canvas.addEventListener('touchmove', function (evt) {
+			var mx = evt.changedTouches[0].pageX - pre_x,
+				my = evt.changedTouches[0].pageY - pre_y;
+			if (is_dragging && current_tool.id === 'tool_camera') {
+				if (is_shift_down || is_middle_down) {
+					scene.camera.pan(mx, my);
+				} else if (is_ctrl_down || is_right_down) {
+					scene.camera.dolly(mx, my);
+				} else {
+					scene.camera.rotate(mx, my);
+				}
+			}
+			pre_x = evt.changedTouches[0].pageX;
+			pre_y = evt.changedTouches[0].pageY;
+			evt.preventDefault();
+		});
+
+		canvas.addEventListener('touchend', function (evt) {
+			if (!scene.is_playing) {
+				cancelAnimationFrame(mainloop_handle);
+			}
+			is_drawing = false;
+		});
 
 		window.addEventListener('mousedown', function (evt) {
 			/*
