@@ -288,7 +288,8 @@ print("python pen tool loaded")
 	function init() {
 		var editor = ace.edit("editor"),
 			canvas = document.getElementById('canvas'),
-			getPos;
+			getPos,
+			getTouchPos;
 
 		document.getElementById('editor').style.height = "100%";
 		editor.getSession().setMode("ace/mode/python");
@@ -310,6 +311,11 @@ print("python pen tool loaded")
 			return [evt.clientX - rect.left - canvas.clientLeft,
 					evt.clientY - rect.top - canvas.clientTop]
 		};
+		getTouchPos = function (evt) {
+			var rect = canvas.getBoundingClientRect();
+			return [evt.changedTouches[0].clientX - rect.left - canvas.clientLeft,
+					evt.changedTouches[0].clientY - rect.top - canvas.clientTop]
+		};
 
 		canvas.addEventListener('mousedown', function (evt) {
 			var pos = getPos(evt);
@@ -328,6 +334,19 @@ print("python pen tool loaded")
 		});
 		window.addEventListener('keyup', function (evt) {
 			keyup();
+		});
+		canvas.addEventListener('touchstart', function (evt) {
+			var pos = getTouchPos(evt);
+			mousedown(pos[0], pos[1], 0);
+		});
+		canvas.addEventListener('touchmove', function (evt) {
+			var pos = getTouchPos(evt);
+			mousemove(pos[0], pos[1], 0);
+			evt.preventDefault();
+		});
+		canvas.addEventListener('touchend', function (evt) {
+			var pos = getTouchPos(evt);
+			mouseup(pos[0], pos[1], 0);
 		});
 
 		document.getElementById('execute_button').onclick = execute_script;
