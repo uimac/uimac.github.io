@@ -15,15 +15,6 @@
 import cabbage
 from cabbage import *
 
-a = camera().ray_dir(100, 200)
-print("ray", a[0], a[1], a[2])
-
-mesh = add_mesh()
-v1 = vec3(0, 0, 0)
-v2 = vec3(20, 0, 0)
-v3 = vec3(0, 20, 0)
-mesh.add_triangle(v1, v2, v3)
-
 class CameraTool:
 	def __init__(self):
 		self.camera = camera()

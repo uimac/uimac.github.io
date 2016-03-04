@@ -475,32 +475,70 @@
 			is_middle_down = false,
 			mstate = {
 				pre_x : 0
-			};
+			},
+			getPos = function (ev) {
+				var rect = canvas.getBoundingClientRect();
+				return [ev.clientX - rect.left - canvas.clientLeft,
+						ev.clientY - rect.top - canvas.clientTop]
+			},
+			getTouchPos = function (ev) {
+				var rect = canvas.getBoundingClientRect();
+				return [ev.changedTouches[0].clientX - rect.left - canvas.clientLeft,
+						ev.changedTouches[0].clientY - rect.top - canvas.clientTop]
+			},
+			onLeftDown,
+			onMouseUp,
+			onLeftMove;
+
+		onLeftDown = function (pos) {
+			var x = pos[0],
+				y = pos[1],
+				splitx = timeline.splitX();
+			if (x > splitx) {
+				is_key_changing = true;
+				timeline.setCurrentFrame( (x - splitx + timeline.setting.offsetX) / timeline.setting.scale);
+			} else if (timeline.isOnSplitter(x, y)) {
+				is_split_moving = true;
+				canvas.style.cursor = "e-resize";
+			}
+		};
+
+		onLeftMove = function (pos) {
+			var x = pos[0],
+				y = pos[1],
+				splitx;
+			if (timeline.isOnSplitter(x, y)) {
+				canvas.style.cursor = "e-resize";
+			} else {
+				canvas.style.cursor = "default";
+			}
+			if (is_key_changing) {
+				splitx = timeline.splitX();
+				timeline.setCurrentFrame( (x - splitx + timeline.setting.offsetX) / timeline.setting.scale );
+			} else if (is_split_moving) {
+				timeline.moveSplit(x);
+			}
+		};
+
+		onMouseUp = function () {
+			is_left_down = false;
+			is_key_changing = false;
+			is_split_moving = false;
+			is_middle_down = false;
+			canvas.style.cursor = "default";
+		};
 
 		canvas.addEventListener('click', function (ev) {
-			var rect = ev.target.getBoundingClientRect();
-				x = ev.clientX - rect.left;
-				y = ev.clientY - rect.top;
-			timeline.click(x, y);
+			var pos = getPos(ev);
+			timeline.click(pos[0], pos[1]);
 		});
 		canvas.addEventListener('mousedown', (function (mstate) {
 			return function (ev) {
-				var rect,
-					splitx,
-					x, y;
+				var x;
 				if (ev.button === 0) {
-					rect = ev.target.getBoundingClientRect();
-					x = ev.clientX - rect.left;
-					y = ev.clientY - rect.top;
-					splitx = timeline.splitX();
-					if (x > splitx) {
-						is_key_changing = true;
-						timeline.setCurrentFrame( (x - splitx + timeline.setting.offsetX) / timeline.setting.scale);
-					} else if (timeline.isOnSplitter(x, y)) {
-						is_split_moving = true;
-						canvas.style.cursor = "e-resize";
-					}
+					onLeftDown(getPos(ev));
 				} else if (ev.button == 1) {
+					x = getPos(ev)[0];
 					mstate.pre_x = x;
 					is_middle_down = true;
 				}
@@ -508,24 +546,12 @@
 		}(mstate)));
 		canvas.addEventListener('mousemove', (function (mstate) {
 			return function (ev) {
-				var splitx,
-					rect = ev.target.getBoundingClientRect();
-					x = ev.clientX - rect.left;
-					y = ev.clientY - rect.top,
+				var x = getPos(ev)[0],
 					mx = 0;
-				if (timeline.isOnSplitter(x, y)) {
-					canvas.style.cursor = "e-resize";
-				} else {
-					canvas.style.cursor = "default";
+				if (ev.button === 0) {
+					onLeftMove(getPos(ev));
 				}
-				if (is_key_changing) {
-					splitx = timeline.splitX();
-					timeline.setCurrentFrame( (x - splitx + timeline.setting.offsetX) / timeline.setting.scale );
-				} else if (is_split_moving) {
-					rect = ev.target.getBoundingClientRect();
-					x = ev.clientX - rect.left;
-					timeline.moveSplit(x);
-				} else if (is_middle_down && mstate.pre_x) {
+				if (is_middle_down && mstate.pre_x) {
 					mx = -(x - mstate.pre_x);
 					//console.log(mx, x, mstate.pre_x, mstate);
 					timeline.moveTimeline(mx, 0);
@@ -534,12 +560,22 @@
 			};
 		}(mstate)));
 		canvas.addEventListener('mouseup', function (ev) {
-			is_left_down = false;
-			is_key_changing = false;
-			is_split_moving = false;
-			is_middle_down = false;
-			canvas.style.cursor = "default";
+			onMouseUp();
 		});
+
+		canvas.addEventListener('touchstart', function (ev) {
+			onLeftDown(getTouchPos(ev));
+		});
+		canvas.addEventListener('touchmove', function (ev) {
+			onLeftMove(getTouchPos(ev));
+			ev.preventDefault();
+		});
+		canvas.addEventListener('touchend', function (ev) {
+			var pos = getTouchPos(ev);
+			timeline.click(pos[0], pos[1]);
+			onMouseUp();
+		});
+
 		canvas.addEventListener('mousewheel', function (ev) {
 			var data = ev.wheelDelta;
 			if (data > 0) {
