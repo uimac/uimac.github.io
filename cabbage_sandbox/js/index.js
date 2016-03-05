@@ -1,13 +1,14 @@
 /*jslint devel:true */
-/*global ace, brython */
+/*global ace */
 
-(function (umgl, umeditor, umtimeline, umlayout) {
+(function (umgl, umeditor, umtimeline, umlist, umlayout) {
 	"use strict";
 
 	window.addEventListener('load', function () {
 		umgl.init();
 		umeditor.init();
 		umtimeline.init();
+		umlist.init();
 		umlayout.init();
 	});
 
@@ -15,7 +16,8 @@
 		umgl.dispose();
 		umeditor.dispose();
 		umtimeline.dispose();
+		umlist.dispose();
 		umlayout.dispose();
 	});
 
-}(window.umgl, window.umeditor, window.umtimeline, window.umlayout));
+}(window.umgl, window.umeditor, window.umtimeline, window.umlist, window.umlayout));

@@ -2,7 +2,8 @@
 /*global Float32Array */
 (function () {
 	var UMLayout,
-		panels = {};
+		panels = {},
+		layout;
 
 	UMLayout = function (setting) {
 		this.setting = setting;
@@ -251,7 +252,16 @@
 						},
 						{
 							id : 'mainview',
-							size : "-90px"
+							size : "-293px"
+						},
+						{
+							size : "3px",
+							splitter : "3px"
+						},
+						{
+							id : 'listview',
+							size : "200px",
+							minSize : "80px"
 						},
 						{
 							size : "3px",
@@ -274,8 +284,9 @@
 					size : "200px",
 					minSize : "50px"
 				}]
-			},
-			layout = new UMLayout(setting);
+			};
+
+		layout = new UMLayout(setting)
 
 		window.addEventListener('resize', function () {
 			layout.resize();
