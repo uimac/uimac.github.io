@@ -1,6 +1,6 @@
 /*jslint devel:true*/
 /*global Float32Array */
-(function (ummath) {
+(function (ummath, umtriangle) {
 	"use strict";
 	var UMMesh;
 
@@ -231,11 +231,19 @@
 	};
 
 	UMMesh.prototype.get_vert = function (faceindex, i) {
-		return new ummath.UMVec3d(
-			this.verts[(faceindex * 3 + i) * 3 + 0],
-			this.verts[(faceindex * 3 + i) * 3 + 1],
-			this.verts[(faceindex * 3 + i) * 3 + 2]
-		);
+		if (this.indices && this.indices.length > 0) {
+			return new ummath.UMVec3d(
+				this.verts[this.indices(faceindex * 3 + i) * 3 + 0],
+				this.verts[this.indices(faceindex * 3 + i) * 3 + 1],
+				this.verts[this.indices(faceindex * 3 + i) * 3 + 2]
+			);
+		} else {
+			return new ummath.UMVec3d(
+				this.verts[(faceindex * 3 + i) * 3 + 0],
+				this.verts[(faceindex * 3 + i) * 3 + 1],
+				this.verts[(faceindex * 3 + i) * 3 + 2]
+			);
+		}
 	};
 
 	UMMesh.prototype.add_triangle = function (v1, v2, v3, min_time, max_time) {
@@ -255,7 +263,26 @@
 		this.update_box();
 	};
 
+	UMMesh.prototype.create_primitive_list = function () {
+		var i,
+			polycount,
+			tri,
+			primitive_list = [];
+		if (this.indices && this.indices.length > 0) {
+			for (i = 0, polycount = this.indices.length / 3; i < polycount; i = i + 1) {
+				tri = new umtriangle.UMTriangle(this, i);
+				primitive_list.push(tri);
+			}
+		} else if (this.verts && this.verts.length > 0){
+			for (i = 0, polycount = this.verts.length / 3; i < polycount; i = i + 1) {
+				tri = new umtriangle.UMTriangle(this, i);
+				primitive_list.push(tri);
+			}
+		}
+		return primitive_list;
+	};
+
 	window.ummesh = {};
 	window.ummesh.UMMesh = UMMesh;
 
-}(window.ummath));
+}(window.ummath, window.umtriangle));

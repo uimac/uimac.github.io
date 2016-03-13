@@ -5,8 +5,8 @@
 
 	UMBvh = function () {};
 
-	UMBvh.prototype.build = function (primitives) {
-		
+	UMBvh.prototype.build = function (primitive_list) {
+
 	};
 
 	UMBvh.prototype.intersects = function () {

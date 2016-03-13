@@ -1,6 +1,6 @@
 /*jslint devel:true*/
 /*global Float32Array, Uint8Array */
-(function (ummath, umline, ummesh, umboxlist, ummaterial, umcamera, umshader, umobj) {
+(function (ummath, umline, ummesh, umboxlist, ummaterial, umcamera, umshader, umobj, umbvh) {
 	"use strict";
 	var UMScene,
 		now = window.performance && (
@@ -22,12 +22,14 @@
 		this.nurbs_list = [];
 		this.box_list = [];
 		this.update_func_list = [];
+		this.primitive_list = [];
 		this.width = 800;
 		this.height = 600;
 		this.current_time = 0;
 		this.is_playing = false;
 		this.is_pausing = false;
 		this.is_cw = false;
+		this.bvh = null;
 	};
 
 	function create_test_mesh(gl) {
@@ -247,6 +249,10 @@
 		this.camera.resize(width, height);
 	};
 
+	UMScene.prototype.add_mesh_to_primitive_list = function (mesh) {
+		this.primitive_list = this.primitive_list.concat(mesh.create_primitive_list());
+	};
+
 	UMScene.prototype.load_obj = function (text) {
 		var obj = umobj.load(text),
 			mesh = new ummesh.UMMesh(this.gl, obj.vertices, obj.normals, obj.uvs),
@@ -256,6 +262,8 @@
 		meshmat.set_polygon_count(obj.vertices.length / 3 / 3);
 		mesh.material_list.push(meshmat);
 		this.mesh_list.push(mesh);
+		this.add_mesh_to_primitive_list(mesh);
+		console.log("primitive list ", this.primitive_list)
 	};
 
 
@@ -476,6 +484,7 @@
 
 	UMScene.prototype.dispose = function () {
 		var i = 0;
+		this.primitive_list = [];
 		for (i = 0; i < this.mesh_list.length; i = i + 1) {
 			this.mesh_list[i].dispose();
 		}
@@ -502,4 +511,5 @@
 	window.umscene = {};
 	window.umscene.UMScene = UMScene;
 
-}(window.ummath, window.umline, window.ummesh, window.umboxlist, window.ummaterial, window.umcamera, window.umshader, window.umobj));
+}(window.ummath, window.umline, window.ummesh, window.umboxlist,
+  window.ummaterial, window.umcamera, window.umshader, window.umobj, window.umbvh));
