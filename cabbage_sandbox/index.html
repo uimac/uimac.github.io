@@ -118,7 +118,7 @@
 	varying vec4 light_direction;
 	uniform mat4 view_projection_matrix;
 	uniform mat4 global_matrix;
-	const vec4 light_position = vec4(100.0, 100.0, 100.0, 0.0);
+	const vec4 light_position = vec4(100.0, 50.0, 100.0, 0.0);
 
 	void main()
 	{
@@ -192,8 +192,8 @@
 		}
 		//vec4 out_color = phong(diffuse, vnl, reflection, view_direction);
 		//out_color.w = diffuse.w;
-        gl_FragColor.rgb = mat_diffuse.rgb * mix(vec3(0.0), vnl, edgeFactor());
-		gl_FragColor.a = diffuse.a;
+        gl_FragColor.rgb =  mix(vec3(0.0), mat_diffuse.rgb * vnl + mat_ambient.rgb, edgeFactor());
+		gl_FragColor.a = mat_diffuse.a;
 	}
 </script>
 
@@ -320,7 +320,7 @@
 		</div>
 	</div>
 	<div id="mainview">
-		<canvas id="canvas" style="background-color:red"></canvas>
+		<canvas id="canvas"></canvas>
 	</div>
 	<div id="settingview">
 		<img src="img/surface.png" id="tool_surface" class="shader_tool selected" />

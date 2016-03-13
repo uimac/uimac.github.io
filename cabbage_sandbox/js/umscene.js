@@ -225,9 +225,7 @@
 
 		this.grid = create_grid(gl);
 
-		var box1 = new ummath.UMBox(new ummath.UMVec3d(0, 0, 0), new ummath.UMVec3d(5, 5, 5));
-		var box2 = new ummath.UMBox(new ummath.UMVec3d(-3, -3, -3), new ummath.UMVec3d(3, 3, 3));
-		var boxlist = new umboxlist.UMBoxList(gl, [box1, box2]);
+		var boxlist = new umboxlist.UMBoxList(gl, []);
 		this.box_list.push(boxlist);
 	};
 

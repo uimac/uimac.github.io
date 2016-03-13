@@ -7,6 +7,7 @@
 	UMBoxList = function (gl, boxlist) {
 		this.gl = gl;
 		this.mesh = new ummesh.UMMesh(gl);
+		this.boxlist = boxlist;
 		this.update(boxlist);
 	};
 
@@ -138,12 +139,29 @@
 		}
 	};
 
+	UMBoxList.prototype.add = function (box) {
+		var i;
+		for (i = 0; i < this.boxlist.length; i = i + 1) {
+			if (this.boxlist[i] === box) {
+				this.update(this.boxlist);
+				return;
+			}
+		}
+		this.boxlist.push(box);
+		this.update(this.boxlist);
+	};
+
 	UMBoxList.prototype.reset_shader_location = function () {
 		this.mesh.reset_shader_location();
 	};
 
 	UMBoxList.prototype.draw = function (shader, camera) {
+		if (shader.id() === "vertex_shader/fragment_shader") {
+			return;
+		}
+		this.gl.disable(this.gl.CULL_FACE);
 		this.mesh.draw(shader, camera);
+		this.gl.enable(this.gl.CULL_FACE);
 	};
 
 	UMBoxList.prototype.reset_shader_location = function () {

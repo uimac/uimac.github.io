@@ -227,7 +227,6 @@
 			for (i = 0; i < vlen; i = i + 1) {
 				this.box.extend([this.verts[i * 3 + 0], this.verts[i * 3 + 1], this.verts[i * 3 + 2]]);
 			}
-			console.log("box updated", this.box.min(), this.box.max());
 		}
 	};
 
@@ -253,6 +252,7 @@
 
 		this.material_list[0].set_polygon_count(this.verts.length / 3 / 3);
 		this.update(this.verts, this.normals);
+		this.update_box();
 	};
 
 	window.ummesh = {};

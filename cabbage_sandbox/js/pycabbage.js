@@ -258,6 +258,7 @@ $builtinmodule = function(name) {
 			var min = min_time ? min_time.v : null;
 			var max = max_time ? max_time.v : null;
 			self.mesh.add_triangle(v1.vec, v2.vec, v3.vec, min, max);
+			umscene.box_list[0].add(self.mesh.box);
 		});
 	};
 	create_mesh = Sk.misceval.buildClass(mod, mesh, 'mesh', []);

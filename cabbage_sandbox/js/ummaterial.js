@@ -12,6 +12,7 @@
 		this.flag_ = new ummath.UMVec4d(0, 0, 0, 0);
 		this.constant_color_location_ = null;
 		this.diffuse_location_ = null;
+		this.ambient_location_ = null;
 		this.flag_location_ = null;
 		this.sampler_location_ = null;
 		this.polygon_count_ = 0;
@@ -27,6 +28,9 @@
 		}
 		if (!this.diffuse_location_) {
 			this.diffuse_location_ = gl.getUniformLocation(shader.program_object(), "mat_diffuse");
+		}
+		if (!this.ambient_location_) {
+			this.ambient_location_ = gl.getUniformLocation(shader.program_object(), "mat_ambient");
 		}
 		if (!this.flag_location_) {
 			this.flag_location_ = gl.getUniformLocation(shader.program_object(), "mat_flags");
@@ -60,6 +64,12 @@
 				this.diffuse_.xyzw[1],
 				this.diffuse_.xyzw[2],
 				this.diffuse_.xyzw[3]);
+
+			gl.uniform4f(this.ambient_location_,
+				this.ambient_.xyzw[0],
+				this.ambient_.xyzw[1],
+				this.ambient_.xyzw[2],
+				this.ambient_.xyzw[3]);
 		}
 
 		gl.uniform4f(this.flag_location_,
