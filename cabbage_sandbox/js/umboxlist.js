@@ -131,6 +131,7 @@
 		if (this.mesh.material_list.length === 0) {
 			var meshmat = new ummaterial.UMMaterial(this.gl);
 			meshmat.set_polygon_count(verts.length / 3 / 3);
+			meshmat.set_diffuse(new ummath.UMVec4d(0.7, 0.7, 0.7, 0.5));
 			this.mesh.material_list.push(meshmat);
 		} else {
 			this.mesh.material_list[0].set_polygon_count(verts.length / 3 / 3);

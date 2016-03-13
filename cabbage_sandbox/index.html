@@ -192,8 +192,8 @@
 		}
 		//vec4 out_color = phong(diffuse, vnl, reflection, view_direction);
 		//out_color.w = diffuse.w;
-        gl_FragColor.rgb = mix(vec3(0.0), vnl, edgeFactor());
-		gl_FragColor.a = 1.0;
+        gl_FragColor.rgb = mat_diffuse.rgb * mix(vec3(0.0), vnl, edgeFactor());
+		gl_FragColor.a = diffuse.a;
 	}
 </script>
 

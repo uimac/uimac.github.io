@@ -189,6 +189,7 @@
 		gl.enable(gl.DEPTH_TEST);
 		gl.depthFunc(gl.LESS);
 		gl.enable(gl.CULL_FACE);
+		gl.enable(gl.BLEND);
 		gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 		gl.clearColor(0.25, 0.25, 0.25, 1.0);
 
