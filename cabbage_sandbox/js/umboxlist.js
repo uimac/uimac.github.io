@@ -1,87 +1,144 @@
 /*jslint devel:true */
 /*global Float32Array */
-(function (ummath, ummesh) {
+(function (ummath, ummesh, ummaterial) {
 	"use strict";
 	var UMBoxList;
 
 	UMBoxList = function (gl, boxlist) {
 		this.gl = gl;
-		this.material_list = [];
-		this.vertex_vbo = gl.createBuffer();
-
-		this.boxlist = boxlist;
-		this.update();
-
-		this.mesh = new ummesh.UMMesh();
-
-		this.position_attr = null;
-		this.normal_attr = null;
-		this.uv_attr = null;
-		this.global_matrix = new ummath.UMMat44d();
-		this.global_matrix_location_ = null;
+		this.mesh = new ummesh.UMMesh(gl);
+		this.update(boxlist);
 	};
 
 	UMBoxList.prototype.dispose = function () {
-		var gl = this.gl;
-		gl.DeleteBuffers(1, this.vertex_vbo);
 		this.mesh.dispose();
 	};
 
-	UMBoxList.prototype.update = function () {
+	function hideEdge(hide) {
+		var dist = 10000.0
+		if (hide === 0) {
+			return [1.0, dist, dist,
+					dist, 1.0, dist,
+					0.0, 0.0, 1.0];
+		} else if (hide === 1) {
+			return [1.0, 0.0, 0.0,
+					dist, 1.0, dist,
+					dist, dist, 1.0];
+		} else {
+			return [1.0, dist, dist,
+					0.0, 1.0, 0.0,
+					dist, dist, 1.0];
+		}
+	}
+
+	UMBoxList.prototype.update = function (boxlist) {
 		var i,
+			k,
 			verts = [],
 			normals = [],
+			edges = [],
+			barycentric = [],
 			min,
 			max,
 			box;
+
+		this.boxlist = boxlist;
 		for (i = 0; i < this.boxlist.length; i = i + 1) {
 			box = this.boxlist[i];
 			min = box.min_;
 			max = box.max_;
-			verts.push(min.xyz[0], min.xyz[1], min.xyz[2]);
-			verts.push(max.xyz[0], min.xyz[1], max.xyz[2]);
-			verts.push(min.xyz[0], min.xyz[1], max.xyz[2]);
 
-			verts.push(min.xyz[0], min.xyz[1], min.xyz[2]);
-			verts.push(max.xyz[0], min.xyz[1], min.xyz[2]);
-			verts.push(max.xyz[0], min.xyz[1], max.xyz[2]);
+			verts = verts.concat([min.xyz[0], min.xyz[1], min.xyz[2]]);
+			verts = verts.concat([max.xyz[0], min.xyz[1], max.xyz[2]]);
+			verts = verts.concat([min.xyz[0], min.xyz[1], max.xyz[2]]);
+			barycentric = barycentric.concat(hideEdge(0));
 
-			verts.push(min.xyz[0], max.xyz[1], max.xyz[2]);
-			verts.push(max.xyz[0], min.xyz[1], max.xyz[2]);
-			verts.push(min.xyz[0], min.xyz[1], max.xyz[2]);
+			verts = verts.concat([min.xyz[0], min.xyz[1], min.xyz[2]]);
+			verts = verts.concat([max.xyz[0], min.xyz[1], min.xyz[2]]);
+			verts = verts.concat([max.xyz[0], min.xyz[1], max.xyz[2]]);
+			barycentric = barycentric.concat(hideEdge(2));
+			for (k = 0; k < 6; k = k + 1) {
+				normals = normals.concat([0, -1, 0]);
+			}
 
-			verts.push(min.xyz[0], max.xyz[1], max.xyz[2]);
-			verts.push(max.xyz[0], max.xyz[1], max.xyz[2]);
-			verts.push(max.xyz[0], min.xyz[1], max.xyz[2]);
+			verts = verts.concat([min.xyz[0], max.xyz[1], max.xyz[2]]);
+			verts = verts.concat([min.xyz[0], min.xyz[1], max.xyz[2]]);
+			verts = verts.concat([max.xyz[0], min.xyz[1], max.xyz[2]]);
+			barycentric = barycentric.concat(hideEdge(2));
 
-			verts.push(max.xyz[0], max.xyz[1], max.xyz[2]);
-			verts.push(max.xyz[0], min.xyz[1], min.xyz[2]);
-			verts.push(max.xyz[0], min.xyz[1], max.xyz[2]);
+			verts = verts.concat([min.xyz[0], max.xyz[1], max.xyz[2]]);
+			verts = verts.concat([max.xyz[0], min.xyz[1], max.xyz[2]]);
+			verts = verts.concat([max.xyz[0], max.xyz[1], max.xyz[2]]);
+			barycentric = barycentric.concat(hideEdge(0));
+			for (k = 0; k < 6; k = k + 1) {
+				normals = normals.concat([0, 0, 1]);
+			}
 
-			verts.push(max.xyz[0], max.xyz[1], max.xyz[2]);
-			verts.push(max.xyz[0], max.xyz[1], min.xyz[2]);
-			verts.push(max.xyz[0], min.xyz[1], min.xyz[2]);
+			verts = verts.concat([max.xyz[0], max.xyz[1], max.xyz[2]]);
+			verts = verts.concat([max.xyz[0], min.xyz[1], max.xyz[2]]);
+			verts = verts.concat([max.xyz[0], min.xyz[1], min.xyz[2]]);
+			barycentric = barycentric.concat(hideEdge(2));
 
-			verts.push(max.xyz[0], max.xyz[1], min.xyz[2]);
-			verts.push(min.xyz[0], min.xyz[1], min.xyz[2]);
-			verts.push(max.xyz[0], min.xyz[1], min.xyz[2]);
+			verts = verts.concat([max.xyz[0], max.xyz[1], max.xyz[2]]);
+			verts = verts.concat([max.xyz[0], min.xyz[1], min.xyz[2]]);
+			verts = verts.concat([max.xyz[0], max.xyz[1], min.xyz[2]]);
+			barycentric = barycentric.concat(hideEdge(0));
+			for (k = 0; k < 6; k = k + 1) {
+				normals = normals.concat([1, 0, 0]);
+			}
 
-			verts.push(max.xyz[0], max.xyz[1], min.xyz[2]);
-			verts.push(min.xyz[0], max.xyz[1], min.xyz[2]);
-			verts.push(min.xyz[0], min.xyz[1], min.xyz[2]);
+			verts = verts.concat([max.xyz[0], max.xyz[1], min.xyz[2]]);
+			verts = verts.concat([max.xyz[0], min.xyz[1], min.xyz[2]]);
+			verts = verts.concat([min.xyz[0], min.xyz[1], min.xyz[2]]);
+			barycentric = barycentric.concat(hideEdge(2));
 
-			verts.push(min.xyz[0], max.xyz[1], min.xyz[2]);
-			verts.push(min.xyz[0], min.xyz[1], max.xyz[2]);
-			verts.push(min.xyz[0], min.xyz[1], min.xyz[2]);
+			verts = verts.concat([max.xyz[0], max.xyz[1], min.xyz[2]]);
+			verts = verts.concat([min.xyz[0], min.xyz[1], min.xyz[2]]);
+			verts = verts.concat([min.xyz[0], max.xyz[1], min.xyz[2]]);
+			barycentric = barycentric.concat(hideEdge(0));
+			for (k = 0; k < 6; k = k + 1) {
+				normals = normals.concat([0, 0, -1]);
+			}
 
-			verts.push(min.xyz[0], max.xyz[1], min.xyz[2]);
-			verts.push(min.xyz[0], max.xyz[1], max.xyz[2]);
-			verts.push(min.xyz[0], min.xyz[1], max.xyz[2]);
+			verts = verts.concat([min.xyz[0], max.xyz[1], min.xyz[2]]);
+			verts = verts.concat([min.xyz[0], min.xyz[1], min.xyz[2]]);
+			verts = verts.concat([min.xyz[0], min.xyz[1], max.xyz[2]]);
+			barycentric = barycentric.concat(hideEdge(2));
+
+			verts = verts.concat([min.xyz[0], max.xyz[1], min.xyz[2]]);
+			verts = verts.concat([min.xyz[0], min.xyz[1], max.xyz[2]]);
+			verts = verts.concat([min.xyz[0], max.xyz[1], max.xyz[2]]);
+			barycentric = barycentric.concat(hideEdge(0));
+			for (k = 0; k < 6; k = k + 1) {
+				normals = normals.concat([-1, 0, 0]);
+			}
+
+			verts = verts.concat([min.xyz[0], max.xyz[1], min.xyz[2]]);
+			verts = verts.concat([min.xyz[0], max.xyz[1], max.xyz[2]]);
+			verts = verts.concat([max.xyz[0], max.xyz[1], max.xyz[2]]);
+			barycentric = barycentric.concat(hideEdge(2));
+
+			verts = verts.concat([min.xyz[0], max.xyz[1], min.xyz[2]]);
+			verts = verts.concat([max.xyz[0], max.xyz[1], max.xyz[2]]);
+			verts = verts.concat([max.xyz[0], max.xyz[1], min.xyz[2]]);
+			barycentric = barycentric.concat(hideEdge(0));
+			for (k = 0; k < 6; k = k + 1) {
+				normals = normals.concat([0, 1, 0]);
+			}
 		}
+		this.mesh.update(verts, normals, null, null, barycentric);
 
-		gl.bindBuffer(gl.ARRAY_BUFFER, this.vertex_vbo);
-		gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(verts), gl.STATIC_DRAW);
-		gl.bindBuffer(gl.ARRAY_BUFFER, null);
+		if (this.mesh.material_list.length === 0) {
+			var meshmat = new ummaterial.UMMaterial(this.gl);
+			meshmat.set_polygon_count(verts.length / 3 / 3);
+			this.mesh.material_list.push(meshmat);
+		} else {
+			this.mesh.material_list[0].set_polygon_count(verts.length / 3 / 3);
+		}
+	};
+
+	UMBoxList.prototype.reset_shader_location = function () {
+		this.mesh.reset_shader_location();
 	};
 
 	UMBoxList.prototype.draw = function (shader, camera) {
@@ -89,10 +146,10 @@
 	};
 
 	UMBoxList.prototype.reset_shader_location = function () {
-		this.global_matrix_location_ = null;
+		this.mesh.reset_shader_location();
 	};
 
-	window.umline = {};
-	window.umline.UMBoxList = UMBoxList;
+	window.umboxlist = {};
+	window.umboxlist.UMBoxList = UMBoxList;
 
-}(window.ummath, window.ummesh));
+}(window.ummath, window.ummesh, window.ummaterial));

@@ -1,6 +1,6 @@
 /*jslint devel:true*/
 /*global Float32Array, Uint8Array */
-(function (ummath, umline, ummesh, ummaterial, umcamera, umshader, umobj) {
+(function (ummath, umline, ummesh, umboxlist, ummaterial, umcamera, umshader, umobj) {
 	"use strict";
 	var UMScene,
 		now = window.performance && (
@@ -20,6 +20,7 @@
 		this.mesh_list = [];
 		this.point_list = [];
 		this.nurbs_list = [];
+		this.box_list = [];
 		this.update_func_list = [];
 		this.width = 800;
 		this.height = 600;
@@ -194,6 +195,9 @@
 		for (i = 0; i < this.point_list.length; i = i + 1) {
 			this.point_list[i].draw(this.shader_list[0], this.camera);
 		}
+		for (i = 0; i < this.box_list.length; i = i + 1) {
+			this.box_list[i].draw(this.current_shader, this.camera);
+		}
 		for (i = 0; i < this.nurbs_list.length; i = i + 1) {
 			this.set_front_face(true);
 			this.nurbs_list[i].draw(this.shader_list[2], this.camera);
@@ -220,12 +224,20 @@
 		this.shader_list.push(shader);
 
 		this.grid = create_grid(gl);
+
+		var box1 = new ummath.UMBox(new ummath.UMVec3d(0, 0, 0), new ummath.UMVec3d(5, 5, 5));
+		var box2 = new ummath.UMBox(new ummath.UMVec3d(-3, -3, -3), new ummath.UMVec3d(3, 3, 3));
+		var boxlist = new umboxlist.UMBoxList(gl, [box1, box2]);
+		this.box_list.push(boxlist);
 	};
 
 	UMScene.prototype.change_shader = function (shader_number) {
 		var i;
 		for (i = 0; i < this.mesh_list.length; i = i + 1) {
 			this.mesh_list[i].reset_shader_location();
+		}
+		for (i = 0; i < this.box_list.length; i = i + 1) {
+			this.box_list[i].reset_shader_location();
 		}
 		this.camera.reset_shader_location();
 		this.current_shader = this.shader_list[shader_number];
@@ -472,6 +484,9 @@
 		for (i = 0; i < this.point_list.length; i = i + 1) {
 			this.point_list[i].dispose();
 		}
+		for (i = 0; i < this.box_list.length; i = i + 1) {
+			this.box_list[i].dispose();
+		}
 		for (i = 0; i < this.nurbs_list.length; i = i + 1) {
 			this.nurbs_list[i].dispose();
 		}
@@ -489,4 +504,4 @@
 	window.umscene = {};
 	window.umscene.UMScene = UMScene;
 
-}(window.ummath, window.umline, window.ummesh, window.ummaterial, window.umcamera, window.umshader, window.umobj));
+}(window.ummath, window.umline, window.ummesh, window.umboxlist, window.ummaterial, window.umcamera, window.umshader, window.umobj));

@@ -34,8 +34,9 @@
 		this.is_cw = false;
 	};
 
-	UMMesh.prototype.update = function (verts, normals, uvs, indices) {
+	UMMesh.prototype.update = function (verts, normals, uvs, indices, barycentric) {
 		var gl = this.gl,
+			size,
 			i;
 
 		if (verts) {
@@ -64,6 +65,33 @@
 			gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint32Array(indices), gl.STATIC_DRAW);
 			gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
 			this.indices = indices;
+		}
+
+		if (barycentric && barycentric.length > 0) {
+			gl.bindBuffer(gl.ARRAY_BUFFER, this.barycentric_vbo);
+			gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(barycentric), gl.STATIC_DRAW);
+			gl.bindBuffer(gl.ARRAY_BUFFER, null);
+			this.barycentric = barycentric;
+		} else {
+			this.barycentric_vbo = gl.createBuffer();
+			if (this.indices && this.indices.length > 0) {
+				this.barycentric = new Float32Array(this.indices.length * 3 * 3);
+				for (i = 0; i < this.indices.length; i = i + 1) {
+					this.barycentric[i * 3 + 0] = ((i % 3) == 0) ? 1 : 0;
+					this.barycentric[i * 3 + 1] = ((i % 3) == 1) ? 1 : 0;
+					this.barycentric[i * 3 + 2] = ((i % 3) == 2) ? 1 : 0;
+				}
+			} else {
+				this.barycentric = new Float32Array(this.verts.length);
+				for (i = 0, size = this.verts.length / 3; i < size; i = i + 1) {
+					this.barycentric[i * 3 + 0] = ((i % 3) == 0) ? 1 : 0;
+					this.barycentric[i * 3 + 1] = ((i % 3) == 1) ? 1 : 0;
+					this.barycentric[i * 3 + 2] = ((i % 3) == 2) ? 1 : 0;
+				}
+			}
+			gl.bindBuffer(gl.ARRAY_BUFFER, this.barycentric_vbo)
+			gl.bufferData(gl.ARRAY_BUFFER, this.barycentric, gl.STATIC_DRAW);
+			gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
 		}
 
 		//this.update_box();
@@ -109,31 +137,10 @@
 			gl.vertexAttribPointer(normal_attr, 3, gl.FLOAT, false, 0, 0);
 		}
 
-		if (this.indices.length > 0) {
+		if (this.barycentric_vbo) {
 			barycentric_attr = gl.getAttribLocation(shader.program_object(), 'a_barycentric');
 			if (barycentric_attr >= 0) {
-				if (!this.barycentric_vbo) {
-					this.barycentric_vbo = gl.createBuffer();
-					if (this.indices && this.indices.length > 0) {
-						barycentric = new Float32Array(this.indices.length * 3 * 3);
-						for (i = 0; i < this.indices.length; i = i + 1) {
-							barycentric[i * 3 + 0] = ((i % 3) == 0) ? 1 : 0;
-							barycentric[i * 3 + 1] = ((i % 3) == 1) ? 1 : 0;
-							barycentric[i * 3 + 2] = ((i % 3) == 2) ? 1 : 0;
-						}
-					} else {
-						barycentric = new Float32Array(this.verts.length);
-						for (i = 0; i < this.verts.length / 3; i = i + 1) {
-							barycentric[i * 3 + 0] = ((i % 3) == 0) ? 1 : 0;
-							barycentric[i * 3 + 1] = ((i % 3) == 1) ? 1 : 0;
-							barycentric[i * 3 + 2] = ((i % 3) == 2) ? 1 : 0;
-						}
-					}
-					gl.bindBuffer(gl.ARRAY_BUFFER, this.barycentric_vbo)
-					gl.bufferData(gl.ARRAY_BUFFER, barycentric, gl.STATIC_DRAW);
-				} else {
-					gl.bindBuffer(gl.ARRAY_BUFFER, this.barycentric_vbo);
-				}
+				gl.bindBuffer(gl.ARRAY_BUFFER, this.barycentric_vbo);
 				gl.enableVertexAttribArray(barycentric_attr);
 				gl.vertexAttribPointer(barycentric_attr, 3, gl.FLOAT, false, 0, 0);
 			}
