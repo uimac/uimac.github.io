@@ -384,12 +384,12 @@
 			this.max_.xyz[1] = Math.max(this.max_.xyz[1], val.xyz[1]);
 			this.max_.xyz[2] = Math.max(this.max_.xyz[2], val.xyz[2]);
 		} else if (val instanceof UMBox){
-			this.min_.xyz[0] = Math.min(this.min_.xyz[0], box.min_.xyz[0]);
-			this.min_.xyz[1] = Math.min(this.min_.xyz[1], box.min_.xyz[1]);
-			this.min_.xyz[2] = Math.min(this.min_.xyz[2], box.min_.xyz[2]);
-			this.max_.xyz[0] = Math.max(this.max_.xyz[0], box.max_.xyz[0]);
-			this.max_.xyz[1] = Math.max(this.max_.xyz[1], box.max_.xyz[1]);
-			this.max_.xyz[2] = Math.max(this.max_.xyz[2], box.max_.xyz[2]);
+			this.min_.xyz[0] = Math.min(this.min_.xyz[0], val.min_.xyz[0]);
+			this.min_.xyz[1] = Math.min(this.min_.xyz[1], val.min_.xyz[1]);
+			this.min_.xyz[2] = Math.min(this.min_.xyz[2], val.min_.xyz[2]);
+			this.max_.xyz[0] = Math.max(this.max_.xyz[0], val.max_.xyz[0]);
+			this.max_.xyz[1] = Math.max(this.max_.xyz[1], val.max_.xyz[1]);
+			this.max_.xyz[2] = Math.max(this.max_.xyz[2], val.max_.xyz[2]);
 		}
 	};
 

@@ -8,6 +8,7 @@
 		this.face_index_ = face_index;
 		this.box = new ummath.UMBox();
 		this.box.init();
+		this.update_box();
 	};
 
 	/**

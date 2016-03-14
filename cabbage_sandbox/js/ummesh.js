@@ -274,7 +274,7 @@
 				primitive_list.push(tri);
 			}
 		} else if (this.verts && this.verts.length > 0){
-			for (i = 0, polycount = this.verts.length / 3; i < polycount; i = i + 1) {
+			for (i = 0, polycount = this.verts.length / 3 / 3; i < polycount; i = i + 1) {
 				tri = new umtriangle.UMTriangle(this, i);
 				primitive_list.push(tri);
 			}

@@ -29,7 +29,7 @@
 		this.is_playing = false;
 		this.is_pausing = false;
 		this.is_cw = false;
-		this.bvh = null;
+		this.bvh = new umbvh.UMBvh();
 	};
 
 	function create_test_mesh(gl) {
@@ -251,6 +251,13 @@
 
 	UMScene.prototype.add_mesh_to_primitive_list = function (mesh) {
 		this.primitive_list = this.primitive_list.concat(mesh.create_primitive_list());
+		var bvh_nodes = this.bvh.build(this.primitive_list),
+			i;
+		for (i = 0; i < 10; i = i + 1) {
+			if (bvh_nodes[i].box) {
+				this.box_list[0].add(bvh_nodes[i].box);
+			}
+		}
 	};
 
 	UMScene.prototype.load_obj = function (text) {
@@ -263,7 +270,7 @@
 		mesh.material_list.push(meshmat);
 		this.mesh_list.push(mesh);
 		this.add_mesh_to_primitive_list(mesh);
-		console.log("primitive list ", this.primitive_list)
+		//console.log("primitive list ", this.primitive_list)
 	};
 
 
