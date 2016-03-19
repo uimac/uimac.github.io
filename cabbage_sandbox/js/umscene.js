@@ -198,7 +198,11 @@
 			this.point_list[i].draw(this.shader_list[0], this.camera);
 		}
 		for (i = 0; i < this.box_list.length; i = i + 1) {
-			this.box_list[i].draw(this.current_shader, this.camera);
+			if (this.box_list[i].isLine) {
+				this.box_list[i].draw(this.shader_list[0], this.camera);
+			} else {
+				this.box_list[i].draw(this.current_shader, this.camera);
+			}
 		}
 		for (i = 0; i < this.nurbs_list.length; i = i + 1) {
 			this.set_front_face(true);
@@ -250,14 +254,16 @@
 	};
 
 	UMScene.prototype.add_mesh_to_primitive_list = function (mesh) {
+		console.time('create primitive list');
 		this.primitive_list = this.primitive_list.concat(mesh.create_primitive_list());
-		var bvh_nodes = this.bvh.build(this.primitive_list),
-			i;
-		for (i = 0; i < 10; i = i + 1) {
-			if (bvh_nodes[i].box) {
-				this.box_list[0].add(bvh_nodes[i].box);
-			}
-		}
+		console.timeEnd('create primitive list');
+
+		console.time('bvh build');
+		this.bvh.build(this.primitive_list);
+		console.timeEnd('bvh build');
+		
+		this.bvh.boxlist(this.box_list[0]);
+		this.box_list[0].update();
 	};
 
 	UMScene.prototype.load_obj = function (text) {

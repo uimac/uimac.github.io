@@ -268,15 +268,19 @@
 			polycount,
 			tri,
 			primitive_list = [];
+
 		if (this.indices && this.indices.length > 0) {
-			for (i = 0, polycount = this.indices.length / 3; i < polycount; i = i + 1) {
+			polycount = this.indices.length / 3;
+			primitive_list.length = polycount;
+			for (i = 0; i < polycount; i = i + 1) {
 				tri = new umtriangle.UMTriangle(this, i);
-				primitive_list.push(tri);
+				primitive_list[i] = tri;
 			}
-		} else if (this.verts && this.verts.length > 0){
-			for (i = 0, polycount = this.verts.length / 3 / 3; i < polycount; i = i + 1) {
+		} else if (this.verts && this.verts.length > 0) {
+			polycount = this.verts.length / 3 / 3;
+			for (i = 0; i < polycount; i = i + 1) {
 				tri = new umtriangle.UMTriangle(this, i);
-				primitive_list.push(tri);
+				primitive_list[i] = tri;
 			}
 		}
 		return primitive_list;

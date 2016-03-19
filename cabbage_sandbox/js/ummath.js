@@ -348,8 +348,8 @@
 	};
 
 	UMBox.prototype.init = function () {
-		this.set_min(new UMVec3d(Infinity, Infinity, Infinity));
-		this.set_max(new UMVec3d(-Infinity, -Infinity, -Infinity));
+		this.set_min([Infinity, Infinity, Infinity]);
+		this.set_max([-Infinity, -Infinity, -Infinity]);
 	};
 
 	UMBox.prototype.min = function () {
@@ -369,40 +369,42 @@
 	};
 
 	UMBox.prototype.extend = function (val) {
-		if (val instanceof Array) {
-			this.min_.xyz[0] = Math.min(this.min_.xyz[0], val[0]);
-			this.min_.xyz[1] = Math.min(this.min_.xyz[1], val[1]);
-			this.min_.xyz[2] = Math.min(this.min_.xyz[2], val[2]);
-			this.max_.xyz[0] = Math.max(this.max_.xyz[0], val[0]);
-			this.max_.xyz[1] = Math.max(this.max_.xyz[1], val[1]);
-			this.max_.xyz[2] = Math.max(this.max_.xyz[2], val[2]);
-		} else if (val instanceof UMVec3d) {
-			this.min_.xyz[0] = Math.min(this.min_.xyz[0], val.xyz[0]);
-			this.min_.xyz[1] = Math.min(this.min_.xyz[1], val.xyz[1]);
-			this.min_.xyz[2] = Math.min(this.min_.xyz[2], val.xyz[2]);
-			this.max_.xyz[0] = Math.max(this.max_.xyz[0], val.xyz[0]);
-			this.max_.xyz[1] = Math.max(this.max_.xyz[1], val.xyz[1]);
-			this.max_.xyz[2] = Math.max(this.max_.xyz[2], val.xyz[2]);
-		} else if (val instanceof UMBox){
-			this.min_.xyz[0] = Math.min(this.min_.xyz[0], val.min_.xyz[0]);
-			this.min_.xyz[1] = Math.min(this.min_.xyz[1], val.min_.xyz[1]);
-			this.min_.xyz[2] = Math.min(this.min_.xyz[2], val.min_.xyz[2]);
-			this.max_.xyz[0] = Math.max(this.max_.xyz[0], val.max_.xyz[0]);
-			this.max_.xyz[1] = Math.max(this.max_.xyz[1], val.max_.xyz[1]);
-			this.max_.xyz[2] = Math.max(this.max_.xyz[2], val.max_.xyz[2]);
-		}
+		this.min_[0] = Math.min(this.min_[0], val[0]);
+		this.min_[1] = Math.min(this.min_[1], val[1]);
+		this.min_[2] = Math.min(this.min_[2], val[2]);
+		this.max_[0] = Math.max(this.max_[0], val[0]);
+		this.max_[1] = Math.max(this.max_[1], val[1]);
+		this.max_[2] = Math.max(this.max_[2], val[2]);
+	};
+
+	UMBox.prototype.extendByVec = function (val) {
+		this.min_[0] = Math.min(this.min_[0], val.xyz[0]);
+		this.min_[1] = Math.min(this.min_[1], val.xyz[1]);
+		this.min_[2] = Math.min(this.min_[2], val.xyz[2]);
+		this.max_[0] = Math.max(this.max_[0], val.xyz[0]);
+		this.max_[1] = Math.max(this.max_[1], val.xyz[1]);
+		this.max_[2] = Math.max(this.max_[2], val.xyz[2]);
+	};
+
+	UMBox.prototype.extendByBox = function (val) {
+		this.min_[0] = Math.min(this.min_[0], val.min_[0]);
+		this.min_[1] = Math.min(this.min_[1], val.min_[1]);
+		this.min_[2] = Math.min(this.min_[2], val.min_[2]);
+		this.max_[0] = Math.max(this.max_[0], val.max_[0]);
+		this.max_[1] = Math.max(this.max_[1], val.max_[1]);
+		this.max_[2] = Math.max(this.max_[2], val.max_[2]);
 	};
 
 	UMBox.prototype.center = function () {
-		return new UMVec3d(
+		return [
 			(min_.xyz[0] + max_.xyz[0]) * 0.5,
 			(min_.xyz[1] + max_.xyz[1]) * 0.5,
 			(min_.xyz[2] + max_.xyz[2]) * 0.5
-		)
+		];
 	};
 
 	UMBox.prototype.is_empty = function () {
-		return min_.x >= max_.x || min_.y >= max_.y || min_.z >= max_.z;
+		return min_[0] >= max_[0] || min_[1] >= max_[1] || min_[2] >= max_[2];
 	}
 
 	/**

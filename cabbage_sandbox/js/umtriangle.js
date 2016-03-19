@@ -61,7 +61,7 @@
 			mesh = this.mesh_;
 		this.box.init();
 		for (i = 0; i < 3; i = i + 1) {
-			this.box.extend(this.mesh_.get_vert(this.face_index_, i));
+			this.box.extendByVec(this.mesh_.get_vert(this.face_index_, i));
 		}
 	};
 

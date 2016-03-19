@@ -158,7 +158,7 @@
 		this.box.set_max(new ummath.UMVec3d(-Infinity, -Infinity, -Infinity));
  		vlen = this.positions.length / 3;
 		for (i = 0; i < vlen; i = i + 1) {
-			this.box.extend([this.positions[i * 3 + 0], this.positions[i * 3 + 1], this.positions[i * 3 + 2]]);
+			this.box.extendByArray([this.positions[i * 3 + 0], this.positions[i * 3 + 1], this.positions[i * 3 + 2]]);
 		}
 		console.log("box updated", this.box.min(), this.box.max());
 	};

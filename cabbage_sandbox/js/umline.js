@@ -8,20 +8,29 @@
 		this.gl = gl;
 		this.material_list = [];
 		this.vertex_vbo = gl.createBuffer();
-		gl.bindBuffer(gl.ARRAY_BUFFER, this.vertex_vbo);
-		gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(verts), gl.STATIC_DRAW);
-		gl.bindBuffer(gl.ARRAY_BUFFER, null);
 
+		this.verts = null;
 		this.position_attr = null;
 		this.normal_attr = null;
 		this.uv_attr = null;
 		this.global_matrix = new ummath.UMMat44d();
 		this.global_matrix_location_ = null;
+
+		this.update(verts);
 	};
 
 	UMLine.prototype.dispose = function () {
 		var gl = this.gl;
 		gl.DeleteBuffers(1, this.vertex_vbo);
+	};
+
+	UMLine.prototype.update = function (verts) {
+		var gl = this.gl;
+
+		this.verts = verts;
+		gl.bindBuffer(gl.ARRAY_BUFFER, this.vertex_vbo);
+		gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(verts), gl.STATIC_DRAW);
+		gl.bindBuffer(gl.ARRAY_BUFFER, null);
 	};
 
 	UMLine.prototype.init_attrib = function (shader) {
@@ -52,6 +61,8 @@
 			index_offset = 0,
 			material;
 
+		if (!this.verts) { return; }
+
 		gl.useProgram(shader.program_object());
 		this.init_attrib(shader);
 
@@ -64,6 +75,7 @@
 		for (i = 0; i < this.material_list.length; i = i + 1) {
 			material = this.material_list[i];
 			index_count = material.polygon_count() * 2;
+			//console.log("indexcount", index_offset, index_count, this.verts.length / 3)
 
 			camera.draw(shader);
 			material.draw(shader);

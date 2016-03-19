@@ -11,16 +11,16 @@
 	};
 
 	function sah(box) {
-		var x_size = box.max_.xyz[0] - box.min_.xyz[0],
-			y_size = box.max_.xyz[1] - box.min_.xyz[1],
-			z_size = box.max_.xyz[2] - box.min_.xyz[2];
+		var x_size = box.max_[0] - box.min_[0],
+			y_size = box.max_[1] - box.min_[1],
+			z_size = box.max_[2] - box.min_[2];
 		return 2.0 * ((x_size * y_size) + (x_size * z_size) + (y_size * s_size));
 	}
 
 	BvhNode.prototype.pickSplitAxis = function () {
-		var axis_x = this.box.max_.xyz[0] - this.box.min_.xyz[0],
-			axis_y = this.box.max_.xyz[1] - this.box.min_.xyz[1],
-			axis_z = this.box.max_.xyz[2] - this.box.min_.xyz[2];
+		var axis_x = this.box.max_[0] - this.box.min_[0],
+			axis_y = this.box.max_[1] - this.box.min_[1],
+			axis_z = this.box.max_[2] - this.box.min_[2];
 
 		if (axis_x > axis_y) {
 			if (axis_x > axis_z) {
@@ -37,46 +37,97 @@
 		}
 	};
 
-	BvhNode.prototype.computeVolume = function (primitive_list) {
-		var i;
-		this.box.min_ = JSON.parse(JSON.stringify(primitive_list[0].box.min_));
-		this.box.max_ = JSON.parse(JSON.stringify(primitive_list[0].box.max_));
-		for (i = 1; i < primitive_list.length; i = i + 1) {
-			this.box.extend(primitive_list[i].box);
+	function sortFunc(a, b, axis) {
+		return (a.box.min_[axis] + a.box.max_[axis]) - (b.box.min_[axis] + b.box.max_[axis]);
+	}
+
+	function swap(items, firstIndex, secondIndex){
+		var temp = items[firstIndex];
+		items[firstIndex] = items[secondIndex];
+		items[secondIndex] = temp;
+	}
+
+	function partition(items, left, right, axis) {
+		var pivot   = items[Math.floor((right + left) / 2)],
+			i	   = left,
+			j	   = right;
+
+		while (i <= j) {
+			while (sortFunc(items[i], pivot, axis) < 0) {
+				i++;
+			}
+			while (sortFunc(items[j], pivot, axis) > 0) {
+				j--;
+			}
+			if (i <= j) {
+				swap(items, i, j);
+				i++;
+				j--;
+			}
+		}
+		return i;
+	}
+
+	function quickSort(items, left, right, axis) {
+		var index;
+		if (items.length > 1) {
+			index = partition(items, left, right, axis);
+			if (left < index - 1) {
+				quickSort(items, left, index - 1, axis);
+			}
+			if (index < right) {
+				quickSort(items, index, right, axis);
+			}
+		}
+		return items;
+	}
+
+	BvhNode.prototype.computeVolume = function (primitive_list, lindex, rindex) {
+		var i,
+			size = rindex - lindex;
+		this.box.min_ = [].concat(primitive_list[lindex].box.min_);
+		this.box.max_ = [].concat(primitive_list[lindex].box.max_);
+		for (i = lindex + 1; i < size; i = i + 1) {
+			this.box.extendByBox(primitive_list[i].box);
 		}
 	};
 
-	BvhNode.prototype.splitNode = function (primitive_list) {
+	BvhNode.prototype.splitNode = function (primitive_list, lindex, rindex) {
 		var axis = this.pickSplitAxis(),
+			size = rindex - lindex,
 			center,
+			middle,
+			mindex,
 			left_list,
 			right_list;
-		primitive_list = primitive_list.sort(function (a, b) {
-			return (a.box.min_[axis] + a.box.max_[axis]) - (b.box.min_[axis] + b.box.max_[axis]);
-		});
-		center = primitive_list.length / 2;
 
-		left_list = primitive_list.slice(0, center);
-		right_list = primitive_list.slice(center, primitive_list.length - 1);
-		if (left_list.length > 0) {
-			this.left = new BvhNode();
-			this.left.init(left_list);
+		middle = partition(primitive_list, lindex, rindex, axis);
+		if (middle === lindex || middle === rindex) {
+			middle = Math.floor((lindex + rindex) / 2);
+			quickSort(primitive_list, lindex, rindex, axis);
 		}
-		if (right_list.length > 0) {
+		center = middle;
+
+		if ( (center - lindex) > 1) {
+			this.left = new BvhNode();
+			this.left.init(primitive_list, lindex, center);
+		}
+		if ( (rindex - center) > 1) {
 			this.right = new BvhNode();
-			this.right.init(right_list);
+			this.right.init(primitive_list, center, rindex);
 		}
 	};
 
-	BvhNode.prototype.init = function (primitive_list) {
+	BvhNode.prototype.init = function (primitive_list, lindex, rindex) {
+		var size = rindex - lindex;
 		this.left = null;
 		this.right = null;
-		if (primitive_list.length <= 1) {
+		if (size <= 1) {
 			// leaf node
-			this.computeVolume(primitive_list);
+			this.computeVolume(primitive_list, lindex, rindex);
 		} else {
-			this.computeVolume(primitive_list);
-			this.splitNode(primitive_list);
+			this.computeVolume(primitive_list, lindex, rindex);
+			this.splitNode(primitive_list, lindex, rindex);
 		}
 	}
 
@@ -96,14 +147,7 @@
 
 	UMBvh.prototype.build = function (primitive_list) {
 		this.root = new BvhNode();
-		this.root.init(primitive_list);
-
-		var bvhNodes = [];
-		bvhNodes.push(this.root);
-		var queue = [];
-		queue.push(this.root);
-		this.flatten(queue, bvhNodes);
-		return bvhNodes;
+		this.root.init(primitive_list, 0, primitive_list.length - 1);
 	};
 
 	UMBvh.prototype.intersects = function () {
@@ -112,6 +156,18 @@
 
 	UMBvh.prototype.box = function () {
 		return this.root.box;
+	};
+
+	UMBvh.prototype.getboxlist_ = function (node, box_list) {
+		if (!node.right && !node.left && node.box) {
+			box_list.add(node.box);
+		}
+		if (node.right) { this.getboxlist_(node.right, box_list); }
+		if (node.left) { this.getboxlist_(node.left, box_list); }
+	};
+
+	UMBvh.prototype.boxlist = function (box_list) {
+		this.getboxlist_(this.root, box_list);
 	};
 
 	window.umbvh = {}
