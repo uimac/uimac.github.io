@@ -215,8 +215,7 @@ $builtinmodule = function(name) {
 	// -----------------------------------------------------------------------
 
 	camera = function ($gbl, $loc) {
-		$loc.__init__ = new Sk.builtin.func(function (self, ummesh) {
-			self.mesh = ummesh;
+		$loc.__init__ = new Sk.builtin.func(function (self) {
 		});
 		$loc.dolly = new Sk.builtin.func(function (self, mx, my) {
 			umscene.camera.dolly(mx.v, my.v);
@@ -271,6 +270,29 @@ $builtinmodule = function(name) {
 		dst.mesh = mesh;
 		return dst;
 	});
+
+	// -----------------------------------------------------------------------
+	bvh = function ($gbl, $loc) {
+		$loc.__init__ = new Sk.builtin.func(function (self) {
+		});
+		$loc.intersects = new Sk.builtin.func(function (self, origin, dir) {
+			var info = {
+				result : -1,
+				max_distance : Infinity
+			};
+			if (umscene.bvh.intersects(umscene.bvh.root, info, origin.vec, dir.vec)) {
+				//console.log(info);
+				var dst = Sk.misceval.callsim(mod.vec3);
+				//console.log(info);
+				dst.vec = info.intersect_point;
+				return dst;
+			} else {
+				return Sk.builtin.int_(-1);
+			}
+		});
+	};
+	mod.bvh = Sk.misceval.buildClass(mod, bvh, 'bvh', []);
+
 
 	return mod;
 };

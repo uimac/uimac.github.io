@@ -405,7 +405,26 @@
 
 	UMBox.prototype.is_empty = function () {
 		return min_[0] >= max_[0] || min_[1] >= max_[1] || min_[2] >= max_[2];
-	}
+	};
+
+	UMBox.prototype.intersects = function (rayorg, raydir) {
+		var i,
+			t1,
+			t2,
+			invdir,
+			tmax = Infinity,
+			tmin = -Infinity;
+
+		invdir = [1.0 / raydir.xyz[0], 1.0 / raydir.xyz[1], 1.0 / raydir.xyz[2]];
+		for (i = 0; i < 3; i = i + 1) {
+			t1 = (this.min[0] - rayorg.xyz[0]) * invdir[0];
+			t2 = (this.max[0] - rayorg.xyz[0]) * invdir[0];
+			tmin = Math.max(tmin, Math.min(t1, t2));
+			tmax = Math.min(tmax, Math.max(t1, t2));
+			if (tmin > tmax) { return false; }
+		}
+		return true;
+	};
 
 	/**
 	 * @param src UMMat44d

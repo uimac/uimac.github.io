@@ -9,7 +9,8 @@
 		py_keydown,
 		py_keyup,
 		tool_camera,
-		tool_pen;
+		tool_pen,
+		tool_raypen;
 
 	tool_camera = `
 import cabbage
@@ -89,6 +90,11 @@ import math
 def pos(x, y):
 	dir = camera().ray_dir(x, camera().height() - y)
 	org = camera().position()
+
+	point = bvh().intersects(org, dir)
+
+	if point != -1:
+		return point
 	return org.add(dir * 100.0);
 
 class SimplePen:
@@ -193,6 +199,20 @@ def mouseup(x, y, button):
 print("python pen tool loaded")
 	`;
 
+
+	tool_raypen = `
+
+import cabbage
+from cabbage import *
+import math
+
+def mousemove(x, y, button):
+	dir = camera().ray_dir(x, camera().height() - y)
+	org = camera().position()
+	print(bvh().intersects(org, dir))
+
+	`;
+
 	function builtinOutput(text) {
 		var output = document.getElementById("output");
 		output.innerHTML = output.innerHTML + text;
@@ -271,6 +291,8 @@ print("python pen tool loaded")
 				editor.setValue(tool_camera, 1);
 			} else if (evt.tool.id === 'tool_pen') {
 				editor.setValue(tool_pen, 1);
+			} else if (evt.tool.id === 'tool_raypen') {
+				editor.setValue(tool_raypen, 1);
 			}
 			execute_script();
 		});

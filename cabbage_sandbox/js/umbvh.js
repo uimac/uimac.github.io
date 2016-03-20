@@ -22,18 +22,12 @@
 			axis_y = this.box.max_[1] - this.box.min_[1],
 			axis_z = this.box.max_[2] - this.box.min_[2];
 
-		if (axis_x > axis_y) {
-			if (axis_x > axis_z) {
-				return 0; // x
-			} else {
-				return 2; // z
-			}
+		if (axis_x > axis_y && axis_x > axis_z) {
+			return 0; // x
+		} else if (axis_y > axis_z) {
+			return 1; // y
 		} else {
-			if (axis_y > axis_z) {
-				return 1; // y
-			} else {
-				return 2; // z
-			}
+			return 2; // z
 		}
 	};
 
@@ -122,6 +116,8 @@
 		var size = rindex - lindex;
 		this.left = null;
 		this.right = null;
+		this.from = lindex;
+		this.to = rindex;
 		if (size <= 1) {
 			// leaf node
 			this.computeVolume(primitive_list, lindex, rindex);
@@ -129,7 +125,7 @@
 			this.computeVolume(primitive_list, lindex, rindex);
 			this.splitNode(primitive_list, lindex, rindex);
 		}
-	}
+	};
 
 	UMBvh.prototype.flatten = function (queue, bvhNodeList) {
 		while (queue.length > 0) {
@@ -143,15 +139,46 @@
 				queue.push(bvhNode.right);
 			}
 		}
-	}
+	};
 
 	UMBvh.prototype.build = function (primitive_list) {
 		this.root = new BvhNode();
+		this.primitive_list = primitive_list;
 		this.root.init(primitive_list, 0, primitive_list.length - 1);
 	};
 
-	UMBvh.prototype.intersects = function () {
+	UMBvh.prototype.intersects = function (bvhnode, info, origin, dir) {
+		var i,
+			result = false,
+			param = {};
 
+		if (!bvhnode) { return false; }
+		if (bvhnode.box.intersects(origin, dir)) {
+			if (!bvhnode.left || !bvhnode.right) {
+				for (i = bvhnode.from; i < bvhnode.to; i = i + 1) {
+					if (this.primitive_list[i].intersects(origin, dir, param)) {
+						if (param.distance < info.max_distance) {
+							info.result = i;
+							info.max_distance = param.distance;
+							info.intersect_point = param.intersect_point;
+							result = true;
+							return result;
+						}
+					}
+				}
+			} else {
+				if (bvhnode.left) {
+					result = this.intersects(bvhnode.left, info, origin, dir);
+				}
+				if (bvhnode.right) {
+					result = result || this.intersects(bvhnode.right, info, origin, dir);
+				}
+				if (result) {
+					return result;
+				}
+			}
+		}
+		return result;
 	};
 
 	UMBvh.prototype.box = function () {

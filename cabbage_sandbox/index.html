@@ -103,7 +103,8 @@
 		}
 		//vec4 out_color = phong(diffuse, vnl, reflection, view_direction);
 		//out_color.w = diffuse.w;
-		gl_FragColor = vec4(vnl, 1.0);
+		gl_FragColor.rgb = mat_diffuse.rgb * vnl + mat_ambient.rgb;
+		gl_FragColor.a =  mat_diffuse.a;
 	}
 </script>
 <script type="x-shader/x-vertex" id="edge_vertex_shader">
@@ -335,6 +336,7 @@
 	<div id="toolview">
 		<img src="img/camera.png" id="tool_camera" class="tool selected" />
 		<img src="img/pen.png" id="tool_pen" class="tool" />
+		<img src="img/pen.png" id="tool_raypen" class="tool" />
 	</div>
 	<div id="scriptview">
 		<div style="width:200px;float:left"></div>

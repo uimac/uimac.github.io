@@ -5,7 +5,7 @@
 
 	UMMaterial = function (gl) {
 		this.gl = gl;
-		this.diffuse_ = new ummath.UMVec4d(1.0, 0.7, 0.7, 1.0);
+		this.diffuse_ = new ummath.UMVec4d(0.7, 0.7, 0.7, 1.0);
 		this.constant_color_ = new ummath.UMVec4d(1.0, 0.7, 0.7, 1.0);
 		this.specular_ = new ummath.UMVec4d(0.9, 0.9, 0.9, 1.0);
 		this.ambient_ = new ummath.UMVec4d(0.3, 0.3, 0.3, 1.0);

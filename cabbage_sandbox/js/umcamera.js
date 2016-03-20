@@ -128,7 +128,7 @@
 			up = new ummath.UMVec3d(vpm.m[0][1], vpm.m[1][1], vpm.m[2][1]),
 			dir = new ummath.UMVec3d(vpm.m[0][2], vpm.m[1][2], vpm.m[2][2]);
 
-		console.log(this, vpm, right, up, dir);
+		//console.log(this, vpm, right, up, dir);
 		var inv_yscale = Math.tan(ummath.um_to_radian(this.fov_y * 0.5));
 		var inv_xscale = this.aspect * inv_yscale;
 		right = right.scale(inv_xscale);

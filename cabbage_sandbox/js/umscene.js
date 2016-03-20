@@ -181,7 +181,7 @@
 				gl.frontFace(gl.CCW);
 			}
 		}
-	}
+	};
 
 	UMScene.prototype.draw = function () {
 		var i,
@@ -261,9 +261,9 @@
 		console.time('bvh build');
 		this.bvh.build(this.primitive_list);
 		console.timeEnd('bvh build');
-		
-		this.bvh.boxlist(this.box_list[0]);
-		this.box_list[0].update();
+
+		//this.bvh.boxlist(this.box_list[0]);
+		//this.box_list[0].update();
 	};
 
 	UMScene.prototype.load_obj = function (text) {
@@ -278,7 +278,6 @@
 		this.add_mesh_to_primitive_list(mesh);
 		//console.log("primitive list ", this.primitive_list)
 	};
-
 
 	UMScene.prototype._load_abc_curve = function (abcio, abcpath) {
 		var abccurve,
@@ -295,7 +294,7 @@
 			abccurve = abcio.get_curve(abcpath, path_list[i]);
 			console.log(abccurve);
 		}
-	}
+	};
 
 	UMScene.prototype._load_abc_nurbs = function (abcio, abcpath) {
 		var abcnurbs,
@@ -325,7 +324,7 @@
 				this.nurbs_list.push(nurbs);
 			}
 		}
-	}
+	};
 
 	UMScene.prototype._update_abc_nurbs = function (abcio, abcpath) {
 		var abcnurbs,
@@ -349,7 +348,7 @@
 				}
 			}
 		}
-	}
+	};
 
 	UMScene.prototype._load_abc_mesh = function (abcio, abcpath) {
 		var abcmesh,
@@ -384,7 +383,7 @@
 				this.mesh_list.push(mesh);
 			}
 		}
-	}
+	};
 
 	UMScene.prototype._update_abc_mesh = function (abcio, abcpath) {
 		var abcmesh,
@@ -408,7 +407,7 @@
 				}
 			}
 		}
-	}
+	};
 
 	UMScene.prototype._load_abc_point = function (abcio, abcpath) {
 		var abcpoint,
@@ -438,7 +437,7 @@
 				this.point_list.push(point);
 			}
 		}
-	}
+	};
 
 	UMScene.prototype._update_abc_point = function (abcio, abcpath) {
 		var abcpoint,
@@ -462,7 +461,7 @@
 				}
 			}
 		}
-	}
+	};
 
 	UMScene.prototype.load_abc = function (abcpath) {
 		var abcio = require('alembic'),

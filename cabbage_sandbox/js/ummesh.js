@@ -259,6 +259,12 @@
 		this.normals = this.normals.concat(normal.xyz);
 
 		this.material_list[0].set_polygon_count(this.verts.length / 3 / 3);
+		this.material_list[0].diffuse_.xyzw[0] = 0.3;
+		this.material_list[0].diffuse_.xyzw[1] = 0.3;
+		this.material_list[0].diffuse_.xyzw[2] = 0.5;
+		this.material_list[0].ambient_.xyzw[0] = 0.0;
+		this.material_list[0].ambient_.xyzw[1] = 0.0;
+		this.material_list[0].ambient_.xyzw[2] = 0.0;
 		this.update(this.verts, this.normals);
 		this.update_box();
 	};
