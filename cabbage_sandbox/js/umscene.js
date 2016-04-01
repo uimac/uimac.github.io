@@ -262,8 +262,8 @@
 		this.bvh.build(this.primitive_list);
 		console.timeEnd('bvh build');
 
-		//this.bvh.boxlist(this.box_list[0]);
-		//this.box_list[0].update();
+		this.bvh.boxlist(this.box_list[0]);
+		this.box_list[0].update();
 	};
 
 	UMScene.prototype.load_obj = function (text) {

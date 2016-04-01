@@ -397,9 +397,9 @@
 
 	UMBox.prototype.center = function () {
 		return [
-			(min_.xyz[0] + max_.xyz[0]) * 0.5,
-			(min_.xyz[1] + max_.xyz[1]) * 0.5,
-			(min_.xyz[2] + max_.xyz[2]) * 0.5
+			(this.min_[0] + this.max_[0]) * 0.5,
+			(this.min_[1] + this.max_[1]) * 0.5,
+			(this.min_[2] + this.max_[2]) * 0.5
 		];
 	};
 
@@ -407,23 +407,36 @@
 		return min_[0] >= max_[0] || min_[1] >= max_[1] || min_[2] >= max_[2];
 	};
 
-	UMBox.prototype.intersects = function (rayorg, raydir) {
-		var i,
-			t1,
-			t2,
-			invdir,
-			tmax = Infinity,
-			tmin = -Infinity;
+	UMBox.prototype.intersects = function (rayorg, raydir, invdir, negdir, tmin, tmax) {
+		var x, y, z,
+			txmin, txmax,
+			tymin, tymax,
+			tzmin, tzmax,
+			interval_min = tmin,
+			interval_max = tmax;
 
-		invdir = [1.0 / raydir.xyz[0], 1.0 / raydir.xyz[1], 1.0 / raydir.xyz[2]];
-		for (i = 0; i < 3; i = i + 1) {
-			t1 = (this.min[0] - rayorg.xyz[0]) * invdir[0];
-			t2 = (this.max[0] - rayorg.xyz[0]) * invdir[0];
-			tmin = Math.max(tmin, Math.min(t1, t2));
-			tmax = Math.min(tmax, Math.max(t1, t2));
-			if (tmin > tmax) { return false; }
-		}
-		return true;
+		x = (negdir[0]) ? [this.max_[0], this.min_[0]] : [this.min_[0], this.max_[0]];
+		y = (negdir[1]) ? [this.max_[1], this.min_[1]] : [this.min_[1], this.max_[1]];
+		z = (negdir[2]) ? [this.max_[2], this.min_[2]] : [this.min_[2], this.max_[2]];
+
+		txmin = (x[0] - rayorg.xyz[0]) * invdir[0];
+		txmax = (x[1] - rayorg.xyz[0]) * invdir[0];
+		if (txmin > interval_min) { interval_min = txmin; }
+		if (txmax < interval_max) { interval_max = txmax; }
+		if (interval_min > interval_max) { return false; }
+		
+		tymin = (y[0] - rayorg.xyz[1]) * invdir[1];
+		tymax = (y[1] - rayorg.xyz[1]) * invdir[1];
+		if (tymin > interval_min) { interval_min = tymin; }
+		if (tymax < interval_max) { interval_max = tymax; }
+		if (interval_min > interval_max) { return false; }
+
+		tzmin = (z[0] - rayorg.xyz[2]) * invdir[2];
+		tzmax = (z[1] - rayorg.xyz[2]) * invdir[2];
+		if (tzmin > interval_min) { interval_min = tzmin; }
+		if (tzmax < interval_max) { interval_max = tzmax; }
+
+		return (interval_min <= interval_max);
 	};
 
 	/**

@@ -41,9 +41,8 @@
 		items[secondIndex] = temp;
 	}
 
-	function partition(items, left, right, axis) {
-		var pivot   = items[Math.floor((right + left) / 2)],
-			i	   = left,
+	function partition(items, left, right, axis, pivot) {
+		var i	   = left,
 			j	   = right;
 
 		while (i <= j) {
@@ -65,23 +64,41 @@
 	function quickSort(items, left, right, axis) {
 		var index;
 		if (items.length > 1) {
-			index = partition(items, left, right, axis);
+			index = partition(items, left, right, axis, items[Math.floor((right + left) / 2)]);
 			if (left < index - 1) {
-				quickSort(items, left, index - 1, axis);
+				quickSort(items, left, index - 1, axis, items[Math.floor((right + left) / 2)]);
 			}
 			if (index < right) {
-				quickSort(items, index, right, axis);
+				quickSort(items, index, right, axis, items[Math.floor((right + left) / 2)]);
 			}
 		}
 		return items;
 	}
 
+	function qsplit(items, left, right, axis, pivot) {
+		var i = left,
+			j = right,
+			retval = left;
+
+		while (i < j) {
+			if (sortFunc(items[i], pivot, axis) < 0) {
+				swap(items, i, retval);
+				retval = retval + 1;
+			}
+			i = i + 1;
+		}
+		if (retval === left || retval === right)  {
+			quickSort(items, left, right, axis);
+			retval = Math.floor((left + right) / 2);
+		}
+		return retval;
+	}
+
 	BvhNode.prototype.computeVolume = function (primitive_list, lindex, rindex) {
 		var i,
 			size = rindex - lindex;
-		this.box.min_ = [].concat(primitive_list[lindex].box.min_);
-		this.box.max_ = [].concat(primitive_list[lindex].box.max_);
-		for (i = lindex + 1; i < size; i = i + 1) {
+		this.box.init();
+		for (i = lindex; i < rindex; i = i + 1) {
 			this.box.extendByBox(primitive_list[i].box);
 		}
 	};
@@ -95,18 +112,31 @@
 			left_list,
 			right_list;
 
-		middle = partition(primitive_list, lindex, rindex, axis);
+		this.axis = axis;
+		middle = qsplit(primitive_list, lindex, rindex, axis, this);
+		/*
+		if (size == 2) {
+			var sliced = primitive_list.slice(lindex, rindex);
+			console.log(lindex, rindex, middle, axis, this.box.center()[axis]);
+			for (var i = 0; i < size; ++i) {
+				console.log("a:", sliced[i].box.center()[axis]);
+			}
+		}
+		*/
+		/*
+		middle = Math.floor((lindex + rindex) / 2);
+
 		if (middle === lindex || middle === rindex) {
-			middle = Math.floor((lindex + rindex) / 2);
 			quickSort(primitive_list, lindex, rindex, axis);
 		}
+	*/
 		center = middle;
 
-		if ( (center - lindex) > 1) {
+		if ( (center - lindex) > 0) {
 			this.left = new BvhNode();
 			this.left.init(primitive_list, lindex, center);
 		}
-		if ( (rindex - center) > 1) {
+		if ( (rindex - center) > 0) {
 			this.right = new BvhNode();
 			this.right.init(primitive_list, center, rindex);
 		}
@@ -118,6 +148,9 @@
 		this.right = null;
 		this.from = lindex;
 		this.to = rindex;
+		if (size <= 0) {
+			console.error("hoge")
+		}
 		if (size <= 1) {
 			// leaf node
 			this.computeVolume(primitive_list, lindex, rindex);
@@ -147,34 +180,41 @@
 		this.root.init(primitive_list, 0, primitive_list.length - 1);
 	};
 
-	UMBvh.prototype.intersects = function (bvhnode, info, origin, dir) {
+	UMBvh.prototype.intersects = function (bvhnode, info, origin, dir, isright) {
 		var i,
 			result = false,
-			param = {};
+			param = {},
+			a, b,
+			invdir = [1.0 / dir.xyz[0], 1.0 / dir.xyz[1], 1.0 / dir.xyz[2]],
+			negdir = [invdir[0] < 0, invdir[1] < 0, invdir[2] < 0];
 
 		if (!bvhnode) { return false; }
-		if (bvhnode.box.intersects(origin, dir)) {
-			if (!bvhnode.left || !bvhnode.right) {
+		if (bvhnode.box.intersects(origin, dir, invdir, negdir, 0.00001, info.closest_distance)) {
+			if (!bvhnode.left && !bvhnode.right) {
+				//console.log(bvhnode.from, bvhnode.to)
 				for (i = bvhnode.from; i < bvhnode.to; i = i + 1) {
 					if (this.primitive_list[i].intersects(origin, dir, param)) {
-						if (param.distance < info.max_distance) {
+						console.log(isright, param.distance)
+						if (param.distance < info.closest_distance) {
 							info.result = i;
-							info.max_distance = param.distance;
+							info.closest_distance = param.distance;
 							info.intersect_point = param.intersect_point;
 							result = true;
-							return result;
 						}
 					}
 				}
+				if (result) { return result; }
 			} else {
-				if (bvhnode.left) {
-					result = this.intersects(bvhnode.left, info, origin, dir);
-				}
 				if (bvhnode.right) {
-					result = result || this.intersects(bvhnode.right, info, origin, dir);
+					a =  this.intersects(bvhnode.right, info, origin, dir, true);
+					result = a;
+				}
+				if (bvhnode.left) {
+					b = this.intersects(bvhnode.left, info, origin, dir, false);
+					result = result || b;
 				}
 				if (result) {
-					return result;
+					console.log(a, b)
 				}
 			}
 		}
@@ -185,16 +225,17 @@
 		return this.root.box;
 	};
 
-	UMBvh.prototype.getboxlist_ = function (node, box_list) {
-		if (!node.right && !node.left && node.box) {
+	UMBvh.prototype.getboxlist_ = function (node, box_list, depth) {
+		//if (!node.right && !node.left && node.box) {
+		if (depth < 10 && node.box) {
 			box_list.add(node.box);
 		}
-		if (node.right) { this.getboxlist_(node.right, box_list); }
-		if (node.left) { this.getboxlist_(node.left, box_list); }
+		if (node.right) { this.getboxlist_(node.right, box_list, depth + 1); }
+		if (node.left) { this.getboxlist_(node.left, box_list, depth + 1); }
 	};
 
 	UMBvh.prototype.boxlist = function (box_list) {
-		this.getboxlist_(this.root, box_list);
+		this.getboxlist_(this.root, box_list, 0);
 	};
 
 	window.umbvh = {}

@@ -278,12 +278,13 @@ $builtinmodule = function(name) {
 		$loc.intersects = new Sk.builtin.func(function (self, origin, dir) {
 			var info = {
 				result : -1,
-				max_distance : Infinity
+				closest_distance : Infinity
 			};
+			console.log("dir", origin.vec.xyz, dir.vec.xyz)
 			if (umscene.bvh.intersects(umscene.bvh.root, info, origin.vec, dir.vec)) {
 				//console.log(info);
 				var dst = Sk.misceval.callsim(mod.vec3);
-				//console.log(info);
+				console.log(info);
 				dst.vec = info.intersect_point;
 				return dst;
 			} else {
