@@ -28,6 +28,9 @@
 		var gl = this.gl;
 
 		this.verts = verts;
+		if (verts.length <= 0) {
+			return;
+		}
 		gl.bindBuffer(gl.ARRAY_BUFFER, this.vertex_vbo);
 		gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(verts), gl.STATIC_DRAW);
 		gl.bindBuffer(gl.ARRAY_BUFFER, null);
