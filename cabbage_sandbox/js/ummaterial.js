@@ -73,10 +73,10 @@
 		}
 
 		gl.uniform4f(this.flag_location_,
-			this.flag_.x(),
-			this.flag_.y(),
-			this.flag_.z(),
-			this.flag_.w());
+			this.flag_.xyzw[0],
+			this.flag_.xyzw[1],
+			this.flag_.xyzw[2],
+			this.flag_.xyzw[3]);
 
 		//gl.bindTexture(gl.TEXTURE_2D, null);
 	};

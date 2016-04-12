@@ -97,10 +97,12 @@
 			gl_FragColor = constant_color;
 			return;
 		}
+		/*
 		if (mat_flags.x > 0.5)
 		{
 			diffuse = texture2D(s_texture, uv);
 		}
+		*/
 		//vec4 out_color = phong(diffuse, vnl, reflection, view_direction);
 		//out_color.w = diffuse.w;
 		gl_FragColor.rgb = mat_diffuse.rgb * vnl + mat_ambient.rgb;

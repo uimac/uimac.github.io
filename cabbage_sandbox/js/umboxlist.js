@@ -205,10 +205,12 @@
 	};
 
 	UMBoxList.prototype.draw = function (shader, camera) {
-		this.gl.disable(this.gl.CULL_FACE);
-		this.mesh.draw(shader, camera);
-		this.gl.enable(this.gl.CULL_FACE);
-		this.line.draw(shader, camera);
+		if (this.mesh && this.mesh.verts.length > 0) {
+			this.gl.disable(this.gl.CULL_FACE);
+			this.mesh.draw(shader, camera);
+			this.gl.enable(this.gl.CULL_FACE);
+			this.line.draw(shader, camera);
+		}
 	};
 
 	UMBoxList.prototype.reset_shader_location = function () {

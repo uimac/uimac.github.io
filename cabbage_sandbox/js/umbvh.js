@@ -206,7 +206,7 @@
 				if (result) { return result; }
 			} else {
 				if (bvhnode.right) {
-					a =  this.intersects(bvhnode.right, info, origin, dir, true);
+					a = this.intersects(bvhnode.right, info, origin, dir, true);
 					result = a;
 				}
 				if (bvhnode.left) {
