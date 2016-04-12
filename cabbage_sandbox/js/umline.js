@@ -26,7 +26,9 @@
 
 	UMLine.prototype.update = function (verts) {
 		var gl = this.gl;
-
+		if (!verts) {
+			return;
+		}
 		this.verts = verts;
 		if (verts.length <= 0) {
 			return;
