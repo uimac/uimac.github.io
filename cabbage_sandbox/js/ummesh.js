@@ -155,7 +155,9 @@
 		} else {
 			gl.bindBuffer(gl.ARRAY_BUFFER, this.uv_vbo);
 			uv_attr = gl.getAttribLocation(shader.program_object(), 'a_uv');
-			gl.disableVertexAttribArray(uv_attr);
+			if (uv_attr && uv_attr >= 0) {
+				gl.disableVertexAttribArray(uv_attr);
+			}
 			gl.bindBuffer(gl.ARRAY_BUFFER, null);
 		}
 	};

@@ -51,11 +51,16 @@
 		if (!this.normal_attr) {
 			this.normal_attr = gl.getAttribLocation(shader.program_object(), 'a_normal');
 		}
-		gl.disableVertexAttribArray(this.normal_attr);
+		if (this.normal_attr && this.normal_attr >= 0) {
+			gl.disableVertexAttribArray(this.normal_attr);
+		}
+		
 		if (!this.uv_attr) {
 			this.uv_attr = gl.getAttribLocation(shader.program_object(), 'a_uv');
 		}
-		gl.disableVertexAttribArray(this.uv_attr);
+		if (this.uv_attr && this.uv_attr >= 0) {
+			gl.disableVertexAttribArray(this.uv_attr);
+		}
 		gl.bindBuffer(gl.ARRAY_BUFFER, null);
 	};
 
