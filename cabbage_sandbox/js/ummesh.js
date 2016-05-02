@@ -149,8 +149,10 @@
 		if (this.uv_vbo) {
 			gl.bindBuffer(gl.ARRAY_BUFFER, this.uv_vbo);
 			uv_attr = gl.getAttribLocation(shader.program_object(), 'a_uv');
-			gl.enableVertexAttribArray(uv_attr);
-			gl.vertexAttribPointer(uv_attr, 2, gl.FLOAT, false, 0, 0);
+			if (uv_attr && uv_attr >= 0) {
+				gl.enableVertexAttribArray(uv_attr);
+				gl.vertexAttribPointer(uv_attr, 2, gl.FLOAT, false, 0, 0);
+			}
 			gl.bindBuffer(gl.ARRAY_BUFFER, null);
 		} else {
 			gl.bindBuffer(gl.ARRAY_BUFFER, this.uv_vbo);

@@ -65,11 +65,13 @@
 				this.diffuse_.xyzw[2],
 				this.diffuse_.xyzw[3]);
 
-			gl.uniform4f(this.ambient_location_,
-				this.ambient_.xyzw[0],
-				this.ambient_.xyzw[1],
-				this.ambient_.xyzw[2],
-				this.ambient_.xyzw[3]);
+			if (this.ambient_location_ && this.ambient_location_ >= 0) {
+				gl.uniform4f(this.ambient_location_,
+					this.ambient_.xyzw[0],
+					this.ambient_.xyzw[1],
+					this.ambient_.xyzw[2],
+					this.ambient_.xyzw[3]);
+			}
 		}
 
 		gl.uniform4f(this.flag_location_,
