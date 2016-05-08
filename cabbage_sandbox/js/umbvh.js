@@ -18,9 +18,9 @@
 	}
 
 	BvhNode.prototype.pickSplitAxis = function () {
-		var axis_x = this.box.max_[0] - this.box.min_[0],
-			axis_y = this.box.max_[1] - this.box.min_[1],
-			axis_z = this.box.max_[2] - this.box.min_[2];
+		var axis_x = this.box.max_[0] + this.box.min_[0],
+			axis_y = this.box.max_[1] + this.box.min_[1],
+			axis_z = this.box.max_[2] + this.box.min_[2];
 
 		if (axis_x > axis_y && axis_x > axis_z) {
 			return 0; // x
@@ -80,7 +80,7 @@
 			j = right,
 			retval = left;
 
-		while (i < j) {
+		while (i <= j) {
 			if (sortFunc(items[i], pivot, axis) < 0) {
 				swap(items, i, retval);
 				retval = retval + 1;
@@ -88,7 +88,7 @@
 			i = i + 1;
 		}
 		if (retval === left || retval === right)  {
-			quickSort(items, left, right, axis);
+			//quickSort(items, left, right, axis);
 			retval = Math.floor((left + right) / 2);
 		}
 		return retval;
@@ -98,7 +98,7 @@
 		var i,
 			size = rindex - lindex;
 		this.box.init();
-		for (i = lindex; i < rindex; i = i + 1) {
+		for (i = lindex; i <= rindex; i = i + 1) {
 			this.box.extendByBox(primitive_list[i].box);
 		}
 	};
@@ -192,14 +192,15 @@
 		if (bvhnode.box.intersects(origin, dir, invdir, negdir, 0.00001, info.closest_distance)) {
 			if (!bvhnode.left && !bvhnode.right) {
 				//console.log(bvhnode.from, bvhnode.to)
-				for (i = bvhnode.from; i < bvhnode.to; i = i + 1) {
+				for (i = bvhnode.from; i <= bvhnode.to; i = i + 1) {
 					if (this.primitive_list[i].intersects(origin, dir, param)) {
-						console.log(isright, param.distance)
+						//console.log(isright, param.distance)
 						if (param.distance < info.closest_distance) {
 							info.result = i;
 							info.closest_distance = param.distance;
 							info.intersect_point = param.intersect_point;
 							result = true;
+							console.log("primitive number", i)
 						}
 					}
 				}
