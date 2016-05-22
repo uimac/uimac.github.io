@@ -214,9 +214,6 @@
 					b = this.intersects(bvhnode.left, info, origin, dir, false);
 					result = result || b;
 				}
-				if (result) {
-					console.log(a, b)
-				}
 			}
 		}
 		return result;

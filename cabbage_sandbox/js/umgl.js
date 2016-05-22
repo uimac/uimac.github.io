@@ -66,31 +66,35 @@
 		edit_tool.onclick = clickfunc;
 	}
 
-	function init_open_tool() {
-		document.getElementById('tool_open').onchange = function (evt) {
-			var file = evt.target.files,
-				filename = file[0].name,
-				splitted,
-				ext,
-				reader;
+	function load_file(file) {
+		var filename = file.name,
+			splitted,
+			ext,
+			reader;
 
-			if (filename) {
-				splitted = filename.split('.');
-				if (splitted.length > 0) {
-					ext = splitted[splitted.length-1].toLowerCase();
-					if (ext === "abc") {
-						scene.load_abc(file[0].path);
-						drawonce();
-					} else if (ext === "obj") {
-						reader = new FileReader();
-						reader.readAsText(file[0]);
-						reader.onload = function(ev) {
-							scene.load_obj(reader.result);
-							drawonce();
-						}
-					}
+		if (!filename) {
+			return;
+		}
+		splitted = filename.split('.');
+		if (splitted.length > 0) {
+			ext = splitted[splitted.length-1].toLowerCase();
+			if (ext === "abc") {
+				scene.load_abc(file.path);
+				drawonce();
+			} else if (ext === "obj") {
+				reader = new FileReader();
+				reader.readAsText(file);
+				reader.onload = function(ev) {
+					scene.load_obj(reader.result);
+					drawonce();
 				}
 			}
+		}
+	}
+
+	function init_open_tool() {
+		document.getElementById('tool_open').onchange = function (evt) {
+			load_file(evt.target.files[0])
 		};
 	}
 
@@ -329,6 +333,19 @@
 				resize();
 			}
 		}, 30);
+
+		document.body.ondragover = function (ev) {
+			ev.preventDefault();
+		}
+
+		document.body.ondrop = function (ev) {
+			ev.preventDefault();
+			if (event.dataTransfer.files.length <= 0) {
+				return;
+			}
+			var f = event.dataTransfer.files[0];
+			load_file(f);
+		}
 
 		init_tools();
 		init_edit_tool();
