@@ -70,6 +70,7 @@
 		var filename = file.name,
 			splitted,
 			ext,
+			mtl,
 			reader;
 
 		if (!filename) {
@@ -80,14 +81,26 @@
 			ext = splitted[splitted.length-1].toLowerCase();
 			if (ext === "abc") {
 				scene.load_abc(file.path);
+
+				var paths = file.path.split('.');
+				paths.pop();
+				paths.push('mtl')
+				mtl = paths.join('.');
+				require('fs').readFile(mtl, function (err, data) {
+					if (err) {
+						return;
+					}
+					scene.load_mtl(mtl, String(data));
+					drawonce();
+				});
 				drawonce();
 			} else if (ext === "obj") {
 				reader = new FileReader();
 				reader.readAsText(file);
 				reader.onload = function(ev) {
-					scene.load_obj(reader.result);
+					scene.load_obj(splitted[splitted.length-2], reader.result);
 					drawonce();
-				}
+				};
 			}
 		}
 	}

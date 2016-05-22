@@ -252,7 +252,7 @@
 						},
 						{
 							id : 'mainview',
-							size : "-293px"
+							size : "-243px"
 						},
 						{
 							size : "3px",
@@ -260,7 +260,7 @@
 						},
 						{
 							id : 'listview',
-							size : "200px",
+							size : "150px",
 							minSize : "80px"
 						},
 						{

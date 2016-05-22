@@ -18,6 +18,7 @@
 		this.polygon_count_ = 0;
 		this.diffuse_texture_ = null;
 		this.diffuse_texture_image_ = null;
+		this.diffuse_texture_assigned = false;
 		this.video_ = null;
 	};
 
@@ -41,7 +42,10 @@
 			}
 			gl.activeTexture(gl.TEXTURE0);
 			gl.bindTexture(gl.TEXTURE_2D, this.diffuse_texture_);
-			gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, this.diffuse_texture_image_);
+			if (!this.diffuse_texture_assigned) {
+				gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, this.diffuse_texture_image_);
+				this.diffuse_texture_assigned = true;
+			}
 			gl.uniform1i(this.sampler_location_, 0);
 		}
 		if (this.video_) {
@@ -91,8 +95,35 @@
 		this.polygon_count_ = c;
 	};
 
-	UMMaterial.prototype.set_diffuse = function (diffuse) {
-		this.diffuse_ = diffuse;
+	UMMaterial.prototype.set_diffuse = function (r, g, b, a) {
+		this.diffuse_.xyzw[0] = r;
+		this.diffuse_.xyzw[1] = g;
+		this.diffuse_.xyzw[2] = b;
+		this.diffuse_.xyzw[3] = a;
+	};
+
+	UMMaterial.prototype.set_specular = function (r, g, b) {
+		this.specular_.xyzw[0] = r;
+		this.specular_.xyzw[1] = g;
+		this.specular_.xyzw[2] = b;
+	};
+
+	UMMaterial.prototype.specular = function () {
+		return this.specular_;
+	};
+
+	UMMaterial.prototype.diffuse = function () {
+		return this.diffuse_;
+	};
+
+	UMMaterial.prototype.ambient = function () {
+		return this.ambient_;
+	};
+
+	UMMaterial.prototype.set_ambient = function (r, g, b) {
+		this.ambient_.xyzw[0] = r;
+		this.ambient_.xyzw[1] = g;
+		this.ambient_.xyzw[2] = b;
 	};
 
 	UMMaterial.prototype.set_constant_color = function (color) {

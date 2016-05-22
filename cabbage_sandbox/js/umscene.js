@@ -1,6 +1,6 @@
 /*jslint devel:true*/
 /*global Float32Array, Uint8Array */
-(function (ummath, umline, ummesh, umboxlist, ummaterial, umcamera, umshader, umobj, umbvh) {
+(function (ummath, umline, ummesh, umboxlist, ummaterial, umcamera, umshader, umobj, ummtl, umbvh) {
 	"use strict";
 	var UMScene,
 		now = window.performance && (
@@ -59,7 +59,7 @@
 				0, 0
 			],
 			mesh_mat;
-		mesh = new ummesh.UMMesh(gl, verts, normals, uvs);
+		mesh = new ummesh.UMMesh(gl, "test", verts, normals, uvs);
 		mesh_mat = new ummaterial.UMMaterial(gl);
 		mesh_mat.set_polygon_count(2);
 		mesh.material_list.push(mesh_mat);
@@ -266,9 +266,9 @@
 		this.box_list[0].update();
 	};
 
-	UMScene.prototype.load_obj = function (text) {
+	UMScene.prototype.load_obj = function (name, text) {
 		var obj = umobj.load(text),
-			mesh = new ummesh.UMMesh(this.gl, obj.vertices, obj.normals, obj.uvs),
+			mesh = new ummesh.UMMesh(this.gl, name, obj.vertices, obj.normals, obj.uvs),
 			meshmat;
 
 		meshmat = new ummaterial.UMMaterial(this.gl);
@@ -350,6 +350,57 @@
 		}
 	};
 
+	UMScene.prototype.load_mtl = function (mtlpath, text) {
+		console.log("text", text);
+		var mtl = ummtl.load(text),
+			id,
+			mesh,
+			mat,
+			name,
+			param,
+			temp_name,
+			img;
+
+		for (name in mtl.materials) {
+			param = mtl.materials[name];
+			temp_name = name.split('material').join('mesh');
+			temp_name = temp_name.split('_');
+			temp_name.splice(temp_name.length - 1, 0, "material");
+			temp_name = temp_name.join('_');
+
+			for (i = 0; i < this.mesh_list.length; i = i + 1) {
+				id = this.mesh_list[i].id;
+				mesh = this.mesh_list[i];
+				if (id.indexOf(temp_name) >= 0) {
+					//mesh.material_list[0].set_diffuse(param.diffuse[0], param.diffuse[1], param.diffuse[2], param.diffuse[3]);
+					//mesh.material_list[0].set_specular(param.specular[0], param.specular[1], param.specular[2], param.specular[3]);
+					//mesh.material_list[0].set_ambient(param.ambient[0], param.ambient[1], param.ambient[2], param.ambient[3]);
+
+					if (param.diffuse_texture.length > 0) {
+						var path = require('path');
+						var dir = path.dirname(mtlpath);
+						img = new Image();
+						img.onload = (function (mesh, image) {
+							return function () {
+								var gl = this.gl,
+									tex = gl.createTexture();
+								gl.bindTexture(gl.TEXTURE_2D, tex);
+								gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+								gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+								gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+								gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
+								gl.bindTexture(gl.TEXTURE_2D, null);
+								mesh.material_list[0].set_texture(tex, image);
+							}.bind(this);
+						}.bind(this)(mesh, img));
+						img.src = require('electron').nativeImage.createFromPath(path.join(dir, param.diffuse_texture)).toDataURL();
+					}
+					break;
+				}
+			}
+		}
+	};
+
 	UMScene.prototype._load_abc_mesh = function (abcio, abcpath) {
 		var abcmesh,
 			i,
@@ -365,7 +416,7 @@
 			console.log(abcmesh);
 			if (abcmesh && abcmesh.hasOwnProperty("vertex")) {
 				console.log(abcmesh);
-				mesh = new ummesh.UMMesh(this.gl, abcmesh.vertex, abcmesh.normal, abcmesh.uv, abcmesh.index);
+				mesh = new ummesh.UMMesh(this.gl, path_list[i], abcmesh.vertex, abcmesh.normal, abcmesh.uv, abcmesh.index);
 				mesh.is_cw = true;
 				console.log(abcmesh.global_transform);
 				for (n = 0; n < 4; n = n + 1) {
@@ -484,7 +535,7 @@
 	};
 
 	UMScene.prototype.add_mesh = function () {
-		var mesh = new ummesh.UMMesh(this.gl, null, null, null),
+		var mesh = new ummesh.UMMesh(this.gl, null, null, null, null),
 			meshmat;
 
 		meshmat = new ummaterial.UMMaterial(this.gl);
@@ -524,4 +575,4 @@
 	window.umscene.UMScene = UMScene;
 
 }(window.ummath, window.umline, window.ummesh, window.umboxlist,
-  window.ummaterial, window.umcamera, window.umshader, window.umobj, window.umbvh));
+  window.ummaterial, window.umcamera, window.umshader, window.umobj, window.ummtl, window.umbvh));

@@ -4,7 +4,7 @@
 	"use strict";
 	var UMMesh;
 
-	UMMesh = function (gl, verts, normals, uvs, indices) {
+	UMMesh = function (gl, id, verts, normals, uvs, indices) {
 		this.gl = gl;
 		this.material_list = [];
 		this.vertex_vbo = gl.createBuffer();
@@ -13,6 +13,11 @@
 		this.normals = [];
 		this.uvs = [];
 		this.indices = [];
+		this.id = "";
+
+		if (id) {
+			this.id = id;
+		}
 
 		if (uvs && uvs.length > 0) {
 			this.uv_vbo = gl.createBuffer();

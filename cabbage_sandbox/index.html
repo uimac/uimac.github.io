@@ -14,6 +14,7 @@
 	<script type="text/javascript" src="js/umline.js"></script>
 	<script type="text/javascript" src="js/umboxlist.js"></script>
 	<script type="text/javascript" src="js/umshader.js"></script>
+	<script type="text/javascript" src="js/ummtl.js"></script>
 	<script type="text/javascript" src="js/umobj.js"></script>
 	<script type="text/javascript" src="js/umbvh.js"></script>
 	<script type="text/javascript" src="js/umscene.js"></script>
@@ -34,7 +35,7 @@
 	attribute vec3 a_normal;
 	attribute vec2 a_uv;
 	varying vec3 normal;
-	//varying vec2 uv;
+	varying vec2 uv;
 	varying vec4 light_direction;
 	uniform mat4 view_projection_matrix;
 	uniform mat4 global_matrix;
@@ -45,7 +46,7 @@
 		vec4 global_pos = global_matrix * vec4(a_position, 1.0);
 		vec4 pos = view_projection_matrix * global_pos;
 		normal =  a_normal;
-		//uv = a_uv;
+		uv = a_uv;
 		pos.z = 2.0 * pos.z - pos.w;
 		light_direction = normalize(vec4(a_position, 0.0) - light_position);
 		gl_PointSize = 2.0;
@@ -60,7 +61,7 @@
 	#endif
 	//out vec4 frag_color;
 	varying vec3 normal;
-	//varying vec2 uv;
+	varying vec2 uv;
 	varying vec4 light_direction;
 	uniform sampler2D s_texture;
 
@@ -97,15 +98,13 @@
 			gl_FragColor = constant_color;
 			return;
 		}
-		/*
 		if (mat_flags.x > 0.5)
 		{
 			diffuse = texture2D(s_texture, uv);
 		}
-		*/
 		//vec4 out_color = phong(diffuse, vnl, reflection, view_direction);
 		//out_color.w = diffuse.w;
-		gl_FragColor.rgb = mat_diffuse.rgb * vnl + mat_ambient.rgb;
+		gl_FragColor.rgb = diffuse.rgb * vnl + mat_ambient.rgb;
 		gl_FragColor.a =  mat_diffuse.a;
 	}
 </script>

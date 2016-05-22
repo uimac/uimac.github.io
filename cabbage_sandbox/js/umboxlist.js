@@ -93,7 +93,7 @@
 			if (this.line.material_list.length === 0) {
 				var linemat = new ummaterial.UMMaterial(this.gl);
 				linemat.set_polygon_count(verts.length / 2 / 3);
-				linemat.set_diffuse(new ummath.UMVec4d(0.7, 0.7, 0.7, 0.8));
+				linemat.set_diffuse(0.7, 0.7, 0.7, 0.8);
 				this.line.material_list.push(linemat);
 			} else {
 				this.line.material_list[0].set_polygon_count(verts.length / 2 / 3);
@@ -187,7 +187,7 @@
 			if (this.mesh.material_list.length === 0) {
 				var meshmat = new ummaterial.UMMaterial(this.gl);
 				meshmat.set_polygon_count(verts.length / 3 / 3);
-				meshmat.set_diffuse(new ummath.UMVec4d(0.7, 0.7, 0.7, 0.5));
+				meshmat.set_diffuse(0.7, 0.7, 0.7, 0.5);
 				this.mesh.material_list.push(meshmat);
 			} else {
 				this.mesh.material_list[0].set_polygon_count(verts.length / 3 / 3);

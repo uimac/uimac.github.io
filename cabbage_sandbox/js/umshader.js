@@ -37,7 +37,7 @@
 		gl.attachShader(this.program_object_, this.fragment_shader_);
 		gl.linkProgram(this.program_object_);
 		if (!gl.getProgramParameter(this.program_object_, gl.LINK_STATUS)) {
-			alert(gl.getShaderInfoLog(this.program_object_));
+			alert(gl.getProgramInfoLog(this.program_object_));
 		}
 	};
 
