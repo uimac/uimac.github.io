@@ -242,9 +242,9 @@
 	UMMesh.prototype.get_vert = function (faceindex, i) {
 		if (this.indices && this.indices.length > 0) {
 			return new ummath.UMVec3d(
-				this.verts[this.indices(faceindex * 3 + i) * 3 + 0],
-				this.verts[this.indices(faceindex * 3 + i) * 3 + 1],
-				this.verts[this.indices(faceindex * 3 + i) * 3 + 2]
+				this.verts[this.indices[faceindex * 3 + i] * 3 + 0],
+				this.verts[this.indices[faceindex * 3 + i] * 3 + 1],
+				this.verts[this.indices[faceindex * 3 + i] * 3 + 2]
 			);
 		} else {
 			return new ummath.UMVec3d(

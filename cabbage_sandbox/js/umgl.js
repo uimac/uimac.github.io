@@ -88,12 +88,14 @@
 				mtl = paths.join('.');
 				require('fs').readFile(mtl, function (err, data) {
 					if (err) {
+						drawonce();
 						return;
 					}
-					scene.load_mtl(mtl, String(data));
-					drawonce();
+					scene.load_mtl(mtl, String(data), function () {
+						console.log("end")
+						drawonce();
+					});
 				});
-				drawonce();
 			} else if (ext === "obj") {
 				reader = new FileReader();
 				reader.readAsText(file);

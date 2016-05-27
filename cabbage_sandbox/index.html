@@ -110,7 +110,7 @@
 		//vec4 out_color = phong(diffuse, vnl, reflection, view_direction);
 		//out_color.w = diffuse.w;
 		gl_FragColor.rgb = diffuse.rgb * vnl + mat_ambient.rgb;
-		gl_FragColor.a =  mat_diffuse.a;
+		gl_FragColor.a =  diffuse.a;
 	}
 </script>
 <script type="x-shader/x-vertex" id="edge_vertex_shader">

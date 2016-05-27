@@ -253,17 +253,19 @@
 		this.camera.resize(width, height);
 	};
 
-	UMScene.prototype.add_mesh_to_primitive_list = function (mesh) {
+	UMScene.prototype.add_mesh_to_primitive_list = function (mesh, build) {
 		console.time('create primitive list');
-		this.primitive_list = this.primitive_list.concat(mesh.create_primitive_list());
+		Array.prototype.push.apply(this.primitive_list, mesh.create_primitive_list());
 		console.timeEnd('create primitive list');
 
 		console.time('bvh build');
-		this.bvh.build(this.primitive_list);
+		if (build) {
+			this.bvh.build(this.primitive_list);
+		}
 		console.timeEnd('bvh build');
 
-		this.bvh.boxlist(this.box_list[0]);
-		this.box_list[0].update();
+		//this.bvh.boxlist(this.box_list[0]);
+		//this.box_list[0].update();
 	};
 
 	UMScene.prototype.load_obj = function (name, text) {
@@ -275,7 +277,7 @@
 		meshmat.set_polygon_count(obj.vertices.length / 3 / 3);
 		mesh.material_list.push(meshmat);
 		this.mesh_list.push(mesh);
-		this.add_mesh_to_primitive_list(mesh);
+		this.add_mesh_to_primitive_list(mesh, true);
 		//console.log("primitive list ", this.primitive_list)
 	};
 
@@ -350,55 +352,89 @@
 		}
 	};
 
-	UMScene.prototype.load_mtl = function (mtlpath, text) {
+	UMScene.prototype.load_mtl = function (mtlpath, text, endCallback) {
 		console.log("text", text);
-		var mtl = ummtl.load(text),
-			id,
-			mesh,
-			mat,
+		var i,
+			mtl = ummtl.load(text),
 			name,
 			param,
-			temp_name,
-			img;
+			temp,
+			mesh_index = 0,
+			loading = 0;
+
+		this.images = {};
+		this.textures = {};
+
+		var textureFunc = function (mesh, image, tex) {
+			var gl = this.gl;
+			gl.bindTexture(gl.TEXTURE_2D, tex);
+			gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+			gl.bindTexture(gl.TEXTURE_2D, null);
+			mesh.material_list[0].set_texture(tex, image);
+		}.bind(this);
+
+		var timeoutFunc = function (callback) {
+			setTimeout(function () {
+				if (loading < 0) {
+					timeoutFunc(callback);
+				} else {
+					callback();
+				}
+			}, 100);
+		};
+
+		var assignFunc = function (i, temp_name, param, callback) {
+			var img,
+				tex,
+				id,
+				mesh;
+
+			if (i >= this.mesh_list.length) { return; }
+			id = this.mesh_list[i].id;
+			mesh = this.mesh_list[i];
+			if (id.indexOf(temp_name) >= 0) {
+				mesh.material_list[0].set_diffuse(param.diffuse[0], param.diffuse[1], param.diffuse[2], param.diffuse[3]);
+				mesh.material_list[0].set_specular(param.specular[0], param.specular[1], param.specular[2], param.specular[3]);
+				mesh.material_list[0].set_ambient(param.ambient[0], param.ambient[1], param.ambient[2], param.ambient[3]);
+
+				if (param.diffuse_texture.length > 0) {
+					var path = require('path');
+					var file = path.join(path.dirname(mtlpath), param.diffuse_texture);
+
+					if (this.images.hasOwnProperty(file)) {
+						img = this.images[file];
+						tex = this.textures[file];
+						textureFunc(mesh, img, tex);
+					} else {
+						img = new Image();
+						tex = this.gl.createTexture();
+						this.images[file] = img;
+						this.textures[file] = tex;
+						loading = loading + 1;
+						img.onload = (function (mesh, img, tex) {
+							return function () {
+								textureFunc(mesh, img, tex);
+								loading = loading  - 1;
+							};
+						}(mesh, img, tex));
+						img.src = require('electron').nativeImage.createFromPath(file).toDataURL();
+					}
+				}
+			}
+			assignFunc(i + 1, temp_name, param, callback);
+		}.bind(this);
 
 		for (name in mtl.materials) {
 			param = mtl.materials[name];
-			temp_name = name.split('material').join('mesh');
-			temp_name = temp_name.split('_');
-			temp_name.splice(temp_name.length - 1, 0, "material");
-			temp_name = temp_name.join('_');
-
-			for (i = 0; i < this.mesh_list.length; i = i + 1) {
-				id = this.mesh_list[i].id;
-				mesh = this.mesh_list[i];
-				if (id.indexOf(temp_name) >= 0) {
-					//mesh.material_list[0].set_diffuse(param.diffuse[0], param.diffuse[1], param.diffuse[2], param.diffuse[3]);
-					//mesh.material_list[0].set_specular(param.specular[0], param.specular[1], param.specular[2], param.specular[3]);
-					//mesh.material_list[0].set_ambient(param.ambient[0], param.ambient[1], param.ambient[2], param.ambient[3]);
-
-					if (param.diffuse_texture.length > 0) {
-						var path = require('path');
-						var dir = path.dirname(mtlpath);
-						img = new Image();
-						img.onload = (function (mesh, image) {
-							return function () {
-								var gl = this.gl,
-									tex = gl.createTexture();
-								gl.bindTexture(gl.TEXTURE_2D, tex);
-								gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
-								gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-								gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-								gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
-								gl.bindTexture(gl.TEXTURE_2D, null);
-								mesh.material_list[0].set_texture(tex, image);
-							}.bind(this);
-						}.bind(this)(mesh, img));
-						img.src = require('electron').nativeImage.createFromPath(path.join(dir, param.diffuse_texture)).toDataURL();
-					}
-					break;
-				}
-			}
+			temp = name.split('material').join('mesh');
+			temp = temp.split('_');
+			temp.splice(temp.length - 1, 0, "material");
+			temp = temp.join('_');
+			assignFunc(0, temp, param, null);
 		}
+		timeoutFunc(endCallback);
 	};
 
 	UMScene.prototype._load_abc_mesh = function (abcio, abcpath) {
@@ -432,6 +468,12 @@
 				}
 				mesh.material_list.push(material);
 				this.mesh_list.push(mesh);
+				if (i === path_list.length - 1) {
+					this.add_mesh_to_primitive_list(mesh, true);
+					console.log(this.primitive_list);
+				} else {
+					this.add_mesh_to_primitive_list(mesh, false);
+				}
 			}
 		}
 	};
