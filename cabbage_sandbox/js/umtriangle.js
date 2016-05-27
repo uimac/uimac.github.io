@@ -17,8 +17,8 @@
 	 */
 	UMTriangle.prototype.intersects = function (ray_org, ray_dir, info) {
 		var a = this.mesh_.get_vert(this.face_index_, 0),
-			b = this.mesh_.get_vert(this.face_index_, 1),
-			c = this.mesh_.get_vert(this.face_index_, 2),
+			b = this.mesh_.get_vert(this.face_index_, this.mesh_.is_cw ? 2 : 1),
+			c = this.mesh_.get_vert(this.face_index_, this.mesh_.is_cw ? 1 : 2),
 			ab,
 			ac,
 			ao,
