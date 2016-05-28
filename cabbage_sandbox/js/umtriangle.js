@@ -1,6 +1,7 @@
 /*jslint devel:true*/
 /*global Float32Array */
 (function (ummath) {
+	"use strict";
 	var UMTriangle;
 
 	UMTriangle = function (mesh, face_index) {

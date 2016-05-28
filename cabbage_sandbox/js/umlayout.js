@@ -1,6 +1,7 @@
 /*jslint devel:true*/
 /*global Float32Array */
 (function () {
+	"use strict";
 	var UMLayout,
 		panels = {},
 		layout;

@@ -1,6 +1,7 @@
 /*jslint devel:true*/
 /*global Float32Array */
 (function (ummath) {
+	"use strict";
 	var UMBvh,
 		BvhNode;
 

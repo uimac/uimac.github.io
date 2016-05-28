@@ -424,7 +424,7 @@
 		if (txmin > interval_min) { interval_min = txmin; }
 		if (txmax < interval_max) { interval_max = txmax; }
 		if (interval_min > interval_max) { return false; }
-		
+
 		tymin = (y[0] - rayorg.xyz[1]) * invdir[1];
 		tymax = (y[1] - rayorg.xyz[1]) * invdir[1];
 		if (tymin > interval_min) { interval_min = tymin; }

@@ -1,9 +1,16 @@
 /*jslint devel:true*/
 
 $builtinmodule = function(name) {
+	"use strict";
 	var mod = {},
 		ummath = window.ummath,
-		umscene = window.umgl.get_scene();
+		umscene = window.umgl.get_scene(),
+		vec3,
+		vec4,
+		mat44,
+		camera,
+		mesh,
+		bvh;
 
 	vec3 = function ($gbl, $loc) {
 		$loc.__init__ = new Sk.builtin.func(function (self, x, y, z) {
@@ -260,7 +267,7 @@ $builtinmodule = function(name) {
 			umscene.box_list[0].add(self.mesh.box);
 		});
 	};
-	create_mesh = Sk.misceval.buildClass(mod, mesh, 'mesh', []);
+	var create_mesh = Sk.misceval.buildClass(mod, mesh, 'mesh', []);
 
 	mod.add_mesh = new Sk.builtin.func(function () {
 		var mesh = umscene.add_mesh(),

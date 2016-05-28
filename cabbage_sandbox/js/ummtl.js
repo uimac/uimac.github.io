@@ -1,6 +1,7 @@
 /*jslint devel:true*/
 /*global Float32Array */
 (function (ummath) {
+	"use strict";
 
 	function load(mtl) {
 		var i,
@@ -14,7 +15,10 @@
 				ambient : [0.3, 0.3, 0.3, 1.0],
 				diffuse_texture : ""
 			},
-			material;
+			material,
+			line,
+			lines,
+			vals;
 
 		lines = mtl.split("\n");
 		for (i = 0; i < lines.length; i = i + 1) {

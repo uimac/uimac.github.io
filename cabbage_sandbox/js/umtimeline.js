@@ -1,6 +1,7 @@
 /*jslint devel:true*/
 /*global Float32Array */
 (function () {
+	"use strict";
 	var UMTimeline;
 
 	UMTimeline = function (canvas, setting) {
@@ -210,7 +211,8 @@
 	};
 
 	UMTimeline.prototype.calcPropRange = function (prop) {
-		var result = { left : 0, right : 0 },
+		var i,
+			result = { left : 0, right : 0 },
 			splitx = this.splitX(),
 			scale = this.setting.scale,
 			prekey = null;

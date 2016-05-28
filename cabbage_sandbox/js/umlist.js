@@ -1,6 +1,7 @@
 /*jslint devel:true*/
 (function () {
-	var UMTimeline;
+	"use strict";
+	var UMList;
 
 	UMList = function (div, setting) {
 		var content,
