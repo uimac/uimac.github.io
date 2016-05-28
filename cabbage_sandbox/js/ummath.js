@@ -652,6 +652,10 @@
 		return (0 < val) - (val < 0);
 	}
 
+	function um_clip(number, min, max) {
+	  return Math.max(min, Math.min(number, max));
+	}
+
 	window.ummath = {};
 	window.ummath.UMMat44d = UMMat44d;
 	window.ummath.UMVec3d = UMVec3d;
@@ -666,5 +670,6 @@
 	window.ummath.um_to_radian = um_to_radian;
 	window.ummath.um_to_degree = um_to_degree;
 	window.ummath.um_sign = um_sign;
+	window.ummath.um_clip = um_clip;
 	window.ummath.EPSILON = EPSILON;
 }());

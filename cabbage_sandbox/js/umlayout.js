@@ -293,6 +293,31 @@
 			layout.resize();
 			layout.relocate();
 		});
+
+		if (document.getElementById('tool_test2')) {
+			document.getElementById('tool_test2').onclick = function (evt) {
+				var disp = document.getElementById('mainview').style.display;
+				var main = document.getElementById('mainview');
+				var render = document.getElementById('renderview');
+				if (disp === "none") {
+					layout.setting.contents[2].contents[2].id = "mainview";
+					document.getElementById('mainview').style.display = "block";
+					document.getElementById('renderview').style.display = "none";
+					render.parentNode.appendChild(main);
+					render.parentNode.removeChild(render);
+					document.body.appendChild(render);
+				} else {
+					layout.setting.contents[2].contents[2].id = "renderview";
+					document.getElementById('mainview').style.display = "none";
+					document.getElementById('renderview').style.display = "block";
+					main.parentNode.appendChild(render);
+					main.parentNode.removeChild(main);
+					document.body.appendChild(main);
+				}
+				layout.resize();
+				layout.relocate();
+			};
+		}
 	}
 
 	window.umlayout = {};

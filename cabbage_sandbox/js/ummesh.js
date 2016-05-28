@@ -255,6 +255,36 @@
 		}
 	};
 
+	UMMesh.prototype.get_normal = function (faceindex, i) {
+		if (this.indices && this.indices.length > 0) {
+			return new ummath.UMVec3d(
+				this.normals[this.indices[faceindex * 3 + i] * 3 + 0],
+				this.normals[this.indices[faceindex * 3 + i] * 3 + 1],
+				this.normals[this.indices[faceindex * 3 + i] * 3 + 2]
+			);
+		} else {
+			return new ummath.UMVec3d(
+				this.normals[(faceindex * 3 + i) * 3 + 0],
+				this.normals[(faceindex * 3 + i) * 3 + 1],
+				this.normals[(faceindex * 3 + i) * 3 + 2]
+			);
+		}
+	};
+
+	UMMesh.prototype.get_uv = function (faceindex, i) {
+		if (this.indices && this.indices.length > 0) {
+			return [
+				this.uvs[this.indices[faceindex * 3 + i] * 2 + 0],
+				this.uvs[this.indices[faceindex * 3 + i] * 2 + 1]
+			];
+		} else {
+			return [
+				this.uvs[(faceindex * 3 + i) * 2 + 0],
+				this.uvs[(faceindex * 3 + i) * 2 + 1]
+			];
+		}
+	};
+
 	UMMesh.prototype.add_triangle = function (v1, v2, v3, min_time, max_time) {
 		var normal;
 

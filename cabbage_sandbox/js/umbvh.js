@@ -194,14 +194,15 @@
 			if (!bvhnode.left && !bvhnode.right) {
 				//console.log(bvhnode.from, bvhnode.to)
 				for (i = bvhnode.from; i <= bvhnode.to; i = i + 1) {
-					if (this.primitive_list[i].intersects(origin, dir, param)) {
+					if (this.primitive_list[i].intersects2(origin, dir, param)) {
 						//console.log(isright, param.distance)
 						if (param.distance < info.closest_distance) {
 							info.result = i;
 							info.closest_distance = param.distance;
 							info.intersect_point = param.intersect_point;
+							info.color = param.color;
 							result = true;
-							console.log("primitive number", i)
+							//console.log("primitive number", i)
 						}
 					}
 				}

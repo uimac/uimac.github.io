@@ -1,7 +1,8 @@
 /*jslint devel:true nomen:true */
 (function (ummath) {
 	"use strict";
-	var UMMaterial;
+	var UMMaterial,
+		toFloat = 1.0 / 0xFF;
 
 	UMMaterial = function (gl) {
 		this.gl = gl;
@@ -16,10 +17,11 @@
 		this.flag_location_ = null;
 		this.sampler_location_ = null;
 		this.polygon_count_ = 0;
-		this.diffuse_texture_ = null;
-		this.diffuse_texture_image_ = null;
+		this.diffuse_texture = null;
+		this.diffuse_texture_image = null;
 		this.diffuse_texture_assigned = false;
 		this.video_ = null;
+		this.canvas_ = null;
 	};
 
 	UMMaterial.prototype.draw = function (shader) {
@@ -36,14 +38,20 @@
 		if (!this.flag_location_) {
 			this.flag_location_ = gl.getUniformLocation(shader.program_object(), "mat_flags");
 		}
-		if (this.diffuse_texture_) {
+		if (this.diffuse_texture) {
 			if (!this.sampler_location_) {
 				this.sampler_location_ = gl.getUniformLocation(shader.program_object(), "s_texture");
 			}
 			gl.activeTexture(gl.TEXTURE0);
-			gl.bindTexture(gl.TEXTURE_2D, this.diffuse_texture_);
+			gl.bindTexture(gl.TEXTURE_2D, this.diffuse_texture);
 			if (!this.diffuse_texture_assigned) {
-				gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, this.diffuse_texture_image_);
+				gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, this.diffuse_texture_image);
+
+				this.canvas_.width = this.diffuse_texture_image.width;
+				this.canvas_.height = this.diffuse_texture_image.height;
+				var ctx = this.canvas_.getContext('2d');
+				ctx.drawImage(this.diffuse_texture_image, 0, 0);
+
 				this.diffuse_texture_assigned = true;
 			}
 			gl.uniform1i(this.sampler_location_, 0);
@@ -131,14 +139,20 @@
 		this.flag_.xyzw[1] = 1.0;
 	};
 
-	UMMaterial.prototype.set_texture = function (texture, diffuse_texture_image) {
-		this.diffuse_texture_ = texture;
-		this.diffuse_texture_image_ = diffuse_texture_image;
+	UMMaterial.prototype.set_texture = function (texture, image) {
+		this.diffuse_texture = texture;
+		this.diffuse_texture_image = image;
 		this.flag_.xyzw[0] = 1.0;
+		this.canvas_ = document.createElement( 'canvas' );
+	};
+
+	UMMaterial.prototype.get_diffuse_texture_pixel = function (x, y) {
+		var data = this.canvas_.getContext('2d').getImageData(x, y, 1, 1).data;
+		return [data[0] * toFloat, data[1] * toFloat, data[2] * toFloat, data[3] * toFloat];
 	};
 
 	UMMaterial.prototype.set_video_texture = function (texture, video) {
-		this.diffuse_texture_ = texture;
+		this.diffuse_texture = texture;
 		this.video_ = video;
 		this.flag_.xyzw[0] = 1.0;
 	};

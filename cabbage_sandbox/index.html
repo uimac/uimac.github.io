@@ -20,6 +20,7 @@
 	<script type="text/javascript" src="js/umscene.js"></script>
 	<script type="text/javascript" src="js/umgl.js"></script>
 	<script type="text/javascript" src="js/umtimeline.js"></script>
+	<script type="text/javascript" src="js/umrt.js"></script>
 	<script type="text/javascript" src="js/3rd/skulpt/skulpt.min.js"></script>
 	<script type="text/javascript" src="js/3rd/skulpt/skulpt-stdlib.js"></script>
 	<script type="text/javascript" src="js/pycabbage.js"></script>
@@ -329,6 +330,9 @@
 	<div id="mainview">
 		<canvas id="canvas"></canvas>
 	</div>
+	<div id="renderview">
+		<canvas id="render_canvas"></canvas>
+	</div>
 	<div id="settingview">
 		<img src="img/surface.png" id="tool_surface" class="shader_tool selected" />
 		<img src="img/surface_edge.png" id="tool_surface_edge" class="shader_tool" />
@@ -338,6 +342,7 @@
 		<a href="license.html" target="_blank"><img src="img/info.png" id="license" class="other_tool" /></a>
 		<img id="tool_test2" class="other_tool" />
 		<img src="img/edit.png" id="tool_edit" class="other_tool" />
+		<img id="tool_render" class="other_tool" />
 	</div>
 	<div id="toolview">
 		<img src="img/camera.png" id="tool_camera" class="tool selected" />

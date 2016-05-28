@@ -35,6 +35,13 @@ html, body {
 	background-color : rgba(55, 55, 55, 1.0);
 }
 
+#renderview {
+	width : 100%;
+	height : 100%;
+	background-color : rgba(55, 55, 55, 0.5);
+	display : none;
+}
+
 #menuview {
 	width : 100%;
 	height : 100%;

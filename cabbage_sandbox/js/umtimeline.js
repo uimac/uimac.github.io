@@ -523,7 +523,6 @@
 		};
 
 		onMouseUp = function () {
-			is_left_down = false;
 			is_key_changing = false;
 			is_split_moving = false;
 			is_middle_down = false;

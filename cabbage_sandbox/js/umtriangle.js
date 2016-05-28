@@ -59,15 +59,14 @@
 
 		if (ray_dir.dot(n) < 0.0)
 		{
-			/*
 			info.uvw = [];
+			info.uvw.lenght = 3;
 			// v
 			info.uvw[1] = v * inv_dir;
 			// w
 			info.uvw[2] = w * inv_dir;
 			// u
 			info.uvw[0] = 1.0 - info.uvw[1] - info.uvw[2];
-			*/
 
 			info.distance = distance;
 			info.intersect_point = ray_org.add(ray_dir_inv.scale(-distance));
@@ -76,6 +75,40 @@
 		}
 		return false;
 	};
+
+	UMTriangle.prototype.intersects2 = function (ray_org, ray_dir, info) {
+		var mat,
+			width,
+			height,
+			ctx,
+			x,
+			y,
+			col;
+		if (this.intersects(ray_org, ray_dir, info)) {
+			var n0 = this.mesh_.get_normal(this.face_index_, 0),
+				n1 = this.mesh_.get_normal(this.face_index_, this.mesh_.is_cw ? 2 : 1),
+				n2 = this.mesh_.get_normal(this.face_index_, this.mesh_.is_cw ? 1 : 2);
+
+			info.normal = (n0.scale(info.uvw.x).add(n1.scale(info.uvw.y)).add(n2.scale(info.uvw.z))).normalized();
+			mat = this.mesh_.material_list[0];
+			info.color = mat.diffuse().xyzw;
+			if (this.mesh_.uvs.length > 0 && mat.diffuse_texture_image) {
+				var uv0 = this.mesh_.get_uv(this.face_index_, 0),
+					uv1 = this.mesh_.get_uv(this.face_index_, this.mesh_.is_cw ? 2 : 1),
+					uv2 = this.mesh_.get_uv(this.face_index_, this.mesh_.is_cw ? 1 : 2);
+
+				info.uv = [
+					ummath.um_clip(uv0[0] * info.uvw[0] + uv1[0] * info.uvw[1] + uv2[0] * info.uvw[2], 0.0, 1.0),
+					ummath.um_clip(uv0[1] * info.uvw[0] + uv1[1] * info.uvw[1] + uv2[1] * info.uvw[2], 0.0, 1.0)
+				];
+				x = Math.floor(mat.diffuse_texture_image.width * info.uv[0] + 0.5);
+				y = Math.floor(mat.diffuse_texture_image.height * info.uv[1] + 0.5);
+				info.color = mat.get_diffuse_texture_pixel(x, y);
+			}
+			return true;
+		}
+		return false;
+	}
 
 	UMTriangle.prototype.update_box = function() {
 		var i,
