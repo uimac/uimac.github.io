@@ -5,16 +5,16 @@
 		UMVec4d,
 		UMMat44d,
 		UMBox,
-		EPSILON = 0.00001;
+		EPSILON = 0.0001;
 
 	UMVec3d = function (x, y, z) {
 		this.xyz = [0.0, 0.0, 0.0];
 		if (x && x instanceof Array) {
 			this.xyz = x;
 		} else {
-			if (x) { this.xyz[0] = x; }
-			if (y) { this.xyz[1] = y; }
-			if (z) { this.xyz[2] = z; }
+			if (x !== undefined && x !== null) { this.xyz[0] = x; }
+			if (y !== undefined && y !== null) { this.xyz[1] = y; }
+			if (z !== undefined && z !== null) { this.xyz[2] = z; }
 		}
 	};
 
@@ -95,10 +95,10 @@
 		if (x && x instanceof Array) {
 			this.xyzw = x;
 		} else {
-			if (x) { this.xyzw[0] = x; }
-			if (y) { this.xyzw[1] = y; }
-			if (z) { this.xyzw[2] = z; }
-			if (w) { this.xyzw[3] = w; }
+			if (x !== undefined && x !== null) { this.xyzw[0] = x; }
+			if (y !== undefined && y !== null) { this.xyzw[1] = y; }
+			if (z !== undefined && z !== null) { this.xyzw[2] = z; }
+			if (w !== undefined && w !== null) { this.xyzw[3] = w; }
 		}
 	};
 
@@ -131,6 +131,7 @@
 		this.xyzw[1] = this.xyzw[1] * s;
 		this.xyzw[2] = this.xyzw[2] * s;
 		this.xyzw[3] = this.xyzw[3] * s;
+		return this;
 	};
 
 	UMVec4d.prototype.cross = function (v1, v2) {

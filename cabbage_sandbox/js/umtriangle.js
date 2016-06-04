@@ -89,7 +89,10 @@
 				n1 = this.mesh_.get_normal(this.face_index_, this.mesh_.is_cw ? 2 : 1),
 				n2 = this.mesh_.get_normal(this.face_index_, this.mesh_.is_cw ? 1 : 2);
 
-			info.normal = (n0.scale(info.uvw.x).add(n1.scale(info.uvw.y)).add(n2.scale(info.uvw.z))).normalized();
+			n0.scale(info.uvw[0]);
+			n1.scale(info.uvw[1]);
+			n2.scale(info.uvw[2]);
+			info.normal = (n0.add(n1).add(n2)).normalized();
 			mat = this.mesh_.material_list[0];
 			info.color = mat.diffuse().xyzw;
 			if (this.mesh_.uvs.length > 0 && mat.diffuse_texture_image) {
@@ -108,6 +111,22 @@
 			return true;
 		}
 		return false;
+	}
+
+	UMTriangle.prototype.vertex = function () {
+		return [
+			this.mesh_.get_vert(this.face_index_, 0),
+			this.mesh_.get_vert(this.face_index_, this.mesh_.is_cw ? 2 : 1),
+			this.mesh_.get_vert(this.face_index_, this.mesh_.is_cw ? 1 : 2)
+		];
+	}
+
+	UMTriangle.prototype.normal = function () {
+		return [
+			this.mesh_.get_normal(this.face_index_, 0),
+			this.mesh_.get_normal(this.face_index_, this.mesh_.is_cw ? 2 : 1),
+			this.mesh_.get_normal(this.face_index_, this.mesh_.is_cw ? 1 : 2)
+		];
 	}
 
 	UMTriangle.prototype.update_box = function() {

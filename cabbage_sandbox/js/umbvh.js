@@ -200,6 +200,7 @@
 							info.result = i;
 							info.closest_distance = param.distance;
 							info.intersect_point = param.intersect_point;
+							info.normal = param.normal;
 							info.color = param.color;
 							result = true;
 							//console.log("primitive number", i)

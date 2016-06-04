@@ -255,7 +255,8 @@
 
 	UMScene.prototype.add_mesh_to_primitive_list = function (mesh, build) {
 		console.time('create primitive list');
-		Array.prototype.push.apply(this.primitive_list, mesh.create_primitive_list());
+		this.primitive_list = this.primitive_list.concat(mesh.create_primitive_list());
+		//Array.prototype.push.apply(this.primitive_list, mesh.create_primitive_list());
 		console.timeEnd('create primitive list');
 
 		console.time('bvh build');
