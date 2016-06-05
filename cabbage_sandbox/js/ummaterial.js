@@ -51,6 +51,7 @@
 				this.canvas_.height = this.diffuse_texture_image.height;
 				var ctx = this.canvas_.getContext('2d');
 				ctx.drawImage(this.diffuse_texture_image, 0, 0);
+				this.texture = ctx.getImageData(0, 0, this.canvas_.width, this.canvas_.height).data;
 
 				this.diffuse_texture_assigned = true;
 			}
@@ -147,8 +148,14 @@
 	};
 
 	UMMaterial.prototype.get_diffuse_texture_pixel = function (x, y) {
-		var data = this.canvas_.getContext('2d').getImageData(x, y, 1, 1).data;
-		return [data[0] * toFloat, data[1] * toFloat, data[2] * toFloat, data[3] * toFloat];
+		var w = this.diffuse_texture_image.width,
+			h = this.diffuse_texture_image.height,
+			data = this.texture[ (y * h + x) * 4 ];
+		return [
+			this.texture[ (y * h + x) * 4 + 0] * toFloat,
+			this.texture[ (y * h + x) * 4 + 1] * toFloat,
+			this.texture[ (y * h + x) * 4 + 2] * toFloat,
+			this.texture[ (y * h + x) * 4 + 3] * toFloat];
 	};
 
 	UMMaterial.prototype.set_video_texture = function (texture, video) {
