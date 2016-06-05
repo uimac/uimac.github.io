@@ -24,7 +24,6 @@
 	};
 
 	UMRT.prototype.shade = function (scene, ray, shader_parameter, info) {
-		var n = info.normal;
 		/*
 		var vpm = scene.camera.view_projection_matrix();
 		var vpmrot = new ummath.UMMat44d(vpm);
@@ -37,10 +36,16 @@
 				a : info.color[3] };
 		}
 		*/
+		return { r : info.color[0],
+				g : info.color[1],
+				b : info.color[2],
+				a : info.color[3] };
+				/*
 		return { r : (n.xyz[0] + 1.0) * 0.5,
 				g : (n.xyz[1] + 1.0) * 0.5,
 				b : (n.xyz[2] + 1.0) * 0.5,
-				a : info.color[3] };
+				a : 1.0 };
+				*/
 	};
 
 	UMRT.prototype.trace = function (scene, ray, shader_parameter, x, y) {

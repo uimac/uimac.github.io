@@ -298,21 +298,16 @@
 		if (!bvhnode) { return false; }
 		while (1) {
 			node = this.flat_node_list[index];
-			//console.log(this.flat_node_list.length, index)
 			if (node.box.intersects(origin, dir, invdir, negdir, 0.01, info.closest_distance)) {
 				if (!node.left && !node.right) {
-					//console.log(bvhnode.from, bvhnode.to)x
 					for (i = node.from; i <= node.to; i = i + 1) {
-						if (this.primitive_list[i].intersects2(origin, dir, param)) {
-							//console.log(param.distance)
+						if (this.primitive_list[i].intersects(origin, dir, param)) {
 							if (param.distance < info.closest_distance) {
 								info.result = i;
 								info.closest_distance = param.distance;
 								info.intersect_point = param.intersect_point;
-								info.normal = param.normal;
-								info.color = param.color;
+								info.uvw = param.uvw;
 								result = true;
-								//console.log("primitive number", i)
 							}
 						}
 					}
@@ -333,6 +328,9 @@
 				if (stack_index === 0) break;
 				index = stack[--stack_index];
 			}
+		}
+		if (result) {
+			this.primitive_list[info.result].calcMaterial(info);
 		}
 		return result;
 	};
