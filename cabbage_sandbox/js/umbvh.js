@@ -5,7 +5,10 @@
 	var UMBvh,
 		BvhNode;
 
-	UMBvh = function () {};
+	UMBvh = function () {
+		this.stack = [];
+		this.stack.length = 1000;
+	};
 	BvhNode = function () {
 		this.box = new ummath.UMBox();
 		this.box.init();
@@ -19,9 +22,9 @@
 	}
 
 	BvhNode.prototype.pickSplitAxis = function () {
-		var axis_x = this.box.max_[0] + this.box.min_[0],
-			axis_y = this.box.max_[1] + this.box.min_[1],
-			axis_z = this.box.max_[2] + this.box.min_[2];
+		var axis_x = this.box.max_[0] - this.box.min_[0],
+			axis_y = this.box.max_[1] - this.box.min_[1],
+			axis_z = this.box.max_[2] - this.box.min_[2];
 
 		if (axis_x > axis_y && axis_x > axis_z) {
 			return 0; // x
@@ -104,7 +107,7 @@
 		}
 	};
 
-	BvhNode.prototype.splitNode = function (primitive_list, lindex, rindex) {
+	BvhNode.prototype.splitNode = function (flat_node_list, primitive_list, lindex, rindex) {
 		var axis = this.pickSplitAxis(),
 			size = rindex - lindex,
 			center,
@@ -135,15 +138,21 @@
 
 		if ( (center - lindex) > 0) {
 			this.left = new BvhNode();
-			this.left.init(primitive_list, lindex, center);
+			this.left.index = flat_node_list.length;
+			this.left.parent_index = this.index;
+			flat_node_list.push(this.left);
+			this.left.init(flat_node_list,primitive_list, lindex, center);
 		}
 		if ( (rindex - center) > 0) {
 			this.right = new BvhNode();
-			this.right.init(primitive_list, center, rindex);
+			this.right.index = flat_node_list.length;
+			this.right.parent_index = this.index;
+			flat_node_list.push(this.right);
+			this.right.init(flat_node_list,primitive_list, center, rindex);
 		}
 	};
 
-	BvhNode.prototype.init = function (primitive_list, lindex, rindex) {
+	BvhNode.prototype.init = function (flat_node_list, primitive_list, lindex, rindex) {
 		var size = rindex - lindex;
 		this.left = null;
 		this.right = null;
@@ -157,28 +166,17 @@
 			this.computeVolume(primitive_list, lindex, rindex);
 		} else {
 			this.computeVolume(primitive_list, lindex, rindex);
-			this.splitNode(primitive_list, lindex, rindex);
-		}
-	};
-
-	UMBvh.prototype.flatten = function (queue, bvhNodeList) {
-		while (queue.length > 0) {
-			var bvhNode = queue.shift();
-			if (bvhNode.left) {
-				bvhNodeList.push(bvhNode.left);
-				queue.push(bvhNode.left);
-			}
-			if (bvhNode.right) {
-				bvhNodeList.push(bvhNode.right);
-				queue.push(bvhNode.right);
-			}
+			this.splitNode(flat_node_list, primitive_list, lindex, rindex);
 		}
 	};
 
 	UMBvh.prototype.build = function (primitive_list) {
 		this.root = new BvhNode();
 		this.primitive_list = primitive_list;
-		this.root.init(primitive_list, 0, primitive_list.length - 1);
+		this.flat_node_list = [this.root];
+		this.root.index = 0;
+		this.root.parent_index = null;
+		this.root.init(this.flat_node_list, primitive_list, 0, primitive_list.length - 1);
 	};
 
 	UMBvh.prototype.intersects = function (bvhnode, info, origin, dir, isright) {
@@ -216,6 +214,215 @@
 				if (bvhnode.left) {
 					b = this.intersects(bvhnode.left, info, origin, dir, false);
 					result = result || b;
+				}
+			}
+		}
+		return result;
+	};
+
+	UMBvh.prototype.intersects2 = function (bvhnode, info, origin, dir) {
+		var i,
+			result = false,
+			param = {},
+			a, b,
+			invdir = [1.0 / dir.xyz[0], 1.0 / dir.xyz[1], 1.0 / dir.xyz[2]],
+			negdir = [invdir[0] < 0, invdir[1] < 0, invdir[2] < 0],
+			right,
+			left,
+			preNode,
+			node,
+			parent = null,
+			index = 0,
+			stack_index = 0,
+			stack = [];
+
+		if (!bvhnode) { return false; }
+		while (1) {
+			node = this.flat_node_list[index];
+			if (node.box.intersects(origin, dir, invdir, negdir, 0.00001, info.closest_distance)) {
+				if (!node.left && !node.right) {
+					//console.log(bvhnode.from, bvhnode.to)x
+					for (i = node.from; i <= node.to; i = i + 1) {
+						if (this.primitive_list[i].intersects2(origin, dir, param)) {
+							//console.log(param.distance)
+							if (param.distance < info.closest_distance) {
+								info.result = i;
+								info.closest_distance = param.distance;
+								info.intersect_point = param.intersect_point;
+								info.normal = param.normal;
+								info.color = param.color;
+								result = true;
+								//console.log("primitive number", i)
+							}
+						}
+					}
+					if (stack_index === 0) break;
+					index = stack[--stack_index];
+				} else {
+					if (negdir[node.axis]) {
+						stack[stack_index++] = index + 1;
+						index = node.right.index;
+					}
+					else
+					{
+						stack[stack_index++] = node.right.index;
+						index = index + 1;
+					}
+				}
+			} else {
+				if (stack_index === 0) break;
+				index = stack[--stack_index];
+			}
+		}
+		return result;
+	};
+
+
+
+	UMBvh.prototype.intersects3 = function (bvhnode, info, origin, dir) {
+		var i,
+			result = false,
+			param = {},
+			a, b,
+			invdir = [1.0 / dir.xyz[0], 1.0 / dir.xyz[1], 1.0 / dir.xyz[2]],
+			negdir = [invdir[0] < 0, invdir[1] < 0, invdir[2] < 0],
+			right,
+			left,
+			preNode,
+			node,
+			parent = null,
+			index = 0,
+			stack_index = 0,
+			stack = this.stack;
+
+		if (!bvhnode) { return false; }
+		while (1) {
+			node = this.flat_node_list[index];
+			//console.log(this.flat_node_list.length, index)
+			if (node.box.intersects(origin, dir, invdir, negdir, 0.01, info.closest_distance)) {
+				if (!node.left && !node.right) {
+					//console.log(bvhnode.from, bvhnode.to)x
+					for (i = node.from; i <= node.to; i = i + 1) {
+						if (this.primitive_list[i].intersects2(origin, dir, param)) {
+							//console.log(param.distance)
+							if (param.distance < info.closest_distance) {
+								info.result = i;
+								info.closest_distance = param.distance;
+								info.intersect_point = param.intersect_point;
+								info.normal = param.normal;
+								info.color = param.color;
+								result = true;
+								//console.log("primitive number", i)
+							}
+						}
+					}
+					if (stack_index === 0) break;
+					index = stack[--stack_index];
+				} else {
+					if (negdir[node.axis]) {
+						stack[stack_index++] = index + 1;
+						index = node.right.index;
+					}
+					else
+					{
+						stack[stack_index++] = node.right.index;
+						index = index + 1;
+					}
+				}
+			} else {
+				if (stack_index === 0) break;
+				index = stack[--stack_index];
+			}
+		}
+		return result;
+	};
+
+	UMBvh.prototype.intersects4 = function (bvhnode, info, origin, dir) {
+		var i,
+			result = false,
+			param = {},
+			invdir = [1.0 / dir.xyz[0], 1.0 / dir.xyz[1], 1.0 / dir.xyz[2]],
+			negdir = [invdir[0] < 0, invdir[1] < 0, invdir[2] < 0],
+			right,
+			left,
+			preNode,
+			node,
+			parent = null,
+			index = 0,
+			stack_index = 0,
+			stack = this.stack;
+
+			var x, y, z,
+				txmin, txmax,
+				tymin, tymax,
+				tzmin, tzmax,
+				interval_min,
+				interval_max;
+
+		if (!bvhnode) { return false; }
+		while (1) {
+			node = this.flat_node_list[index];
+			interval_min = 0.00001,
+			interval_max = info.closest_distance;
+
+			x = (negdir[0]) ? [node.box.max_[0], node.box.min_[0]] : [node.box.min_[0], node.box.max_[0]];
+			y = (negdir[1]) ? [node.box.max_[1], node.box.min_[1]] : [node.box.min_[1], node.box.max_[1]];
+			z = (negdir[2]) ? [node.box.max_[2], node.box.min_[2]] : [node.box.min_[2], node.box.max_[2]];
+
+			txmin = (x[0] - origin.xyz[0]) * invdir[0];
+			txmax = (x[1] - origin.xyz[0]) * invdir[0];
+			if (txmin > interval_min) { interval_min = txmin; }
+			if (txmax < interval_max) { interval_max = txmax; }
+			if (interval_min > interval_max) {
+				if (stack_index === 0) break;
+				index = stack[--stack_index];
+				continue;
+			}
+
+			tymin = (y[0] - origin.xyz[1]) * invdir[1];
+			tymax = (y[1] - origin.xyz[1]) * invdir[1];
+			if (tymin > interval_min) { interval_min = tymin; }
+			if (tymax < interval_max) { interval_max = tymax; }
+			if (interval_min > interval_max) {
+				if (stack_index === 0) break;
+				index = stack[--stack_index];
+				continue;
+			}
+
+			tzmin = (z[0] - origin.xyz[2]) * invdir[2];
+			tzmax = (z[1] - origin.xyz[2]) * invdir[2];
+			if (tzmin > interval_min) { interval_min = tzmin; }
+			if (tzmax < interval_max) { interval_max = tzmax; }
+
+			if (interval_min > interval_max) {
+				if (stack_index === 0) break;
+				index = stack[--stack_index];
+				continue;
+			}
+			if (!node.left && !node.right) {
+				for (i = node.from; i <= node.to; i = i + 1) {
+					if (this.primitive_list[i].intersects2(origin, dir, param)) {
+						if (param.distance < info.closest_distance) {
+							info.result = i;
+							info.closest_distance = param.distance;
+							info.intersect_point = param.intersect_point;
+							info.normal = param.normal;
+							info.color = param.color;
+							result = true;
+						}
+					}
+				}
+				if (stack_index === 0) break;
+				index = stack[--stack_index];
+			} else {
+				if (negdir[node.axis]) {
+					stack[stack_index++] = index + 1;
+					index = node.right.index;
+				}
+				else
+				{
+					stack[stack_index++] = node.right.index;
+					index = index + 1;
 				}
 			}
 		}

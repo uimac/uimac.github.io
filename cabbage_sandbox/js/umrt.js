@@ -50,7 +50,7 @@
 			},
 			prim;
 
-		if (scene.bvh.intersects(scene.bvh.root, info, ray.org, ray.dir)) {
+		if (scene.bvh.intersects3(scene.bvh.root, info, ray.org, ray.dir)) {
 			return this.shade(scene, ray, shader_parameter, info);
 		}
 		return { r : 1.0, g : 0.5, b : 0.5, a : 1.0 }
