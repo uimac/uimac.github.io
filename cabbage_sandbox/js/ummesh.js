@@ -1,6 +1,6 @@
 /*jslint devel:true*/
 /*global Float32Array */
-(function (ummath, umtriangle) {
+(function (ummath, umtriangle, umwingededge) {
 	"use strict";
 	var UMMesh;
 
@@ -285,6 +285,18 @@
 		}
 	};
 
+	UMMesh.prototype.get_vindex = function (faceindex) {
+		if (this.indices && this.indices.length > 0) {
+			return [this.indices[faceindex * 3 + 0],
+					this.indices[faceindex * 3 + 1],
+					this.indices[faceindex * 3 + 2]];
+		} else {
+			return [(faceindex * 3 + 0),
+					(faceindex * 3 + 1),
+					(faceindex * 3 + 2)];
+		}
+	};
+
 	UMMesh.prototype.add_triangle = function (v1, v2, v3, min_time, max_time) {
 		var normal;
 
@@ -308,6 +320,73 @@
 		this.update_box();
 	};
 
+	UMMesh.prototype.create_mesh_index = function () {
+		console.time('create mesh index');
+		var i,
+			verts = [],
+			verts_link = [],
+			size,
+			vraw,
+			vi;
+
+		verts.length = this.verts.length / 3;
+		for (i = 0, size = this.verts.length / 3 / 3; i < size; i = i + 1) {
+			vi = [(i * 3 + 0), (i * 3 + 1), (i * 3 + 2)];
+			verts[vi[0]] = [
+				this.verts[vi[0] * 3 + 0],
+				this.verts[vi[0] * 3 + 1],
+				this.verts[vi[0] * 3 + 2], vi[0], null];
+			verts[vi[1]] = [
+				this.verts[vi[1] * 3 + 0],
+				this.verts[vi[1] * 3 + 1],
+				this.verts[vi[1] * 3 + 2], vi[1], null];
+			verts[vi[2]] = [
+				this.verts[vi[2] * 3 + 0],
+				this.verts[vi[2] * 3 + 1],
+				this.verts[vi[2] * 3 + 2], vi[2], null];
+			verts_link.push([verts[vi[0]], verts[vi[1]], verts[vi[2]]]);
+		}
+		var sorted = verts.sort();
+		//console.log(sorted, verts_link)
+		if (sorted.length > 0) {
+			sorted[0][4] = sorted[0][3];
+			for (i = 0; i < sorted.length - 1; i = i + 1) {
+				var left = sorted[i];
+				var right = sorted[i + 1];
+				var dist2 = Math.abs((right[0]*right[0]+right[1]*right[1]+right[2]*right[2])
+									-(left[0]*left[0]+left[1]*left[1]+left[2]*left[2]));
+				if (dist2 < 0.0001 ) {
+					right[4] = left[4];
+				} else {
+					right[4] = right[3];
+				}
+			}
+			/*
+			var newverts = [];
+			var pre = null;
+			for (i = 0; i < sorted.length; i = i + 1) {
+				if (pre !== sorted[i][4]) {
+					Array.prototype.push.apply(newverts, [
+						sorted[i][0],
+						sorted[i][1],
+						sorted[i][2]
+					]);
+				}
+				pre = sorted[i][4];
+			}
+			*/
+			this.indices = [];
+			for (i = 0, size = verts_link.length; i < size; i = i + 1) {
+				this.indices.push(verts_link[i][0][3]);
+				this.indices.push(verts_link[i][1][3]);
+				this.indices.push(verts_link[i][2][3]);
+			}
+			//this.verts = newverts;
+		}
+		console.timeEnd('create mesh index');
+		console.log(sorted);
+	};
+
 	UMMesh.prototype.create_primitive_list = function () {
 		var i,
 			polycount,
@@ -322,16 +401,32 @@
 				primitive_list[i] = tri;
 			}
 		} else if (this.verts && this.verts.length > 0) {
+			this.create_mesh_index();
+			polycount = this.indices.length / 3;
+			console.log(polycount);
+			primitive_list.length = polycount;
+			for (i = 0; i < polycount; i = i + 1) {
+				tri = new umtriangle.UMTriangle(this, i);
+				primitive_list[i] = tri;
+			}
+			this.index_buffer = this.gl.createBuffer();
+			this.update(this.verts, this.normals, this.uv, this.indices, this.barycentric);
+			/*
 			polycount = this.verts.length / 3 / 3;
 			for (i = 0; i < polycount; i = i + 1) {
 				tri = new umtriangle.UMTriangle(this, i);
 				primitive_list[i] = tri;
 			}
+			*/
 		}
+		this.primitive_list = primitive_list;
+
+		umwingededge.create(this);
+
 		return primitive_list;
 	};
 
 	window.ummesh = {};
 	window.ummesh.UMMesh = UMMesh;
 
-}(window.ummath, window.umtriangle));
+}(window.ummath, window.umtriangle, window.umwingededge));

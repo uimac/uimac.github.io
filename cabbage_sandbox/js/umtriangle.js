@@ -115,7 +115,15 @@
 			this.mesh_.get_vert(this.face_index_, this.mesh_.is_cw ? 2 : 1),
 			this.mesh_.get_vert(this.face_index_, this.mesh_.is_cw ? 1 : 2)
 		];
-	}
+	};
+
+	UMTriangle.prototype.vertex_raw = function () {
+		return [
+			this.mesh_.get_vert(this.face_index_, 0).xyz,
+			this.mesh_.get_vert(this.face_index_, this.mesh_.is_cw ? 2 : 1).xyz,
+			this.mesh_.get_vert(this.face_index_, this.mesh_.is_cw ? 1 : 2).xyz
+		];
+	};
 
 	UMTriangle.prototype.normal = function () {
 		return [
@@ -123,7 +131,11 @@
 			this.mesh_.get_normal(this.face_index_, this.mesh_.is_cw ? 2 : 1),
 			this.mesh_.get_normal(this.face_index_, this.mesh_.is_cw ? 1 : 2)
 		];
-	}
+	};
+
+	UMTriangle.prototype.vindex = function () {
+		return this.mesh_.get_vindex(this.face_index_);
+	};
 
 	UMTriangle.prototype.update_box = function() {
 		var i,

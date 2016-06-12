@@ -159,7 +159,7 @@
 		this.from = lindex;
 		this.to = rindex;
 		if (size <= 0) {
-			console.error("hoge")
+			console.error("hoge", lindex, rindex)
 		}
 		if (size <= 1) {
 			// leaf node
