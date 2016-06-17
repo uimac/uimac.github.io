@@ -320,45 +320,74 @@
 		this.update_box();
 	};
 
+	function vertexCompare(va, vb) {
+		if (vb[0] > va[0] || vb[1] > va[1] || vb[2] > va[2]) {
+			return -1;
+		} else {
+			return 1;
+		}
+	}
+
 	UMMesh.prototype.create_mesh_index = function () {
 		console.time('create mesh index');
 		var i,
+			faces = [],
 			verts = [],
 			verts_link = [],
 			size,
 			vraw,
 			vi;
 
+		console.time('initial time');
 		verts.length = this.verts.length / 3;
+		verts_link.length = verts.length / 3;
+		faces.length = verts.length / 3;
 		for (i = 0, size = this.verts.length / 3 / 3; i < size; i = i + 1) {
 			vi = [(i * 3 + 0), (i * 3 + 1), (i * 3 + 2)];
 			verts[vi[0]] = [
 				this.verts[vi[0] * 3 + 0],
 				this.verts[vi[0] * 3 + 1],
-				this.verts[vi[0] * 3 + 2], vi[0], null];
+				this.verts[vi[0] * 3 + 2],
+				this.verts[vi[0] * 3 + 0] * this.verts[vi[0] * 3 + 0] +
+				this.verts[vi[0] * 3 + 1] * this.verts[vi[0] * 3 + 1] +
+				this.verts[vi[0] * 3 + 2] * this.verts[vi[0] * 3 + 2],
+				vi[0], null];
 			verts[vi[1]] = [
 				this.verts[vi[1] * 3 + 0],
 				this.verts[vi[1] * 3 + 1],
-				this.verts[vi[1] * 3 + 2], vi[1], null];
+				this.verts[vi[1] * 3 + 2],
+				this.verts[vi[1] * 3 + 0] * this.verts[vi[1] * 3 + 0] +
+				this.verts[vi[1] * 3 + 1] * this.verts[vi[1] * 3 + 1] +
+				this.verts[vi[1] * 3 + 2] * this.verts[vi[1] * 3 + 2], vi[1], null];
 			verts[vi[2]] = [
 				this.verts[vi[2] * 3 + 0],
 				this.verts[vi[2] * 3 + 1],
-				this.verts[vi[2] * 3 + 2], vi[2], null];
-			verts_link.push([verts[vi[0]], verts[vi[1]], verts[vi[2]]]);
+				this.verts[vi[2] * 3 + 2],
+				this.verts[vi[2] * 3 + 0] * this.verts[vi[2] * 3 + 0] +
+				this.verts[vi[2] * 3 + 1] * this.verts[vi[2] * 3 + 1] +
+				this.verts[vi[2] * 3 + 2] * this.verts[vi[2] * 3 + 2], vi[2], null];
+			verts_link[i] = [verts[vi[0]], verts[vi[1]], verts[vi[2]]];
+			faces[i] = [
+				(verts[vi[0]][0] + verts[vi[1]][0] + verts[vi[2]][0]) / 3,
+				(verts[vi[0]][1] + verts[vi[1]][1] + verts[vi[2]][1]) / 3,
+				(verts[vi[0]][2] + verts[vi[1]][2] + verts[vi[2]][2]) / 3,
+			]
 		}
-		var sorted = verts.sort();
+		console.timeEnd('initial time');
+		console.time('sort time');
+		var sorted = verts.sort(vertexCompare);
+		console.timeEnd('sort time');
 		//console.log(sorted, verts_link)
 		if (sorted.length > 0) {
-			sorted[0][4] = sorted[0][3];
+			sorted[0][5] = sorted[0][4];
 			for (i = 0; i < sorted.length - 1; i = i + 1) {
 				var left = sorted[i];
 				var right = sorted[i + 1];
-				var dist2 = Math.abs((right[0]*right[0]+right[1]*right[1]+right[2]*right[2])
-									-(left[0]*left[0]+left[1]*left[1]+left[2]*left[2]));
+				var dist2 = Math.abs((right[3]-left[3]));
 				if (dist2 < 0.0001 ) {
-					right[4] = left[4];
+					right[5] = left[5];
 				} else {
-					right[4] = right[3];
+					right[5] = right[4];
 				}
 			}
 			/*
@@ -376,10 +405,11 @@
 			}
 			*/
 			this.indices = [];
+			this.indices.length = verts_link.length * 3;
 			for (i = 0, size = verts_link.length; i < size; i = i + 1) {
-				this.indices.push(verts_link[i][0][3]);
-				this.indices.push(verts_link[i][1][3]);
-				this.indices.push(verts_link[i][2][3]);
+				this.indices[i * 3] = (verts_link[i][0][5]);
+				this.indices[i * 3 + 1] = (verts_link[i][1][5]);
+				this.indices[i * 3 + 2] = (verts_link[i][2][5]);
 			}
 			//this.verts = newverts;
 		}

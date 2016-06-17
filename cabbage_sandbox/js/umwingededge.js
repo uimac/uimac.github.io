@@ -2,7 +2,8 @@
 /*global Float32Array */
 (function (ummath) {
 	"use strict";
-	var UMWingedEdge;
+	var UMWingedEdge,
+		UMVFace;
 
 	UMWingedEdge = function () {
 		this.v0 = null;
@@ -14,10 +15,16 @@
 		this.next = null;
 	};
 
+	UMVFace = function () {
+		this.face = null;
+		this.next = null;
+	};
+
 	function create(mesh) {
 		var i,
 			j,
 			k,
+			vi,
 			vj,
 			vk,
 			vjk,
@@ -28,24 +35,41 @@
 			size,
 			edgeList = [],
 			edgeHeadList = [],
+			faceList = [],
+			faceHeadList = [],
 			edgeHashMap = {},
 			edgeHashCounter = 0,
-			tri,
-			count = 0;
+			ecount = 0,
+			fcount = 0,
+			tri;
 
 			console.log("create winged edge");
 
+		return;
+
+		faceList.length = 3 * triangles.length;
+		faceHeadList.length = 3 * triangles.length;
 		edgeList.length = 3 * triangles.length;
 		edgeHeadList.length = 3 * triangles.length;
 
 		for (i = 0, size = triangles.length * 3; i < size; i = i + 1) {
+			faceList[i] = new UMVFace();
+			faceHeadList[i] = null;
 			edgeHeadList[i] = null;
 			edgeList[i] = new UMWingedEdge();
 		}
-
 		for (i = 0; i < triangles.length; i = i + 1) {
 			tri = triangles[i];
 			vindex = tri.vindex();
+			// vertex to faces
+			for (k = 0; k < 3; k = k + 1) {
+				vi = vindex[k];
+				faceList[fcount].face = i
+				faceList[fcount].next = faceHeadList[vi];
+				faceHeadList[vi] = faceList[fcount];
+				fcount = fcount + 1;
+			}
+			// edge to faces
 			for (k = 0, j = 2; k < 2; j = k, k = k + 1) {
 				vj = vindex[j];
 				vk = vindex[k];
@@ -60,14 +84,14 @@
 				for (edge = edgeHeadList[hash]; ; edge = edge.next) {
 					// first face
 					if (edge === null) {
-						edgeList[count].v0 = vj;
-						edgeList[count].v1 = vk;
-						edgeList[count].f0 = i;
-						edgeList[count].e0 = j;
+						edgeList[ecount].v0 = vj;
+						edgeList[ecount].v1 = vk;
+						edgeList[ecount].f0 = i;
+						edgeList[ecount].e0 = j;
 						// for non-manifold edge
-						edgeList[count].next = edgeHeadList[hash];
-						edgeHeadList[hash] = edgeList[count];
-						count = count + 1;
+						edgeList[ecount].next = edgeHeadList[hash];
+						edgeHeadList[hash] = edgeList[ecount];
+						ecount = ecount + 1;
 						break;
 					}
 					// second face
@@ -80,7 +104,7 @@
 			}
 		}
 		edgeHeadList.length = edgeHashCounter + 1;
-		edgeList.length = count;
+		edgeList.length = ecount;
 		console.log(edgeHeadList)
 		console.log(edgeList);
 	};
