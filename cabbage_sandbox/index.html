@@ -8,11 +8,12 @@
 	<script type="text/javascript" src="js/umcamera.js"></script>
 	<script type="text/javascript" src="js/ummaterial.js"></script>
 	<script type="text/javascript" src="js/umtriangle.js"></script>
+	<script type="text/javascript" src="js/umline.js"></script>
+	<script type="text/javascript" src="js/umpoint.js"></script>
+	<script type="text/javascript" src="js/umoutline.js"></script>
 	<script type="text/javascript" src="js/umwingededge.js"></script>
 	<script type="text/javascript" src="js/ummesh.js"></script>
-	<script type="text/javascript" src="js/umpoint.js"></script>
 	<script type="text/javascript" src="js/umnurbs.js"></script>
-	<script type="text/javascript" src="js/umline.js"></script>
 	<script type="text/javascript" src="js/umboxlist.js"></script>
 	<script type="text/javascript" src="js/umshader.js"></script>
 	<script type="text/javascript" src="js/ummtl.js"></script>
@@ -56,7 +57,7 @@
 		}
 		pos.z = 2.0 * pos.z - pos.w;
 		light_direction = normalize(vec4(a_position, 0.0) - light_position);
-		gl_PointSize = 2.0;
+		gl_PointSize = 4.0;
 		gl_Position = pos;
 	}
 </script>

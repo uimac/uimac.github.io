@@ -30,7 +30,7 @@
 			return;
 		}
 		this.verts = verts;
-		if (verts.length <= 0) {
+		if (!verts || verts.length <= 0) {
 			return;
 		}
 		gl.bindBuffer(gl.ARRAY_BUFFER, this.vertex_vbo);
@@ -54,7 +54,7 @@
 		if (this.normal_attr && this.normal_attr >= 0) {
 			gl.disableVertexAttribArray(this.normal_attr);
 		}
-		
+
 		if (!this.uv_attr) {
 			this.uv_attr = gl.getAttribLocation(shader.program_object(), 'a_uv');
 		}
@@ -85,7 +85,6 @@
 		for (i = 0; i < this.material_list.length; i = i + 1) {
 			material = this.material_list[i];
 			index_count = material.polygon_count() * 2;
-			//console.log("indexcount", index_offset, index_count, this.verts.length / 3)
 
 			camera.draw(shader);
 			material.draw(shader);

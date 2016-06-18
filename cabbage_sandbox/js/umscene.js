@@ -18,11 +18,13 @@
 		this.grid = null;
 		this.test_mesh = null;
 		this.mesh_list = [];
+		this.line_list = [];
 		this.point_list = [];
 		this.nurbs_list = [];
 		this.box_list = [];
 		this.update_func_list = [];
 		this.primitive_list = [];
+		this.wedge_list = [];
 		this.width = 800;
 		this.height = 600;
 		this.current_time = 0;
@@ -194,6 +196,9 @@
 			this.set_front_face(this.mesh_list[i].is_cw);
 			this.mesh_list[i].draw(this.current_shader, this.camera);
 		}
+		for (i = 0; i < this.line_list.length; i = i + 1) {
+			this.line_list[i].draw(this.shader_list[0], this.camera);
+		}
 		for (i = 0; i < this.point_list.length; i = i + 1) {
 			this.point_list[i].draw(this.shader_list[0], this.camera);
 		}
@@ -258,6 +263,10 @@
 		this.primitive_list = this.primitive_list.concat(mesh.create_primitive_list());
 		//Array.prototype.push.apply(this.primitive_list, mesh.create_primitive_list());
 		console.timeEnd('create primitive list');
+
+		console.time('create winged edge');
+		this.wedge_list = this.wedge_list.concat(mesh.create_winged_edge());
+		console.timeEnd('create winged edge');
 
 		console.time('bvh build');
 		if (build) {
@@ -591,8 +600,12 @@
 	UMScene.prototype.dispose = function () {
 		var i = 0;
 		this.primitive_list = [];
+		this.wedge_list = [];
 		for (i = 0; i < this.mesh_list.length; i = i + 1) {
 			this.mesh_list[i].dispose();
+		}
+		for (i = 0; i < this.line_list.length; i = i + 1) {
+			this.line_list[i].dispose();
 		}
 		for (i = 0; i < this.point_list.length; i = i + 1) {
 			this.point_list[i].dispose();

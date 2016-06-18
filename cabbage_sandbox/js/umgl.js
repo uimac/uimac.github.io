@@ -165,6 +165,15 @@
 		}
 	}
 
+	function start_mainloop() {
+		mainloop_handle = requestAnimationFrame(main_loop);
+	}
+
+	function stop_mainloop() {
+		cancelAnimationFrame(mainloop_handle);
+		drawonce();
+	}
+
 	function init() {
 		var canvas = document.getElementById('canvas'),
 			line,
@@ -326,14 +335,13 @@
 		if (document.getElementById('tool_play')) {
 			document.getElementById('tool_play').onclick = function (evt) {
 				scene.play();
-				mainloop_handle = requestAnimationFrame(main_loop);
+				start_mainloop();
 			};
 		}
 		if (document.getElementById('tool_stop')) {
 			document.getElementById('tool_stop').onclick = function (evt) {
 				scene.stop();
-				cancelAnimationFrame(mainloop_handle);
-				drawonce();
+				stop_mainloop();
 			};
 		}
 		if (document.getElementById('tool_pause')) {
@@ -377,5 +385,8 @@
 	window.umgl = {};
 	window.umgl.init = init;
 	window.umgl.dispose = dispose;
+	window.umgl.drawonce = drawonce;
+	window.umgl.start_mainloop = start_mainloop;
+	window.umgl.stop_mainloop = stop_mainloop;
 	window.umgl.get_scene = function () { return scene; };
 }(window.umscene));

@@ -98,8 +98,7 @@
 
 		for (i = 0; i < this.material_list.length; i = i + 1) {
 			material = this.material_list[i];
-			index_count = material.polygon_count() * 3;
-
+			index_count = material.polygon_count();
 			camera.draw(shader);
 			material.draw(shader);
 			gl.drawArrays(gl.POINTS, index_offset, index_count);
@@ -119,13 +118,12 @@
 	UMPoint.prototype.update_box = function () {
 		var i,
 			vlen;
-		this.box.set_min(new ummath.UMVec3d(Infinity, Infinity, Infinity));
-		this.box.set_max(new ummath.UMVec3d(-Infinity, -Infinity, -Infinity));
+		this.box.init();
  		vlen = this.positions.length / 3;
 		for (i = 0; i < vlen; i = i + 1) {
 			this.box.extend([this.positions[i * 3 + 0], this.positions[i * 3 + 1], this.positions[i * 3 + 2]]);
 		}
-		console.log("box updated", this.box.min(), this.box.max());
+		//console.log("box updated", this.box.min(), this.box.max());
 	};
 
 	window.umpoint = {};

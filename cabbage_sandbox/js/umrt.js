@@ -1,6 +1,6 @@
 /*jslint devel:true*/
 /*global Float32Array */
-(function (ummath) {
+(function (ummath, umoutline) {
 	var UMRT,
 		UMRay,
 		umrt;
@@ -24,6 +24,7 @@
 	};
 
 	UMRT.prototype.shade = function (scene, ray, shader_parameter, info) {
+			var prim = scene.primitive_list[info.result];
 		/*
 		var vpm = scene.camera.view_projection_matrix();
 		var vpmrot = new ummath.UMMat44d(vpm);
@@ -36,10 +37,17 @@
 				a : info.color[3] };
 		}
 		*/
-		return { r : info.color[0],
-				g : info.color[1],
-				b : info.color[2],
-				a : info.color[3] };
+		if (prim.mark !== undefined && prim.mark) {
+			return { r : 0.0,
+					g : 1.0,
+					b : 0.0,
+					a : 1.0 };
+		} else {
+			return { r : info.color[0],
+					g : info.color[1],
+					b : info.color[2],
+					a : info.color[3] };
+		}
 				/*
 		return { r : (n.xyz[0] + 1.0) * 0.5,
 				g : (n.xyz[1] + 1.0) * 0.5,
@@ -101,12 +109,21 @@
 			result_params = {},
 			param,
 			index,
-			canvas_image = ctx.getImageData(0, 0, width, height);
+			canvas_image = ctx.getImageData(0, 0, width, height),
 			ray = new UMRay();
 
 		render_canvas.width = width;
 		render_canvas.height = height;
 		console.log("width:", width, "height:", height);
+
+		for (i = 0; i < scene.wedge_list.length; i = i + 1) {
+			console.time('create outline');
+			umoutline.create(scene, scene.mesh_list[i], scene.wedge_list[i]);
+			console.timeEnd('create outline');
+		}
+		window.umgl.drawonce();
+		return;
+
 		for (y = 0; y < height; y = y + 1) {
 			for (x = 0; x < width; x = x + 1) {
 				shader_parameter = {};
@@ -123,8 +140,9 @@
 				result_params[y * height + x] = JSON.parse(JSON.stringify(shader_parameter));
 			}
 		}
-		//this.outline(scene, result_params);
 		ctx.putImageData(canvas_image, 0, 0);
+
+		//this.outline(scene, result_params);
 	};
 
 	function init() {
@@ -137,7 +155,7 @@
 				console.time('render');
 				umrt.render(window.umgl.get_scene(), canvas, render_canvas);
 				console.timeEnd('render');
-				document.getElementById('tool_test2').click();
+				//document.getElementById('tool_test2').click();
 			}
 		}
 	}
@@ -145,4 +163,4 @@
 	window.umrt = {};
 	window.umrt.init = init;
 	window.umrt.UMRT = UMRT;
-}(window.ummath));
+}(window.ummath, window.umoutline));

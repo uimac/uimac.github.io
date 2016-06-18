@@ -288,12 +288,12 @@
 	UMMesh.prototype.get_vindex = function (faceindex) {
 		if (this.indices && this.indices.length > 0) {
 			return [this.indices[faceindex * 3 + 0],
-					this.indices[faceindex * 3 + 1],
-					this.indices[faceindex * 3 + 2]];
+					this.indices[this.is_cw ? faceindex * 3 + 2 : faceindex * 3 + 1],
+					this.indices[this.is_cw ? faceindex * 3 + 1 : faceindex * 3 + 2]];
 		} else {
 			return [(faceindex * 3 + 0),
-					(faceindex * 3 + 1),
-					(faceindex * 3 + 2)];
+					this.is_cw ? (faceindex * 3 + 2) : (faceindex * 3 + 1),
+					this.is_cw ? (faceindex * 3 + 1) : (faceindex * 3 + 2)];
 		}
 	};
 
@@ -371,6 +371,7 @@
 				(verts[vi[0]][0] + verts[vi[1]][0] + verts[vi[2]][0]) / 3,
 				(verts[vi[0]][1] + verts[vi[1]][1] + verts[vi[2]][1]) / 3,
 				(verts[vi[0]][2] + verts[vi[1]][2] + verts[vi[2]][2]) / 3,
+				verts[vi[0]],
 			]
 		}
 		console.timeEnd('initial time');
@@ -384,7 +385,7 @@
 				var left = sorted[i];
 				var right = sorted[i + 1];
 				var dist2 = Math.abs((right[3]-left[3]));
-				if (dist2 < 0.0001 ) {
+				if (dist2 < 0.01 ) {
 					right[5] = left[5];
 				} else {
 					right[5] = right[4];
@@ -414,7 +415,7 @@
 			//this.verts = newverts;
 		}
 		console.timeEnd('create mesh index');
-		console.log(sorted);
+		//console.log(sorted);
 	};
 
 	UMMesh.prototype.create_primitive_list = function () {
@@ -451,9 +452,11 @@
 		}
 		this.primitive_list = primitive_list;
 
-		umwingededge.create(this);
-
 		return primitive_list;
+	};
+
+	UMMesh.prototype.create_winged_edge = function () {
+		return umwingededge.create(this);
 	};
 
 	window.ummesh = {};

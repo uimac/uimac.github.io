@@ -3,9 +3,18 @@
 (function (ummath) {
 	"use strict";
 	var UMWingedEdge,
-		UMVFace;
+		UMWEdge,
+		UMWFace;
 
-	UMWingedEdge = function () {
+	UMWingedEdge = function (triangles) {
+		this.triangles = triangles;
+		this.edgeList = [];
+		this.edgeHeadList = {};
+		this.faceList = [];
+		this.faceHeadList = [];
+	};
+
+	UMWEdge = function () {
 		this.v0 = null;
 		this.v1 = null;
 		this.f0 = null;
@@ -15,7 +24,7 @@
 		this.next = null;
 	};
 
-	UMVFace = function () {
+	UMWFace = function () {
 		this.face = null;
 		this.next = null;
 	};
@@ -33,30 +42,25 @@
 			hash,
 			edge,
 			size,
-			edgeList = [],
-			edgeHeadList = [],
-			faceList = [],
-			faceHeadList = [],
+			wingedEdge = new UMWingedEdge(triangles),
 			edgeHashMap = {},
 			edgeHashCounter = 0,
 			ecount = 0,
 			fcount = 0,
+			edgeList = wingedEdge.edgeList,
+			edgeHeadList = wingedEdge.edgeHeadList,
+			faceList = wingedEdge.faceList,
+			faceHeadList = wingedEdge.faceHeadList,
 			tri;
 
-			console.log("create winged edge");
-
-		return;
-
 		faceList.length = 3 * triangles.length;
-		faceHeadList.length = 3 * triangles.length;
+		faceHeadList.length = mesh.indices.length;
 		edgeList.length = 3 * triangles.length;
-		edgeHeadList.length = 3 * triangles.length;
 
 		for (i = 0, size = triangles.length * 3; i < size; i = i + 1) {
-			faceList[i] = new UMVFace();
+			faceList[i] = new UMWFace();
 			faceHeadList[i] = null;
-			edgeHeadList[i] = null;
-			edgeList[i] = new UMWingedEdge();
+			edgeList[i] = new UMWEdge();
 		}
 		for (i = 0; i < triangles.length; i = i + 1) {
 			tri = triangles[i];
@@ -71,16 +75,15 @@
 			}
 			// edge to faces
 			for (k = 0, j = 2; k < 2; j = k, k = k + 1) {
-				vj = vindex[j];
-				vk = vindex[k];
+				vj = vindex[j]; // 2 0 1
+				vk = vindex[k]; // 0 1 2
 				if (vj > vk) {
 					vk = [vj, vj = vk][0]; // swap
 				}
-				vjk = vj + "_" + vk;
-				if (!edgeHashMap.hasOwnProperty(vjk)) {
-					edgeHashMap[vjk] = edgeHashCounter++;
+				hash = vj + "_" + vk;
+				if (!edgeHeadList.hasOwnProperty(hash)) {
+					edgeHeadList[hash] = null;
 				}
-				hash = edgeHashMap[vjk];
 				for (edge = edgeHeadList[hash]; ; edge = edge.next) {
 					// first face
 					if (edge === null) {
@@ -94,6 +97,7 @@
 						ecount = ecount + 1;
 						break;
 					}
+					console.log(edge.v0 === vj , edge.v1 === vk)
 					// second face
 					if (edge.v0 === vj && edge.v1 === vk) {
 						edge.f1 = i;
@@ -103,10 +107,12 @@
 				}
 			}
 		}
+		faceList.length = fcount;
 		edgeHeadList.length = edgeHashCounter + 1;
 		edgeList.length = ecount;
-		console.log(edgeHeadList)
-		console.log(edgeList);
+		//console.log(edgeHeadList)
+		//console.log(edgeList);
+		return wingedEdge;
 	};
 
 	window.umwingededge = {};
