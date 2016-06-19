@@ -116,6 +116,9 @@
 		if (this.index_buffer) {
 			gl.deleteBuffer(this.index_buffer);
 		}
+		if (this.barycentric_vbo) {
+			gl.deleteBuffer(this.barycentric_vbo);
+		}
 		//glDeleteBuffers(1, &vertex_index_vbo_);
 	};
 
@@ -456,8 +459,8 @@
 				primitive_list[i] = tri;
 			}
 			console.log(this.indices)
-			this.index_buffer = this.gl.createBuffer();
-			this.update(this.verts, this.normals, this.uv, this.indices, this.barycentric);
+			//this.index_buffer = this.gl.createBuffer();
+			//this.update(this.verts, this.normals, this.uv, this.indices, this.barycentric);
 			/*
 			polycount = this.verts.length / 3 / 3;
 			for (i = 0; i < polycount; i = i + 1) {
