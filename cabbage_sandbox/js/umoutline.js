@@ -215,12 +215,14 @@
 			edge,
 			next_face,
 			edge_count,
-			vpm = scene.camera.view_projection_matrix(),
-			vpmrot = new ummath.UMMat44d(vpm),
+			camera_dir = scene.camera.view_matrix().transposed().multiply(new ummath.UMVec3d(0, 0, -1)).normalized(),
 			snaxel,
+			v,
 			snaxel_group = [],
 			snaxels = new UMSnaxels(scene, mesh, winged_edge);
 
+		//vpmrot.m[3][0] = vpmrot.m[3][1] = vpmrot.m[3][2] = 0.0;
+		//vpm = vpm.transposed();
 		console.time('find_initial_snaxels');
 
 		for (i = 0; i < mesh.indices.length; i = i + 1) {
@@ -228,16 +230,25 @@
 			edge_count = 0;
 			found = true;
 			target_vi = mesh.indices[i];
+			target_v = new ummath.UMVec3d(
+				mesh.verts[target_vi * 3 + 0],
+				mesh.verts[mesh.is_cw ? target_vi * 3 + 2 : target_vi * 3 + 1],
+				mesh.verts[mesh.is_cw ? target_vi * 3 + 1 : target_vi * 3 + 2]);
 			target_n = new ummath.UMVec3d(
 				mesh.normals[target_vi * 3 + 0],
 				mesh.normals[mesh.is_cw ? target_vi * 3 + 2 : target_vi * 3 + 1],
 				mesh.normals[mesh.is_cw ? target_vi * 3 + 1 : target_vi * 3 + 2]);
-			target_nv = vpmrot.multiply(target_n).normalized().dot(new ummath.UMVec3d(0, 0, -1));
-			if (target_nv < 0.5) { continue; }
+			target_nv = target_n.dot(camera_dir);
+			//console.log(mesh.normals, target_n.xyz, camera_dir.xyz, target_nv)
+			if (target_nv >= 0.0) { continue; }
 			var added = {};
+			var founds = [];
+			var wfaces = [];
+			//console.log("search", target_v.xyz, target_n.xyz, target_nv);
 			for (wface = winged_edge.faceHeadList[target_vi]; wface; wface = wface.next) {
 				tri = winged_edge.triangles[wface.face];
 				normals = tri.normal();
+				vertex = tri.vertex();
 				vindex = tri.vindex();
 				for (k = 0; k < vindex.length; k = k + 1) {
 					if (added.hasOwnProperty(vindex[k])) {
@@ -245,75 +256,83 @@
 					}
 					if (vindex[k] !== target_vi) {
 						n = normals[k];
+						v = vertex[k];
 						added[vindex[k]] = 1;
 						if (found) {
-							nv = vpmrot.multiply(n).normalized().dot(new ummath.UMVec3d(0, 0, -1));
-							if (nv > target_nv) {
+							nv = n.dot(camera_dir);
+							if (nv < target_nv) {
 								found = false;
 							}
 						}
+						founds.push([wface, vindex[k]]);
 						edge_count = edge_count + 1;
 					}
 				}
-				if (!found) { break; }
 			}
-			if (found) {
+			if (found && founds.length >= 3) {
+				//console.log(founds)
+				//console.log("wface", wfaces);
+				//console.log(target_nv, target_v.xyz);
 				snaxel_group = [];
-				var added = {};
-				var hasnext = false;
-				var scount = 0;
-				while (scount< edge_count) {
+				var added_edge = {};
+				while (snaxel_group.length < founds.length) {
+					var found_nextface = false;
+
 					for (wface = winged_edge.faceHeadList[target_vi]; wface; wface = wface.next) {
 						if (next_face && next_face !== wface.face) {
 							continue;
 						}
 						tri = winged_edge.triangles[wface.face];
+						normals = tri.normal();
+						vertex = tri.vertex();
 						vindex = tri.vindex();
-						vertex = tri.vertex_raw();
-						hasnext = false;
 						for (k = 0; k < vindex.length; k = k + 1) {
 							if (next_face && next_face !== wface.face) {
 								continue;
 							}
-							if (added.hasOwnProperty(vindex[k])) {
+							if (vindex[k] === target_vi) {
 								continue;
 							}
-							if (vindex[k] !== target_vi) {
-								vj = vindex[k];
-								vk = target_vi;
-								if (vj > vk) {
-									vk = [vj, vj = vk][0]; // swap
-								}
-								added[vindex[k]] = 1;
-								scount++;
-
-								snaxel = new UMSnaxel(target_vi, vindex[k], 0.1);
-								snaxel_group.push(snaxel);
-
-								hash = vj + "_" + vk;
-								for (edge = winged_edge.edgeHeadList[hash]; edge; edge = edge.next) {
-									if (edge.v0 === vj && edge.v1 === vk) {
-										if (wface.face === edge.f0) {
-											next_face = edge.f1;
-											console.log(edge.f0, edge.f1)
-											hasnext = true;
-											break;
-										}
+							vj = target_vi;
+							vk = vindex[k];
+							if (vj > vk) {
+								vk = [vj, vj = vk][0]; // swap
+							}
+							hash = vj + "_" + vk;
+							if (added_edge.hasOwnProperty(hash)) {
+								continue;
+							}
+							found_nextface = true;
+							for (edge = winged_edge.edgeHeadList[hash]; edge; edge = edge.next) {
+								if (edge.v0 === vj && edge.v1 === vk) {
+									if (wface.face === edge.f0) {
+										next_face = edge.f1;
+										snaxel = new UMSnaxel(target_vi, vindex[k], 0.1);
+										snaxel_group.push(snaxel);
+										added_edge[hash] = 1;
+										break;
+									} else if (wface.face === edge.f1) {
+										next_face = edge.f0;
+										snaxel = new UMSnaxel(target_vi, vindex[k], 0.1);
+										snaxel_group.push(snaxel);
+										added_edge[hash] = 1;
+										break;
+									} else {
+										console.error(wface.face, edge);
 									}
 								}
 							}
-							if (!hasnext) {
-								next_face = null;
-							}
 						}
 					}
+					if (!found_nextface) {
+						console.error("not found next face", wface, next_face)
+						next_face = null;
+					}
 				}
-				if (snaxel_group.length > 3) {
-					snaxels.add(snaxel_group);
-					tri = winged_edge.triangles[parseInt(i / 3, 10)];
-					tri.mark = true;
-				}
-				if (snaxels.snaxels.length > 200) {
+				snaxels.add(snaxel_group);
+				tri = winged_edge.triangles[parseInt(i / 3, 10)];
+				tri.mark = true;
+				if (snaxels.snaxels.length > 100) {
 					break;
 				}
 			}
@@ -332,7 +351,7 @@
 		var i = 0, id = setInterval(function () {
 			snaxels.update();
 			i = i + 1;
-			if (i >= 9) {
+			if (i >= 8) {
 				clearInterval(id);
 				window.umgl.stop_mainloop();
 			}

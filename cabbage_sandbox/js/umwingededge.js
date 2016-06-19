@@ -74,7 +74,7 @@
 				fcount = fcount + 1;
 			}
 			// edge to faces
-			for (k = 0, j = 2; k < 2; j = k, k = k + 1) {
+			for (k = 0, j = 2; k < 3; j = k, k = k + 1) {
 				vj = vindex[j]; // 2 0 1
 				vk = vindex[k]; // 0 1 2
 				if (vj > vk) {
@@ -97,7 +97,6 @@
 						ecount = ecount + 1;
 						break;
 					}
-					console.log(edge.v0 === vj , edge.v1 === vk)
 					// second face
 					if (edge.v0 === vj && edge.v1 === vk) {
 						edge.f1 = i;

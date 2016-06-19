@@ -331,7 +331,6 @@
 	UMMesh.prototype.create_mesh_index = function () {
 		console.time('create mesh index');
 		var i,
-			faces = [],
 			verts = [],
 			verts_link = [],
 			size,
@@ -341,56 +340,71 @@
 		console.time('initial time');
 		verts.length = this.verts.length / 3;
 		verts_link.length = verts.length / 3;
-		faces.length = verts.length / 3;
 		for (i = 0, size = this.verts.length / 3 / 3; i < size; i = i + 1) {
 			vi = [(i * 3 + 0), (i * 3 + 1), (i * 3 + 2)];
 			verts[vi[0]] = [
 				this.verts[vi[0] * 3 + 0],
 				this.verts[vi[0] * 3 + 1],
 				this.verts[vi[0] * 3 + 2],
-				this.verts[vi[0] * 3 + 0] * this.verts[vi[0] * 3 + 0] +
-				this.verts[vi[0] * 3 + 1] * this.verts[vi[0] * 3 + 1] +
-				this.verts[vi[0] * 3 + 2] * this.verts[vi[0] * 3 + 2],
+				[vi[0] * 3 + 0, vi[0] * 3 + 1, vi[0] * 3 + 2],
 				vi[0], null];
 			verts[vi[1]] = [
 				this.verts[vi[1] * 3 + 0],
 				this.verts[vi[1] * 3 + 1],
 				this.verts[vi[1] * 3 + 2],
-				this.verts[vi[1] * 3 + 0] * this.verts[vi[1] * 3 + 0] +
-				this.verts[vi[1] * 3 + 1] * this.verts[vi[1] * 3 + 1] +
-				this.verts[vi[1] * 3 + 2] * this.verts[vi[1] * 3 + 2], vi[1], null];
+				[vi[1] * 3 + 0, vi[1] * 3 + 1, vi[1] * 3 + 2],
+				vi[1], null];
 			verts[vi[2]] = [
 				this.verts[vi[2] * 3 + 0],
 				this.verts[vi[2] * 3 + 1],
 				this.verts[vi[2] * 3 + 2],
-				this.verts[vi[2] * 3 + 0] * this.verts[vi[2] * 3 + 0] +
-				this.verts[vi[2] * 3 + 1] * this.verts[vi[2] * 3 + 1] +
-				this.verts[vi[2] * 3 + 2] * this.verts[vi[2] * 3 + 2], vi[2], null];
+				[vi[2] * 3 + 0, vi[2] * 3 + 1, vi[2] * 3 + 2],
+				vi[2], null];
 			verts_link[i] = [verts[vi[0]], verts[vi[1]], verts[vi[2]]];
-			faces[i] = [
-				(verts[vi[0]][0] + verts[vi[1]][0] + verts[vi[2]][0]) / 3,
-				(verts[vi[0]][1] + verts[vi[1]][1] + verts[vi[2]][1]) / 3,
-				(verts[vi[0]][2] + verts[vi[1]][2] + verts[vi[2]][2]) / 3,
-				verts[vi[0]],
-			]
 		}
 		console.timeEnd('initial time');
 		console.time('sort time');
-		var sorted = verts.sort(vertexCompare);
+		var sorted = verts.sort();
 		console.timeEnd('sort time');
-		//console.log(sorted, verts_link)
+		console.log(sorted, verts_link)
+		console.log(this.normals);
 		if (sorted.length > 0) {
 			sorted[0][5] = sorted[0][4];
+			var current = sorted[0];
 			for (i = 0; i < sorted.length - 1; i = i + 1) {
 				var left = sorted[i];
 				var right = sorted[i + 1];
-				var dist2 = Math.abs((right[3]-left[3]));
+				var r = new ummath.UMVec3d([right[0], right[1], right[2]]);
+				var l = new ummath.UMVec3d([left[0], left[1], left[2]]);
+				var dist2 = Math.abs(r.sub(l).length_sq());
+				/*
+				console.log("left",
+				this.verts[left[3][0]], this.verts[left[3][1]], this.verts[left[3][2]],
+				this.normals[left[3][0]], this.normals[left[3][1]], this.normals[left[3][2]]);
+
+				console.log("right",
+				this.verts[right[3][0]], this.verts[right[3][1]], this.verts[right[3][2]],
+				this.normals[right[3][0]], this.normals[right[3][1]], this.normals[right[3][2]])
+				*/
 				if (dist2 < 0.01 ) {
 					right[5] = left[5];
+					this.normals[current[3][0]] += this.normals[right[3][0]];
+					this.normals[current[3][1]] += this.normals[right[3][1]];
+					this.normals[current[3][2]] += this.normals[right[3][2]];
 				} else {
+					var n = new ummath.UMVec3d(
+						this.normals[current[3][0]],
+						this.normals[current[3][1]],
+						this.normals[current[3][2]]);
+					n  = n.normalized();
+					this.normals[current[3][0]] = n.xyz[0];
+					this.normals[current[3][1]] = n.xyz[1];
+					this.normals[current[3][2]] = n.xyz[2];
 					right[5] = right[4];
+					current = left;
 				}
 			}
+
 			/*
 			var newverts = [];
 			var pre = null;
@@ -408,6 +422,7 @@
 			this.indices = [];
 			this.indices.length = verts_link.length * 3;
 			for (i = 0, size = verts_link.length; i < size; i = i + 1) {
+				//console.log(verts_link)
 				this.indices[i * 3] = (verts_link[i][0][5]);
 				this.indices[i * 3 + 1] = (verts_link[i][1][5]);
 				this.indices[i * 3 + 2] = (verts_link[i][2][5]);
@@ -440,6 +455,7 @@
 				tri = new umtriangle.UMTriangle(this, i);
 				primitive_list[i] = tri;
 			}
+			console.log(this.indices)
 			this.index_buffer = this.gl.createBuffer();
 			this.update(this.verts, this.normals, this.uv, this.indices, this.barycentric);
 			/*
