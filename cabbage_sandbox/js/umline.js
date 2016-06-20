@@ -21,7 +21,7 @@
 
 	UMLine.prototype.dispose = function () {
 		var gl = this.gl;
-		gl.DeleteBuffers(1, this.vertex_vbo);
+		gl.deleteBuffer(this.vertex_vbo);
 	};
 
 	UMLine.prototype.update = function (verts) {

@@ -24,7 +24,8 @@
 	UMOutline = function () {
 	};
 
-	UMSnaxel = function (via, vib, face, t) {
+	UMSnaxel = function (hash, via, vib, face, t) {
+		this.hash = hash;
 		this.via = via;
 		this.vib = vib;
 		this.va = null;
@@ -32,11 +33,12 @@
 		this.face = face;
 		this.t = t;
 		this.point = null;
+		this.is_need_fanout = false;
 	};
 
 	UMSnaxel.prototype.update = function () {
 		this.t = this.t + 0.1;
-		return this.t > 1.0;
+		this.is_need_fanout = this.t > 1.0;
 	};
 
 	UMSnaxels = function (scene, mesh, winged_edge) {
@@ -45,6 +47,7 @@
 		this.mesh = mesh;
 		this.winged_edge = winged_edge;
 		this.lines = {};
+		this.mark_list = {};
 	};
 
 	UMSnaxels.prototype.va = function (snaxel) {
@@ -131,6 +134,7 @@
 			sa,
 			sb,
 			verts,
+			remove_size,
 			line,
 			line_group = [],
 			size;
@@ -141,6 +145,13 @@
 				for (i = 0, size = snaxel_group.length - line_group.length; i < size; i = i + 1) {
 					this.add_line(line_group, null, null);
 				}
+			} else if (line_group.length > snaxel_group.length) {
+				remove_size = line_group.length - snaxel_group.length;
+				for (i = 0; i < remove_size; i = i + 1) {
+					line_group[i].dispose();
+					this.scene.line_list.splice(this.scene.line_list.indexOf(line_group[i]), 1);
+				}
+				line_group.splice(0, remove_size);
 			}
 			console.log("snaxel_group.length;", snaxel_group.length)
 			for (i = 0, size = snaxel_group.length; i < size; i = i + 1) {
@@ -153,7 +164,7 @@
 				}
 				line = line_group[i];
 				verts = this.v(sa).concat(this.v(sb));
-				console.log(verts)
+				//console.log(verts)
 				line.update(verts);
 			}
 		} else {
@@ -172,6 +183,41 @@
 		}
 	};
 
+	UMSnaxels.prototype.split = function (snaxel_group) {
+		var i,
+			k,
+			pre,
+			post,
+			snaxel_group,
+			snaxel,
+			comp,
+			initial_len;
+
+		initial_len = snaxel_group.length;
+		for (i = 0; i < snaxel_group.length; i = i + 1) {
+			snaxel = snaxel_group[i];
+			for (k = 0; k < snaxel_group.length; k = k + 1) {
+				comp = snaxel_group[k];
+				if (i !== k) {
+					if (snaxel.hash === comp.hash) {
+						comp.to_be_remove = true;
+						snaxel.to_be_remove = true;
+					}
+					if (snaxel.is_need_fanout) {
+						if (comp.is_need_fanout && snaxel.vib === comp.vib) {
+							snaxel.to_be_remove = true;
+						}
+					}
+				}
+			}
+		}
+		for (k = snaxel_group.length - 1; k >= 0; k = k - 1) {
+			if (snaxel_group[k].to_be_remove !== undefined) {
+				this.delete_snaxel(snaxel_group, snaxel_group[k]);
+			}
+		}
+	};
+
 	UMSnaxels.prototype.update = function () {
 		var i,
 			k,
@@ -182,8 +228,7 @@
 			pre,
 			post,
 			line,
-			index,
-			need_fan_out;
+			index;
 
 		for (i = 0; i < this.snaxels.length; i = i + 1) {
 			snaxel_group = this.snaxels[i];
@@ -192,43 +237,51 @@
 				0.3,
 				1.0 - (i * 30 % 255) / 255.0,
 				1.0);
+
 			var initial_len = snaxel_group.length;
+			// update
 			for (k = snaxel_group.length - 1; k >= 0; k = k - 1) {
 				snaxel = snaxel_group[k];
-				need_fan_out = snaxel.update();
-				pre = k - 1;
-				post = k + 1;
-				if (post > initial_len - 1) {
-					post = 0;
-				}
-				if (pre > initial_len - 1) {
-					pre = 0;
-				}
-				if (post < 0) {
-					post = initial_len - 1;
-				}
-				if (pre < 0) {
-					pre = initial_len - 1;
-				}
+				snaxel.update();
+			}
+			// split
+			this.split(snaxel_group);
+			// fanout
+			for (k = snaxel_group.length - 1; k >= 0; k = k - 1) {
+				snaxel = snaxel_group[k];
 				//console.log(pre, post, snaxel_group[pre], snaxel_group[post])
-				if (need_fan_out) {
+				if (snaxel.is_need_fanout) {
+					pre = k - 1;
+					post = k + 1;
+					if (post > snaxel_group.length - 1) {
+						post = 0;
+					}
+					if (pre > snaxel_group.length - 1) {
+						pre = 0;
+					}
+					if (post < 0) {
+						post = snaxel_group.length - 1;
+					}
+					if (pre < 0) {
+						pre = snaxel_group.length - 1;
+					}
 					var via = snaxel.via;
 					var vib = snaxel.vib;
 					console.log("presize", snaxel_group.length);
-					var post_vib = snaxel_group[post].vib;
-					var pre_vib = snaxel_group[pre].vib;
 					var start_face = snaxel.face;
+					this.mark_list[via] = 1;
 					//this.delete_snaxel(snaxel_group, snaxel_group[post]);
-					this.fan_out(vib, snaxel_group, [via], k, start_face);
-					this.delete_snaxel(snaxel_group, snaxel);
-					console.log("postsize", snaxel_group.length);
+					if (this.fan_out(vib, snaxel_group, this.mark_list, k, start_face)) {
+						this.delete_snaxel(snaxel_group, snaxel);
+						console.log("postsize", snaxel_group.length);
+					}
 					//this.delete_snaxel(snaxel_group, snaxel_group[pre]);
-				} else {
-					v = this.v(snaxel);
-					snaxel.point.update(v);
-					//snaxel.line.update([].concat(this.va(snaxel)).concat(v));
-					//snaxel.line.material_list[0].set_constant_color(color);
 				}
+			}
+			// update
+			for (k = snaxel_group.length - 1; k >= 0; k = k - 1) {
+				snaxel = snaxel_group[k];
+				snaxel.point.update(this.v(snaxel));
 			}
 			this.update_line(i, snaxel_group);
 		}
@@ -255,8 +308,11 @@
 				if (added.hasOwnProperty(vindex[k])) {
 					continue;
 				}
-				if (vindex[k] !== target_vi && exclude_vi_list.indexOf(vindex[k]) < 0) {
-					added[vindex[k]] = 1;
+				if (vindex[k] !== target_vi) {
+					if (!(exclude_vi_list !== null && exclude_vi_list.hasOwnProperty(vindex[k]))) {
+						console.log(exclude_vi_list)
+						added[vindex[k]] = 1;
+					}
 				}
 			}
 		}
@@ -267,7 +323,7 @@
 		var k,
 			snaxel_count = 0,
 			vartex_index,
-			fan_out_size = this.fan_out_size(target_vi, exclude_vi_list),
+			fan_out_size = this.fan_out_size(target_vi, exclude_vi_list) ,
 			wface,
 			added_edge = {},
 			edge,
@@ -275,12 +331,14 @@
 			tri,
 			vj, vk,
 			hash,
+			max_size = fan_out_size,
 			next_face = null;
 
 			console.log(fan_out_size);
 
 		while (snaxel_count < fan_out_size) {
 			var found_nextface = false;
+			var found_startface = false;
 			for (wface = this.winged_edge.faceHeadList[target_vi]; wface; wface = wface.next) {
 				if (next_face && next_face !== wface.face) {
 					continue;
@@ -291,7 +349,7 @@
 					if (next_face && next_face !== wface.face) {
 						continue;
 					}
-					if (vindex[k] === target_vi || exclude_vi_list.indexOf(vindex[k]) >= 0) {
+					if (vindex[k] === target_vi || (exclude_vi_list !== null && exclude_vi_list.hasOwnProperty(vindex[k]))) {
 						continue;
 					}
 					vj = target_vi;
@@ -305,25 +363,31 @@
 					}
 					console.log(hash);
 					found_nextface = true;
-					if (start_face && snaxel_count === 0) {
-						console.log("hogehoge", wface.face, start_face)
+					/*
+					if (start_face !== undefined && start_face && snaxel_count === 0) {
 						if (wface.face !== start_face) {
 							continue;
 						}
+						found_startface = true;
 					}
+					*/
 					for (edge = this.winged_edge.edgeHeadList[hash]; edge; edge = edge.next) {
-						if (edge.v0 === vj && edge.v1 === vk) {
+						if (edge.hash === hash) {
 							if (wface.face === edge.f0) {
 								next_face = edge.f1;
-								this.add_snaxel(snaxel_group, new UMSnaxel(target_vi, vindex[k], wface.face, 0.1), insert_index);
+								this.add_snaxel(snaxel_group, new UMSnaxel(hash, target_vi, vindex[k],  wface.face, 0.1), insert_index);
 								snaxel_count = snaxel_count + 1;
 								added_edge[hash] = 1;
+								exclude_vi_list[target_vi] = 1;
+								exclude_vi_list[vindex[k]] = 1;
 								break;
 							} else if (wface.face === edge.f1) {
 								next_face = edge.f0;
-								this.add_snaxel(snaxel_group, new UMSnaxel(target_vi, vindex[k], wface.face, 0.1), insert_index);
+								this.add_snaxel(snaxel_group, new UMSnaxel(hash, target_vi, vindex[k], wface.face, 0.1), insert_index);
 								snaxel_count = snaxel_count + 1;
 								added_edge[hash] = 1;
+								exclude_vi_list[target_vi] = 1;
+								exclude_vi_list[vindex[k]] = 1;
 								break;
 							} else {
 								console.error(wface.face, edge);
@@ -337,6 +401,7 @@
 				}
 			}
 		}
+		return true;
 	}
 
 	function find_initial_snaxels(scene, mesh, winged_edge) {
@@ -400,7 +465,7 @@
 			}
 			if (found && !added_target.hasOwnProperty(target_vi)) {
 				added_target[target_vi] = 1;
-				snaxels.fan_out(target_vi, snaxels.create_group(), []);
+				snaxels.fan_out(target_vi, snaxels.create_group(), snaxels.mark_list);
 
 				tri = winged_edge.triangles[parseInt(i / 3, 10)];
 				tri.mark = true;
@@ -423,7 +488,7 @@
 		var i = 0, id = setInterval(function () {
 			snaxels.update();
 			i = i + 1;
-			if (i >= 12) {
+			if (i >= 40) {
 				clearInterval(id);
 				window.umgl.stop_mainloop();
 			}

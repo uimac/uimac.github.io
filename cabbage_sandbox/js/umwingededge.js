@@ -15,6 +15,7 @@
 	};
 
 	UMWEdge = function () {
+		this.hash = null;
 		this.v0 = null;
 		this.v1 = null;
 		this.f0 = null;
@@ -87,8 +88,9 @@
 				for (edge = edgeHeadList[hash]; ; edge = edge.next) {
 					// first face
 					if (edge === null) {
-						edgeList[ecount].v0 = vj;
-						edgeList[ecount].v1 = vk;
+						edgeList[ecount].hash = hash;
+						edgeList[ecount].v0 = vindex[j];
+						edgeList[ecount].v1 = vindex[k];
 						edgeList[ecount].f0 = i;
 						edgeList[ecount].e0 = j;
 						// for non-manifold edge
@@ -98,7 +100,7 @@
 						break;
 					}
 					// second face
-					if (edge.v0 === vj && edge.v1 === vk) {
+					if (edge.hash  === hash) {
 						edge.f1 = i;
 						edge.e1 = j;
 						break;
