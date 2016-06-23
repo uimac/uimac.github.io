@@ -9,9 +9,7 @@
 	UMWingedEdge = function (triangles) {
 		this.triangles = triangles;
 		this.edgeList = [];
-		this.edgeHeadList = {};
 		this.faceList = [];
-		this.faceHeadList = [];
 	};
 
 	UMWEdge = function () {
@@ -22,11 +20,11 @@
 		this.f1 = null;
 		this.e0 = null;
 		this.e1 = null;
-		this.next = null;
 	};
 
 	UMWFace = function () {
 		this.face = null;
+		this.edges = [null, null, null];
 		this.next = null;
 	};
 
@@ -34,10 +32,13 @@
 		var i,
 			j,
 			k,
+			n,
 			vi,
 			vj,
 			vk,
 			vjk,
+			pre_edge,
+			post_edge,
 			triangles = mesh.primitive_list,
 			vindex,
 			hash,
@@ -47,33 +48,23 @@
 			edgeHashMap = {},
 			edgeHashCounter = 0,
 			ecount = 0,
-			fcount = 0,
 			edgeList = wingedEdge.edgeList,
-			edgeHeadList = wingedEdge.edgeHeadList,
+			edgeHeadList = {},
 			faceList = wingedEdge.faceList,
-			faceHeadList = wingedEdge.faceHeadList,
 			tri;
 
-		faceList.length = 3 * triangles.length;
-		faceHeadList.length = mesh.indices.length;
+		faceList.length = triangles.length;
 		edgeList.length = 3 * triangles.length;
 
 		for (i = 0, size = triangles.length * 3; i < size; i = i + 1) {
 			faceList[i] = new UMWFace();
-			faceHeadList[i] = null;
 			edgeList[i] = new UMWEdge();
 		}
 		for (i = 0; i < triangles.length; i = i + 1) {
 			tri = triangles[i];
 			vindex = tri.vindex();
-			// vertex to faces
-			for (k = 0; k < 3; k = k + 1) {
-				vi = vindex[k];
-				faceList[fcount].face = i
-				faceList[fcount].next = faceHeadList[vi];
-				faceHeadList[vi] = faceList[fcount];
-				fcount = fcount + 1;
-			}
+
+			faceList[i].face = i;
 			// edge to faces
 			for (k = 0, j = 2; k < 3; j = k, k = k + 1) {
 				vj = vindex[j]; // 2 0 1
@@ -88,27 +79,36 @@
 				for (edge = edgeHeadList[hash]; ; edge = edge.next) {
 					// first face
 					if (edge === null) {
+						// face to edges
+						faceList[i].edges[k] = ecount;
 						edgeList[ecount].hash = hash;
+						edgeList[ecount].index = ecount;
 						edgeList[ecount].v0 = vindex[j];
 						edgeList[ecount].v1 = vindex[k];
 						edgeList[ecount].f0 = i;
-						edgeList[ecount].e0 = j;
-						// for non-manifold edge
-						edgeList[ecount].next = edgeHeadList[hash];
 						edgeHeadList[hash] = edgeList[ecount];
 						ecount = ecount + 1;
 						break;
-					}
-					// second face
-					if (edge.hash  === hash) {
+					} else {
+						// face to edges
+						faceList[i].edges[k] = edge.index;
 						edge.f1 = i;
-						edge.e1 = j;
 						break;
 					}
 				}
 			}
+			for (n = 0, j = 1, k = 2; n < 3; j = k, k = n, n = n + 1) {
+				pre_edge = edgeList[faceList[i].edges[k]];
+				post_edge = edgeList[faceList[i].edges[j]];
+				if (edgeList[faceList[i].edges[n]].f0 === i) {
+					edgeList[faceList[i].edges[n]].e0 = pre_edge.index;
+					edgeList[faceList[i].edges[n]].e1 = post_edge.index;
+				} else if (edgeList[faceList[i].edges[n]].f1 === i) {
+					edgeList[faceList[i].edges[n]].e2 = pre_edge.index;
+					edgeList[faceList[i].edges[n]].e3 = post_edge.index;
+				}
+			}
 		}
-		faceList.length = fcount;
 		edgeHeadList.length = edgeHashCounter + 1;
 		edgeList.length = ecount;
 		//console.log(edgeHeadList)

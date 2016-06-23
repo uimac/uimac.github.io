@@ -413,6 +413,8 @@
 			vertex,
 			n,
 			nv,
+			vi,
+			compares,
 			added_target = {},
 			target_vi,
 			target_n,
@@ -427,50 +429,55 @@
 		//vpmrot.m[3][0] = vpmrot.m[3][1] = vpmrot.m[3][2] = 0.0;
 		//vpm = vpm.transposed();
 		console.time('find_initial_snaxels');
+		console.log("camera_dir", camera_dir)
 
-		for (i = 0; i < mesh.indices.length; i = i + 1) {
-			found = true;
-			target_vi = mesh.indices[i];
-			target_n = new ummath.UMVec3d(
-				mesh.normals[target_vi * 3 + 0],
-				mesh.normals[mesh.is_cw ? target_vi * 3 + 2 : target_vi * 3 + 1],
-				mesh.normals[mesh.is_cw ? target_vi * 3 + 1 : target_vi * 3 + 2]);
-			target_nv = target_n.dot(camera_dir);
-			//console.log(mesh.normals, target_n.xyz, camera_dir.xyz, target_nv)
-			if (target_nv >= 0.0) { continue; }
-			var added = {};
-			var wfaces = [];
-			//console.log("search", target_v.xyz, target_n.xyz, target_nv);
-			for (wface = winged_edge.faceHeadList[target_vi]; wface; wface = wface.next) {
-				tri = winged_edge.triangles[wface.face];
-				normals = tri.normal();
-				vertex = tri.vertex();
-				vindex = tri.vindex();
-				for (k = 0; k < vindex.length; k = k + 1) {
-					if (added.hasOwnProperty(vindex[k])) {
-						continue;
-					}
-					if (vindex[k] !== target_vi) {
-						n = normals[k];
-						if (found) {
-							nv = n.dot(camera_dir);
-							if (nv < target_nv) {
-								found = false;
-								break;
-							}
-						}
+		for (i = 0; i < winged_edge.faceList.length; i = i + 1) {
+			wface = winged_edge.faceList[i];
+			for (k = 0; k < wface.edges.length; k = k + 1) {
+				if (!wface.edges[k]) {
+					continue;
+				}
+				found = true;
+				edge = winged_edge.edgeList[wface.edges[k]];
+
+				target_vi = edge.v0;
+				target_n = new ummath.UMVec3d(
+					mesh.normals[target_vi * 3 + 0],
+					mesh.normals[mesh.is_cw ? target_vi * 3 + 2 : target_vi * 3 + 1],
+					mesh.normals[mesh.is_cw ? target_vi * 3 + 1 : target_vi * 3 + 2]);
+				target_nv = target_n.dot(camera_dir);
+				if (target_nv > -0.5) { continue; }
+
+				compares = []
+				if (edge.e3) {
+					compares = [edge.v1, winged_edge.edgeList[edge.e0].v0, winged_edge.edgeList[edge.e3].v1];
+				} else {
+					compares = [edge.v1, winged_edge.edgeList[edge.e0].v0];
+				}
+				for (n = 0; n < compares.length; n = n + 1) {
+					vi = compares[n];
+					n = new ummath.UMVec3d(
+						mesh.normals[vi * 3 + 0],
+						mesh.normals[mesh.is_cw ? vi * 3 + 2 : vi * 3 + 1],
+						mesh.normals[mesh.is_cw ? vi * 3 + 1 : vi * 3 + 2]);
+					nv = n.dot(camera_dir);
+					if (nv < target_nv) {
+						found = false;
+						break;
 					}
 				}
-				if (!found) { break; }
-			}
-			if (found && !added_target.hasOwnProperty(target_vi)) {
-				added_target[target_vi] = 1;
-				snaxels.fan_out(target_vi, snaxels.create_group(), snaxels.mark_list);
+				console.log(found)
+				if (found && !added_target.hasOwnProperty(target_vi)) {
+					added_target[target_vi] = 1;
+					//snaxels.fan_out(target_vi, snaxels.create_group(), snaxels.mark_list);
 
-				tri = winged_edge.triangles[parseInt(i / 3, 10)];
-				tri.mark = true;
-				if (snaxels.snaxels.length > 100) {
-					break;
+					console.log("MARKED", wface)
+					tri = winged_edge.triangles[parseInt(wface.face / 3, 10)];
+					tri.mark = true;
+					if (snaxels.snaxels.length > 100) {
+						console.timeEnd('find_initial_snaxels');
+						return snaxels;
+					}
 				}
 			}
 		}
@@ -484,6 +491,7 @@
 
 		snaxels = find_initial_snaxels(scene, mesh, winged_edge);
 
+/*
 		window.umgl.start_mainloop();
 		var i = 0, id = setInterval(function () {
 			snaxels.update();
@@ -493,7 +501,7 @@
 				window.umgl.stop_mainloop();
 			}
 		}, 100);
-
+*/
 		/*
 		while (true) {
 			min_energy = calc_contour();
