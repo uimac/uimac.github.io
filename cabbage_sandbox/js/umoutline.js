@@ -446,7 +446,7 @@
 					mesh.normals[mesh.is_cw ? target_vi * 3 + 2 : target_vi * 3 + 1],
 					mesh.normals[mesh.is_cw ? target_vi * 3 + 1 : target_vi * 3 + 2]);
 				target_nv = target_n.dot(camera_dir);
-				if (target_nv > -0.5) { continue; }
+				//if (target_nv > -0.5) { continue; }
 
 				compares = []
 				if (edge.e3) {

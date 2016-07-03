@@ -278,6 +278,18 @@ $builtinmodule = function(name) {
 		return dst;
 	});
 
+	mod.duplicate_mesh = new Sk.builtin.func(function (mesh_index, pos) {
+		if (pos !== undefined) {
+			var mesh = umscene.duplicate_mesh(mesh_index, pos.vec),
+				dst;
+
+			dst = Sk.misceval.callsim(create_mesh);
+			dst.mesh = mesh;
+			return dst;
+		}
+		return null;
+	});
+
 	// -----------------------------------------------------------------------
 	bvh = function ($gbl, $loc) {
 		$loc.__init__ = new Sk.builtin.func(function (self) {

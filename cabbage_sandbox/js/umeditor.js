@@ -201,16 +201,85 @@ print("python pen tool loaded")
 
 
 	tool_raypen = `
-
 import cabbage
 from cabbage import *
 import math
 
-def mousemove(x, y, button):
-	dir = camera().ray_dir(x, camera().height() - y)
+def pos(x, y):
+	dir = camera().ray_dir(x, camera().height() - y).normalized()
 	org = camera().position()
-	print(bvh().intersects(org, dir))
+	point = bvh().intersects(org, dir)
 
+	if point != -1:
+		return point
+
+	# plane intersection
+	p = vec3(0.0, 0.0, 0.0)
+	n = vec3(0.0, 1.0, 0.0)
+	angle = n.dot(dir)
+	if angle < 0.0:
+		dist = n.dot(p - org) / angle
+		print("dist", dist)
+		if dist > 0.001:
+			return org + dir * dist
+
+	return org + (dir * 100.0)
+
+class DuplicatePen:
+	def __init__(self):
+		self.mesh = None
+		self.is_dragging = False
+		self.pre_dir = None
+		self.pre_point = None
+		self.pre_points = None
+		self.count = 0
+		self.start_point = None
+
+	def start_stroke(self, v):
+		self.start_point = v
+		if v != None:
+			self.mesh = duplicate_mesh(-1, v)
+		print("start stroke", self.mesh)
+
+	def on_stroke(self, v):
+		if self.start_point:
+			self.pre_point = self.start_point
+			self.start_point = None
+
+		if self.mesh:
+			self.mesh = duplicate_mesh(0)
+		self.pre_point = v
+
+	def end_stroke(self, v):
+		self.mesh = None
+		print("end stroke")
+
+	def mousemove(self, x, y, button):
+		if self.is_dragging:
+			self.on_stroke(pos(x, y))
+
+	def mousedown(self, x, y, button):
+		if button == 0:
+			self.is_dragging = True
+			self.start_stroke(pos(x, y))
+
+	def mouseup(self, x, y, button):
+		if self.is_dragging:
+			self.end_stroke(pos(x,y))
+			self.is_dragging = False
+
+tool = DuplicatePen()
+
+def mousemove(x, y, button):
+	tool.mousemove(x, y, button)
+
+def mousedown(x, y, button):
+	tool.mousedown(x, y, button)
+
+def mouseup(x, y, button):
+	tool.mouseup(x, y, button)
+
+print("python pen tool loaded")
 	`;
 
 	function builtinOutput(text) {

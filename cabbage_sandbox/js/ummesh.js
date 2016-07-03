@@ -450,6 +450,7 @@
 				primitive_list[i] = tri;
 			}
 		} else if (this.verts && this.verts.length > 0) {
+			/*
 			this.create_mesh_index();
 			polycount = this.indices.length / 3;
 			console.log(polycount);
@@ -459,15 +460,12 @@
 				primitive_list[i] = tri;
 			}
 			console.log(this.indices)
-			//this.index_buffer = this.gl.createBuffer();
-			//this.update(this.verts, this.normals, this.uv, this.indices, this.barycentric);
-			/*
+			*/
 			polycount = this.verts.length / 3 / 3;
 			for (i = 0; i < polycount; i = i + 1) {
 				tri = new umtriangle.UMTriangle(this, i);
 				primitive_list[i] = tri;
 			}
-			*/
 		}
 		this.primitive_list = primitive_list;
 

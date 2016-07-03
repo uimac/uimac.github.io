@@ -122,7 +122,6 @@
 			console.timeEnd('create outline');
 		}
 		window.umgl.drawonce();
-		return;
 
 		for (y = 0; y < height; y = y + 1) {
 			for (x = 0; x < width; x = x + 1) {

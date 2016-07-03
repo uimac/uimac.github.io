@@ -597,6 +597,28 @@
 		return mesh;
 	};
 
+	UMScene.prototype.duplicate_mesh = function (mesh_index, pos) {
+		var index = mesh_index.v;
+		if (index < this.mesh_list.length) {
+			var src = this.mesh_list[(index < 0) ? this.mesh_list.length - 1 : index],
+				mesh = new ummesh.UMMesh(this.gl, null, null, null, null),
+				meshmat;
+
+			console.log(mesh, src, pos)
+
+			meshmat = new ummaterial.UMMaterial(this.gl);
+			meshmat.set_polygon_count(src.material_list[0].polygon_count());
+			mesh.global_matrix.m[3][0] = pos.xyz[0];
+			mesh.global_matrix.m[3][1] = pos.xyz[1];
+			mesh.global_matrix.m[3][2] = pos.xyz[2];
+			mesh.update(src.verts, src.normals, null, null);
+			mesh.material_list.push(meshmat);
+			this.mesh_list.push(mesh);
+			return mesh;
+		}
+		return false;
+	};
+
 	UMScene.prototype.dispose = function () {
 		var i = 0;
 		this.primitive_list = [];
