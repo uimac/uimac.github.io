@@ -697,25 +697,28 @@
 
 	UMScene.prototype.duplicate_mesh = function (mesh_index, pos) {
 		var index = mesh_index.v,
-			srcmat;
+			srcmat,
+			i;
 		if (index < this.mesh_list.length) {
 			var src = this.mesh_list[(index < 0) ? this.mesh_list.length - 1 : index],
 				mesh = new ummesh.UMMesh(this.gl, null, null, null, null),
 				meshmat;
 
 			console.log(mesh, src, pos)
-			srcmat = src.material_list[0];
-			meshmat = new ummaterial.UMMaterial(this.gl);
-			meshmat.set_polygon_count(srcmat.polygon_count());
-			meshmat.diffuse_ = srcmat.diffuse_;
-			meshmat.specular_ = srcmat.specular_;
-			meshmat.ambient_ = srcmat.ambient_;
-			meshmat.set_texture(srcmat.diffuse_texture, srcmat.diffuse_texture_image);
-			mesh.global_matrix.m[3][0] = pos.xyz[0];
-			mesh.global_matrix.m[3][1] = pos.xyz[1];
-			mesh.global_matrix.m[3][2] = pos.xyz[2];
+			for (i = 0; i < src.material_list.length; i = i + 1) {
+				srcmat = src.material_list[i];
+				meshmat = new ummaterial.UMMaterial(this.gl);
+				meshmat.set_polygon_count(srcmat.polygon_count());
+				meshmat.diffuse_ = srcmat.diffuse_;
+				meshmat.specular_ = srcmat.specular_;
+				meshmat.ambient_ = srcmat.ambient_;
+				meshmat.set_texture(srcmat.diffuse_texture, srcmat.diffuse_texture_image);
+				mesh.global_matrix.m[3][0] = pos.xyz[0];
+				mesh.global_matrix.m[3][1] = pos.xyz[1];
+				mesh.global_matrix.m[3][2] = pos.xyz[2];
+				mesh.material_list.push(meshmat);
+			}
 			mesh.update(src.verts, src.normals, src.uvs, null);
-			mesh.material_list.push(meshmat);
 			this.mesh_list.push(mesh);
 			return mesh;
 		}
