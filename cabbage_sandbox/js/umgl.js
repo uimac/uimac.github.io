@@ -66,22 +66,38 @@
 		edit_tool.onclick = clickfunc;
 	}
 
-	function load_file(file) {
-		var filename = file.name,
+	function load_files(files) {
+		var i,
+			file,
+			filename,
 			splitted,
 			ext,
+			extmap = {},
+			supported_exts = ["abc", "obj", "mtl", "png", "jpg", "jpeg"],
 			mtl,
 			reader;
 
-		if (!filename) {
+		if (files.length == 0) {
 			return;
 		}
-		splitted = filename.split('.');
-		if (splitted.length > 0) {
-			ext = splitted[splitted.length-1].toLowerCase();
-			if (ext === "abc") {
+		for (i = 0; i < files.length; i = i + 1) {
+			file = files[i];
+			filename = file.name
+			splitted = filename.split('.');
+			if (splitted.length > 0) {
+				ext = splitted[splitted.length-1].toLowerCase();
+				if (supported_exts.indexOf(ext) >= 0) {
+					if (!extmap.hasOwnProperty(ext)) {
+						extmap[ext] = [];
+					}
+					extmap[ext].push(file);
+				}
+			}
+		}
+		if (extmap.hasOwnProperty('abc')) {
+			for (i = 0; i < extmap.abc.length; i = i + 1) {
+				file = extmap.abc[i];
 				scene.load_abc(file.path);
-
 				var paths = file.path.split('.');
 				paths.pop();
 				paths.push('mtl')
@@ -91,25 +107,48 @@
 						drawonce();
 						return;
 					}
-					scene.load_mtl(mtl, String(data), function () {
+					scene.load_abc_mtl(mtl, String(data), function () {
 						console.log("end")
 						drawonce();
 					});
 				});
-			} else if (ext === "obj") {
-				reader = new FileReader();
-				reader.readAsText(file);
-				reader.onload = function(ev) {
+			}
+		}
+		if (extmap.hasOwnProperty('obj')) {
+			file = extmap.obj[0];
+			reader = new FileReader();
+			reader.readAsText(file);
+			reader.onload = function(ev) {
+				var mtlreader;
+				if (extmap.hasOwnProperty('mtl')) {
+					file = extmap.mtl[0];
+					mtlreader = new FileReader();
+					mtlreader.readAsText(file);
+					mtlreader.onload = function(ev) {
+						var texture_files = [];
+						for (i = 0; i < supported_exts.length; i = i + 1) {
+							if (extmap.hasOwnProperty(supported_exts[i])) {
+								texture_files = texture_files.concat(extmap[supported_exts[i]]);
+							}
+						}
+						scene.load_obj(splitted[splitted.length-2], reader.result);
+						scene.load_mtl(file.name, mtlreader.result, texture_files, function () {
+							console.log("mtlend")
+							drawonce();
+						});
+						drawonce();
+					}
+				} else {
 					scene.load_obj(splitted[splitted.length-2], reader.result);
 					drawonce();
-				};
-			}
+				}
+			};
 		}
 	}
 
 	function init_open_tool() {
 		document.getElementById('tool_open').onchange = function (evt) {
-			load_file(evt.target.files[0])
+			load_files(evt.target.files)
 		};
 	}
 
@@ -366,8 +405,7 @@
 			if (event.dataTransfer.files.length <= 0) {
 				return;
 			}
-			var f = event.dataTransfer.files[0];
-			load_file(f);
+			load_files(event.dataTransfer.files);
 		}
 
 		init_tools();

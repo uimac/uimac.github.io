@@ -12,6 +12,12 @@
 		this.faceList = [];
 	};
 
+	/**
+			e1		e2
+				v1
+		f0		v0		f1
+			e0		e3
+	 */
 	UMWEdge = function () {
 		this.hash = null;
 		this.v0 = null;
@@ -109,7 +115,6 @@
 				}
 			}
 		}
-		edgeHeadList.length = edgeHashCounter + 1;
 		edgeList.length = ecount;
 		//console.log(edgeHeadList)
 		//console.log(edgeList);

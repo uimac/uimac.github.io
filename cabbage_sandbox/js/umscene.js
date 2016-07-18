@@ -278,14 +278,18 @@
 		//this.box_list[0].update();
 	};
 
-	UMScene.prototype.load_obj = function (name, text) {
-		var obj = umobj.load(text),
+	UMScene.prototype.load_obj = function (name, obj_text) {
+		var obj = umobj.load(obj_text),
 			mesh = new ummesh.UMMesh(this.gl, name, obj.vertices, obj.normals, obj.uvs),
+			i,
 			meshmat;
 
-		meshmat = new ummaterial.UMMaterial(this.gl);
-		meshmat.set_polygon_count(obj.vertices.length / 3 / 3);
-		mesh.material_list.push(meshmat);
+		for (i = 0; i < obj.materials.length; i = i + 1) {
+			meshmat = new ummaterial.UMMaterial(this.gl);
+			meshmat.name = obj.materials[i].name;
+			meshmat.set_polygon_count(obj.materials[i].index_count / 3);
+			mesh.material_list.push(meshmat);
+		}
 		this.mesh_list.push(mesh);
 		this.add_mesh_to_primitive_list(mesh, true);
 		//console.log("primitive list ", this.primitive_list)
@@ -362,7 +366,17 @@
 		}
 	};
 
-	UMScene.prototype.load_mtl = function (mtlpath, text, endCallback) {
+	UMScene.prototype._assign_texture = function (material, image, tex) {
+		var gl = this.gl;
+		gl.bindTexture(gl.TEXTURE_2D, tex);
+		gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+		gl.bindTexture(gl.TEXTURE_2D, null);
+		material.set_texture(tex, image);
+	};
+
+	UMScene.prototype.load_abc_mtl = function (mtlpath, text, endCallback) {
 		console.log("text", text);
 		var i,
 			mtl = ummtl.load(text),
@@ -374,16 +388,6 @@
 
 		this.images = {};
 		this.textures = {};
-
-		var textureFunc = function (mesh, image, tex) {
-			var gl = this.gl;
-			gl.bindTexture(gl.TEXTURE_2D, tex);
-			gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
-			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-			gl.bindTexture(gl.TEXTURE_2D, null);
-			mesh.material_list[0].set_texture(tex, image);
-		}.bind(this);
 
 		var timeoutFunc = function (callback) {
 			setTimeout(function () {
@@ -416,19 +420,19 @@
 					if (this.images.hasOwnProperty(file)) {
 						img = this.images[file];
 						tex = this.textures[file];
-						textureFunc(mesh, img, tex);
+						this._assign_texture(mesh.material_list[0], img, tex);
 					} else {
 						img = new Image();
 						tex = this.gl.createTexture();
 						this.images[file] = img;
 						this.textures[file] = tex;
 						loading = loading + 1;
-						img.onload = (function (mesh, img, tex) {
+						img.onload = (function (self, mesh, img, tex) {
 							return function () {
-								textureFunc(mesh, img, tex);
+								self._assign_texture(mesh.material_list[0], img, tex);
 								loading = loading  - 1;
 							};
-						}(mesh, img, tex));
+						}(this, mesh, img, tex));
 						img.src = require('electron').nativeImage.createFromPath(file).toDataURL();
 					}
 				}
@@ -443,6 +447,100 @@
 			temp.splice(temp.length - 1, 0, "material");
 			temp = temp.join('_');
 			assignFunc(0, temp, param, null);
+		}
+		timeoutFunc(endCallback);
+	};
+
+	UMScene.prototype.load_mtl = function (mtlname, text, texture_files, endCallback) {
+		var i,
+			mtl,
+			name,
+			param,
+			temp,
+			mesh_index = 0,
+			loading = 0;
+
+		this.images = {};
+		this.textures = {};
+
+		console.log(mtlname, texture_files)
+		mtl = ummtl.load(text);
+
+		var timeoutFunc = function (callback) {
+			setTimeout(function () {
+				if (loading < 0) {
+					timeoutFunc(callback);
+				} else {
+					callback();
+				}
+			}, 100);
+		};
+
+		var assignFunc = function (material_name, param, callback) {
+			var k,
+				img,
+				tex,
+				id,
+				mesh,
+				material = null;
+
+			mesh = this.mesh_list[this.mesh_list.length - 1];
+			id = mesh.id;
+			for (k = 0; k < mesh.material_list.length; k = k + 1) {
+				if (mesh.material_list[k].name === material_name) {
+					material = mesh.material_list[k];
+					break;
+				}
+			}
+			if (!material) { return; }
+			console.log("mesh.material_list", mesh.material_list)
+			material.set_diffuse(param.diffuse[0], param.diffuse[1], param.diffuse[2], param.diffuse[3]);
+			material.set_specular(param.specular[0], param.specular[1], param.specular[2], param.specular[3]);
+			material.set_ambient(param.ambient[0], param.ambient[1], param.ambient[2], param.ambient[3]);
+
+			if (param.diffuse_texture.length > 0) {
+				var texture_name = param.diffuse_texture;
+				var texture = null;
+				for (k = 0; k < texture_files.length; ++k) {
+				console.log(texture_files[k].name , texture_name)
+					if (texture_files[k].name === texture_name) {
+						texture = texture_files[k];
+						break;
+					}
+				}
+				if (texture) {
+					if (this.images.hasOwnProperty(texture_name)) {
+						img = this.images[texture_name];
+						tex = this.textures[texture_name];
+						this._assign_texture(material, img, tex);
+					} else {
+						img = new Image();
+						tex = this.gl.createTexture();
+						this.images[texture_name] = img;
+						this.textures[texture_name] = tex;
+						loading = loading + 1;
+						img.onload = (function (self, mesh, img, tex) {
+							return function () {
+								self._assign_texture(material,  img, tex);
+								loading = loading  - 1;
+							};
+						}(this, mesh, img, tex));
+					}
+					var mtlreader = new FileReader();
+					mtlreader.readAsDataURL(texture);
+					mtlreader.onload = (function(reader) {
+						return function (ev) {
+							img.src = reader.result;
+						}
+					}(mtlreader));
+				}
+			}
+		}.bind(this);
+
+		for (name in mtl.materials) {
+			param = mtl.materials[name];
+			console.log(param)
+			assignFunc(name, param, null);
 		}
 		timeoutFunc(endCallback);
 	};
@@ -598,20 +696,25 @@
 	};
 
 	UMScene.prototype.duplicate_mesh = function (mesh_index, pos) {
-		var index = mesh_index.v;
+		var index = mesh_index.v,
+			srcmat;
 		if (index < this.mesh_list.length) {
 			var src = this.mesh_list[(index < 0) ? this.mesh_list.length - 1 : index],
 				mesh = new ummesh.UMMesh(this.gl, null, null, null, null),
 				meshmat;
 
 			console.log(mesh, src, pos)
-
+			srcmat = src.material_list[0];
 			meshmat = new ummaterial.UMMaterial(this.gl);
-			meshmat.set_polygon_count(src.material_list[0].polygon_count());
+			meshmat.set_polygon_count(srcmat.polygon_count());
+			meshmat.diffuse_ = srcmat.diffuse_;
+			meshmat.specular_ = srcmat.specular_;
+			meshmat.ambient_ = srcmat.ambient_;
+			meshmat.set_texture(srcmat.diffuse_texture, srcmat.diffuse_texture_image);
 			mesh.global_matrix.m[3][0] = pos.xyz[0];
 			mesh.global_matrix.m[3][1] = pos.xyz[1];
 			mesh.global_matrix.m[3][2] = pos.xyz[2];
-			mesh.update(src.verts, src.normals, null, null);
+			mesh.update(src.verts, src.normals, src.uvs, null);
 			mesh.material_list.push(meshmat);
 			this.mesh_list.push(mesh);
 			return mesh;

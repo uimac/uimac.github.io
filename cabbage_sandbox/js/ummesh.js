@@ -18,12 +18,8 @@
 		if (id) {
 			this.id = id;
 		}
-
-		if (uvs && uvs.length > 0) {
-			this.uv_vbo = gl.createBuffer();
-		} else {
-			this.uv_vbo = null;
-		}
+		this.uv_vbo = null;
+		this._create_uv_vbo(indices, verts, uvs);
 
 		if (indices && indices.length > 0) {
 			this.index_buffer = gl.createBuffer();
@@ -37,6 +33,18 @@
 		this.update(verts, normals, uvs, indices);
 		this.update_box();
 		this.is_cw = false;
+	};
+
+	UMMesh.prototype._create_uv_vbo = function (indices, verts, uvs) {
+		if (uvs && uvs.length > 0) {
+			if (indices && indices.length > 0) {
+				if (indices.length * 2 === uvs.length) {
+					this.uv_vbo = this.gl.createBuffer();
+				}
+			} else if (verts.length / 3 * 2 === uvs.length) {
+				this.uv_vbo = this.gl.createBuffer();
+			}
+		}
 	};
 
 	UMMesh.prototype.update = function (verts, normals, uvs, indices, barycentric) {
@@ -59,6 +67,9 @@
 		}
 
 		if (uvs && uvs.length > 0) {
+			if (!this.uv_vbo) {
+				this._create_uv_vbo(indices, verts, uvs);
+			}
 			gl.bindBuffer(gl.ARRAY_BUFFER, this.uv_vbo);
 			gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(uvs), gl.STATIC_DRAW);
 			gl.bindBuffer(gl.ARRAY_BUFFER, null);
@@ -450,7 +461,7 @@
 				primitive_list[i] = tri;
 			}
 		} else if (this.verts && this.verts.length > 0) {
-			/*
+		/*
 			this.create_mesh_index();
 			polycount = this.indices.length / 3;
 			console.log(polycount);
@@ -459,8 +470,8 @@
 				tri = new umtriangle.UMTriangle(this, i);
 				primitive_list[i] = tri;
 			}
-			console.log(this.indices)
 			*/
+			console.log(this.indices)
 			polycount = this.verts.length / 3 / 3;
 			for (i = 0; i < polycount; i = i + 1) {
 				tri = new umtriangle.UMTriangle(this, i);

@@ -1,7 +1,6 @@
 /*jslint devel:true*/
 /*global Float32Array */
 (function (ummath) {
-	"use strict";
 
 	function load(obj) {
 		var i,
@@ -15,6 +14,8 @@
 			vertices = [],
 			normals = [],
 			uvs = [],
+			materials = [],
+			mat_index_count = 0,
 			face,
 			mesh_verts = [],
 			mesh_normals = [],
@@ -25,12 +26,21 @@
 		for (i = 0; i < lines.length; i = i + 1) {
 			line = lines[i];
 			vals = line.split(/\s+/).filter(Boolean);
-			if (vals[0] === "v") {
-				vertices.push([Number(vals[1]) * 50, Number(vals[2]) * 50, Number(vals[3]) * 50]);
+			if (vals[0] === "usemtl") {
+				if (materials.length > 0) {
+					materials[materials.length - 1].index_count = mat_index_count
+				}
+				materials.push({
+					name : vals[1],
+					index_count : 0
+				});
+				mat_index_count = 0;
+			} else if (vals[0] === "v") {
+				vertices.push([Number(vals[1]), Number(vals[2]), Number(vals[3])]);
 			} else if (vals[0] === "vn") {
 				normals.push([Number(vals[1]), Number(vals[2]), Number(vals[3])]);
 			} else if (vals[0] === "vt") {
-				uvs.push([Number(vals[1]), Number(vals[2])]);
+				uvs.push([Number(vals[1]), 1.0 - Number(vals[2])]);
 			} else if (vals[0] === "f") {
 				face = {
 					vindex: [],
@@ -78,7 +88,6 @@
 				}
 				// flatten
 				if (vals.length >= 4) {
-					// 三角形
 					for (k = 0; k < 3; k = k + 1) {
 						if (face.vindex.length > 0) {
 							Array.prototype.push.apply(mesh_verts, vertices[face.vindex[k]]);
@@ -150,12 +159,17 @@
 							Array.prototype.push.apply(mesh_uvs, [0, 0]);
 						}
 					}
+					mat_index_count = mat_index_count + vals.length - 1;
 				}
 			}
 		}
+		if (materials.length > 0) {
+			materials[materials.length - 1].index_count = mat_index_count
+		}
 
+		console.log(materials);
 		//console.log(mesh_verts, mesh_normals, mesh_uvs);
-		return { vertices : mesh_verts, normals : mesh_normals, uvs : mesh_uvs };
+		return { vertices : mesh_verts, normals : mesh_normals, uvs : mesh_uvs, materials : materials };
 	}
 
 	window.umobj = {};

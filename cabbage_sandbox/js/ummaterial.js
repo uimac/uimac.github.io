@@ -2,7 +2,8 @@
 (function (ummath) {
 	"use strict";
 	var UMMaterial,
-		toFloat = 1.0 / 0xFF;
+		toFloat = 1.0 / 0xFF,
+		counter = 0;
 
 	UMMaterial = function (gl) {
 		this.gl = gl;
@@ -22,6 +23,7 @@
 		this.diffuse_texture_assigned = false;
 		this.video_ = null;
 		this.canvas_ = null;
+		this.name = "mat_" + String(counter);
 	};
 
 	UMMaterial.prototype.draw = function (shader) {
