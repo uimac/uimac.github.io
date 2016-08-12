@@ -1,6 +1,8 @@
 /*jslint devel:true*/
 (function () {
 	"use strict";
+if (window.SIMD == undefined)
+{
 	var UMVec3d,
 		UMVec4d,
 		UMMat44d,
@@ -28,6 +30,10 @@
 
 	UMVec3d.prototype.z = function () {
 		return this.xyz[2];
+	};
+
+	UMVec3d.prototype.value = function () {
+		return this.xyz;
 	};
 
 	UMVec3d.prototype.at = function (index) {
@@ -118,6 +124,10 @@
 		return this.xyzw[3];
 	};
 
+	UMVec4d.prototype.value = function () {
+		return this.xyzw;
+	};
+
 	UMVec4d.prototype.at = function (index) {
 		return this.xyzw[index];
 	};
@@ -142,7 +152,7 @@
 			- this.z() * (v1.x() * v2.w() - v2.x() * v1.w())
 			+ this.w() * (v1.x() * v2.z() - v1.z() * v2.x())),
 			 (this.x() * (v1.y() * v2.w() - v2.y() * v1.w())
-			- this.y() * (v1.x() * v2.w() - v2.x()) * v1.w()
+			- this.y() * (v1.x() * v2.w() - v2.x() * v1.w())
 			+ this.w() * (v1.x() * v2.y() - v2.x() * v1.y())),
 			-(this.x() * (v1.y() * v2.z() - v2.y() * v1.z())
 			- this.y() * (v1.x() * v2.z() - v2.x() * v1.z())
@@ -196,7 +206,14 @@
 		var i,
 			k;
 		this.m = [[0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0]];
-		if (mat) {
+
+		if (mat && mat instanceof Array) {
+			for (i = 0; i < 4; i = i + 1) {
+				for (k = 0; k < 4; k = k + 1) {
+					this.m[i][k] = mat[i * 4 + k];
+				}
+			}
+		} else if (mat) {
 			for (i = 0; i < 4; i = i + 1) {
 				for (k = 0; k < 4; k = k + 1) {
 					this.m[i][k] = mat.m[i][k];
@@ -673,4 +690,5 @@
 	window.ummath.um_sign = um_sign;
 	window.ummath.um_clip = um_clip;
 	window.ummath.EPSILON = EPSILON;
+}
 }());

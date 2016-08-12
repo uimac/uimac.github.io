@@ -110,12 +110,12 @@
 						v1 = new ummath.UMVec3d(vertices[face.vindex[1]]);
 						v2 = new ummath.UMVec3d(vertices[face.vindex[2]]);
 						n = v0.sub(v1).cross( v2.sub(v1) ).normalized();
-						if (n.xyz[0] === 0 && n.xyz[1] === 0 && n.xyz[2] === 0) {
+						if (n.x() === 0 && n.y() === 0 && n.z() === 0) {
 							n = v0.sub(v1).scale(10000).cross( v2.sub(v1).scale(10000) ).normalized();
 						}
-						Array.prototype.push.apply(mesh_normals, n.xyz);
-						Array.prototype.push.apply(mesh_normals, n.xyz);
-						Array.prototype.push.apply(mesh_normals, n.xyz);
+						Array.prototype.push.apply(mesh_normals, n.value());
+						Array.prototype.push.apply(mesh_normals, n.value());
+						Array.prototype.push.apply(mesh_normals, n.value());
 					}
 					if (uvs.length <= 0) {
 						Array.prototype.push.apply(mesh_uvs, [0, 0]);
@@ -146,12 +146,12 @@
 							v1 = new ummath.UMVec3d(vertices[face.vindex[triangle_fan[1]]]);
 							v2 = new ummath.UMVec3d(vertices[face.vindex[triangle_fan[2]]]);
 							n = v0.sub(v1).cross( v2.sub(v1) ).normalized();
-							if (n.xyz[0] === 0 && n.xyz[1] === 0 && n.xyz[2] === 0) {
+							if (n.x() === 0 && n.y() === 0 && n.z() === 0) {
 								n = v0.sub(v1).scale(10000).cross( v2.sub(v1).scale(10000) ).normalized();
 							}
-							Array.prototype.push.apply(mesh_normals, n.xyz);
-							Array.prototype.push.apply(mesh_normals, n.xyz);
-							Array.prototype.push.apply(mesh_normals, n.xyz);
+							Array.prototype.push.apply(mesh_normals, n.value());
+							Array.prototype.push.apply(mesh_normals, n.value());
+							Array.prototype.push.apply(mesh_normals, n.value());
 						}
 						if (uvs.length <= 0) {
 							Array.prototype.push.apply(mesh_uvs, [0, 0]);

@@ -101,10 +101,10 @@
 				line1[1] = line1[1].add(offset);
 				line2[0] = line2[0].add(offset);
 				line2[1] = line2[1].add(offset);
-				line_list = line_list.concat(line1[0].xyz);
-				line_list = line_list.concat(line1[1].xyz);
-				line_list = line_list.concat(line2[0].xyz);
-				line_list = line_list.concat(line2[1].xyz);
+				line_list = line_list.concat(line1[0].value());
+				line_list = line_list.concat(line1[1].value());
+				line_list = line_list.concat(line2[0].value());
+				line_list = line_list.concat(line2[1].value());
 			}
 		}
 		line = new umline.UMLine(gl, line_list);
@@ -324,16 +324,11 @@
 		path_list = abcio.get_nurbs_path_list(abcpath);
 		console.log(path_list);
 		for (i = 0; i < path_list.length; i = i + 1) {
-			abcnurbs = abcio.get_nurbs(abcpath, path_list[i]);
-			console.log(abcio.get_nurbs(abcpath, path_list[i]));
+			abcnurbs = abcio.get_nurbs(abcpath, path_list[i], true);
+			//console.log(abcio.get_nurbs(abcpath, path_list[i]));
 			if (abcnurbs && abcnurbs.hasOwnProperty("position")) {
 				nurbs = new umnurbs.UMNurbs(this.gl, new Float32Array(abcnurbs.position));
 				console.log(abcnurbs.global_transform);
-				for (n = 0; n < 4; n = n + 1) {
-					for (m = 0; m < 4; m = m + 1) {
-						nurbs.global_matrix.m[n][m] = abcnurbs.global_transform[n * 4 + m];
-					}
-				}
 				material = new ummaterial.UMMaterial(this.gl);
 				material.set_polygon_count(abcnurbs.position.length / 3 / 3);
 				nurbs.material_list.push(material);
@@ -352,16 +347,11 @@
 			material;
 		path_list = abcio.get_nurbs_path_list(abcpath);
 		for (i = 0; i < path_list.length; i = i + 1) {
-			abcnurbs = abcio.get_nurbs(abcpath, path_list[i]);
+			abcnurbs = abcio.get_nurbs(abcpath, path_list[i], true);
 			nurbs = this.nurbs_list[i];
 
 			if (abcnurbs && abcnurbs.hasOwnProperty("position")) {
 				nurbs.update(abcnurbs.position);
-				for (n = 0; n < 4; n = n + 1) {
-					for (m = 0; m < 4; m = m + 1) {
-						nurbs.global_matrix.m[n][m] = abcnurbs.global_transform[n * 4 + m];
-					}
-				}
 			}
 		}
 	};
@@ -556,18 +546,13 @@
 		path_list = abcio.get_mesh_path_list(abcpath);
 		console.log(path_list);
 		for (i = 0; i < path_list.length; i = i + 1) {
-			abcmesh = abcio.get_mesh(abcpath, path_list[i]);
+			abcmesh = abcio.get_mesh(abcpath, path_list[i], true);
 			console.log(abcmesh);
 			if (abcmesh && abcmesh.hasOwnProperty("vertex")) {
 				console.log(abcmesh);
 				mesh = new ummesh.UMMesh(this.gl, path_list[i], abcmesh.vertex, abcmesh.normal, abcmesh.uv, abcmesh.index);
 				mesh.is_cw = true;
 				console.log(abcmesh.global_transform);
-				for (n = 0; n < 4; n = n + 1) {
-					for (m = 0; m < 4; m = m + 1) {
-						mesh.global_matrix.m[n][m] = abcmesh.global_transform[n * 4 + m];
-					}
-				}
 				material = new ummaterial.UMMaterial(this.gl);
 				if (abcmesh.index.length > 0) {
 					material.set_polygon_count(abcmesh.index.length / 3);
@@ -587,7 +572,8 @@
 	};
 
 	UMScene.prototype._update_abc_mesh = function (abcio, abcpath) {
-		var abcmesh,
+		var abcinfo,
+			abcmesh,
 			i,
 			n,
 			m,
@@ -597,14 +583,12 @@
 		path_list = abcio.get_mesh_path_list(abcpath);
 
 		for (i = 0; i < path_list.length; i = i + 1) {
-			abcmesh = abcio.get_mesh(abcpath, path_list[i]);
-			mesh = this.mesh_list[i];
-			if (abcmesh && abcmesh.hasOwnProperty("vertex")) {
-				mesh.update(abcmesh.vertex, abcmesh.normal, abcmesh.uv, abcmesh.index);
-				for (n = 0; n < 4; n = n + 1) {
-					for (m = 0; m < 4; m = m + 1) {
-						mesh.global_matrix.m[n][m] = abcmesh.global_transform[n * 4 + m];
-					}
+			abcinfo = abcio.get_information(abcpath, path_list[i]);
+			if (abcinfo.has_changed) {
+				abcmesh = abcio.get_mesh(abcpath, path_list[i], true);
+				mesh = this.mesh_list[i];
+				if (abcmesh && abcmesh.hasOwnProperty("vertex")) {
+					mesh.update(abcmesh.vertex, abcmesh.normal, abcmesh.uv, abcmesh.index);
 				}
 			}
 		}
@@ -641,7 +625,8 @@
 	};
 
 	UMScene.prototype._update_abc_point = function (abcio, abcpath) {
-		var abcpoint,
+		var abcinfo,
+			abcpoint,
 			i,
 			n,
 			m,
@@ -650,16 +635,70 @@
 			material;
 		path_list = abcio.get_point_path_list(abcpath);
 		for (i = 0; i < path_list.length; i = i + 1) {
-			abcpoint = abcio.get_point(abcpath, path_list[i]);
-			point = this.point_list[i];
+			abcinfo = abcio.get_information(abcpath, path_list[i]);
+			if (abcinfo.has_changed) {
+				abcpoint = abcio.get_point(abcpath, path_list[i]);
+				point = this.point_list[i];
 
-			if (abcpoint && abcpoint.hasOwnProperty("position")) {
-				point.update(abcpoint.position, abcpoint.normal, abcpoint.color);
-				for (n = 0; n < 4; n = n + 1) {
-					for (m = 0; m < 4; m = m + 1) {
-						point.global_matrix.m[n][m] = abcpoint.global_transform[n * 4 + m];
+				if (abcpoint && abcpoint.hasOwnProperty("position")) {
+					point.update(abcpoint.position, abcpoint.normal, abcpoint.color);
+					for (n = 0; n < 4; n = n + 1) {
+						for (m = 0; m < 4; m = m + 1) {
+							point.global_matrix.m[n][m] = abcpoint.global_transform[n * 4 + m];
+						}
 					}
 				}
+			}
+		}
+	};
+
+	UMScene.prototype._load_abc_camera = function (abcio, abcpath) {
+		var abccamera,
+			i,
+			n,
+			m,
+			camera,
+			viewmat,
+			path_list;
+
+		path_list = abcio.get_camera_path_list(abcpath);
+		console.log("_load_abc_camera", path_list);
+		for (i = 0; i < path_list.length; i = i + 1) {
+			abccamera = abcio.get_camera(abcpath, path_list[i]);
+			console.log(abccamera.global_transform);
+			viewmat = new ummath.UMMat44d(abccamera.global_transform).inverted();
+			for (n = 0; n < 4; n = n + 1) {
+				for (m = 0; m < 4; m = m + 1) {
+					this.camera.view_matrix_.m[n][m] = viewmat.m[n][m];
+				}
+			}
+			this.camera.update();
+		}
+	};
+
+	UMScene.prototype._update_abc_camera = function (abcio, abcpath) {
+		var abcinfo,
+			abccamera,
+			i,
+			n,
+			m,
+			camera,
+			viewmat,
+			path_list;
+
+		path_list = abcio.get_camera_path_list(abcpath);
+		for (i = 0; i < path_list.length; i = i + 1) {
+			abcinfo = abcio.get_information(abcpath, path_list[i]);
+			if (abcinfo.has_changed) {
+				abccamera = abcio.get_camera(abcpath, path_list[i]);
+				//console.log(abccamera.global_transform);
+				viewmat = new ummath.UMMat44d(abccamera.global_transform).inverted();
+				for (n = 0; n < 4; n = n + 1) {
+					for (m = 0; m < 4; m = m + 1) {
+						this.camera.view_matrix_.m[n][m] = viewmat.m[n][m];
+					}
+				}
+				this.camera.update();
 			}
 		}
 	};
@@ -673,12 +712,14 @@
 		this._load_abc_curve(abcio, abcpath);
 		this._load_abc_nurbs(abcio, abcpath);
 		this._load_abc_point(abcio, abcpath);
+		this._load_abc_camera(abcio, abcpath);
 		update_func = (function (self) {
 			return function () {
 				abcio.set_time(abcpath, self.current_time);
 				self._update_abc_mesh(abcio, abcpath);
 				self._update_abc_point(abcio, abcpath);
 				//self._update_abc_nurbs(abcio, abcpath);
+				self._update_abc_camera(abcio, abcpath);
 			}
 		}(this));
 		this.update_func_list.push(update_func);
@@ -713,9 +754,9 @@
 				meshmat.specular_ = srcmat.specular_;
 				meshmat.ambient_ = srcmat.ambient_;
 				meshmat.set_texture(srcmat.diffuse_texture, srcmat.diffuse_texture_image);
-				mesh.global_matrix.m[3][0] = pos.xyz[0];
-				mesh.global_matrix.m[3][1] = pos.xyz[1];
-				mesh.global_matrix.m[3][2] = pos.xyz[2];
+				mesh.global_matrix.m[3][0] = pos.x();
+				mesh.global_matrix.m[3][1] = pos.y();
+				mesh.global_matrix.m[3][2] = pos.z();
 				mesh.material_list.push(meshmat);
 			}
 			mesh.update(src.verts, src.normals, src.uvs, null);

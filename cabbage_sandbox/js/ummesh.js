@@ -70,10 +70,12 @@
 			if (!this.uv_vbo) {
 				this._create_uv_vbo(indices, verts, uvs);
 			}
-			gl.bindBuffer(gl.ARRAY_BUFFER, this.uv_vbo);
-			gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(uvs), gl.STATIC_DRAW);
-			gl.bindBuffer(gl.ARRAY_BUFFER, null);
-			this.uvs = uvs;
+			if (this.uv_vbo) {
+				gl.bindBuffer(gl.ARRAY_BUFFER, this.uv_vbo);
+				gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(uvs, indices.length * 2), gl.STATIC_DRAW);
+				gl.bindBuffer(gl.ARRAY_BUFFER, null);
+				this.uvs = uvs;
+			}
 		}
 
 		if (indices && indices.length > 0) {

@@ -5,6 +5,7 @@
 	<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 	<link href="css/index.css" rel="stylesheet" />
 	<script type="text/javascript" src="js/ummath.js"></script>
+	<script type="text/javascript" src="js/ummath2.js"></script>
 	<script type="text/javascript" src="js/umcamera.js"></script>
 	<script type="text/javascript" src="js/ummaterial.js"></script>
 	<script type="text/javascript" src="js/umtriangle.js"></script>
@@ -44,7 +45,7 @@
 	uniform mat4 view_projection_matrix;
 	uniform mat4 global_matrix;
 	uniform vec4 mat_flags;
-	const vec4 light_position = vec4(100.0, 100.0, 100.0, 0.0);
+	const vec4 light_position = vec4(50.0, 50.0, 100.0, 0.0);
 
 	void main()
 	{
@@ -128,7 +129,7 @@
 	varying vec4 light_direction;
 	uniform mat4 view_projection_matrix;
 	uniform mat4 global_matrix;
-	const vec4 light_position = vec4(100.0, 50.0, 100.0, 0.0);
+	const vec4 light_position = vec4(50.0, 50.0, 100.0, 0.0);
 
 	void main()
 	{
