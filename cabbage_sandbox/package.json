@@ -1,6 +1,10 @@
 {
   "name": "cabbage_sandbox",
   "main": "main.js",
+  "dependencies" : {
+      "electron-process" : "*",
+      "alembic" : "*"
+  },
   "window": {
     "toolbar": false,
     "resizable": false,

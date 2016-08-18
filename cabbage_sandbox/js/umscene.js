@@ -1,6 +1,7 @@
 /*jslint devel:true*/
 /*global Float32Array, Uint8Array */
-(function (ummath, umline, ummesh, umboxlist, ummaterial, umcamera, umshader, umobj, ummtl, umbvh) {
+(function (ummath, umline, ummesh, umboxlist, ummaterial, umcamera, umshader,
+	umobj, ummtl, ummtlx, umbvh) {
 	"use strict";
 	var UMScene,
 		now = window.performance && (
@@ -365,7 +366,7 @@
 		gl.bindTexture(gl.TEXTURE_2D, null);
 		material.set_texture(tex, image);
 	};
-
+/*
 	UMScene.prototype.load_abc_mtl = function (mtlpath, text, endCallback) {
 		console.log("text", text);
 		var i,
@@ -437,6 +438,79 @@
 			temp.splice(temp.length - 1, 0, "material");
 			temp = temp.join('_');
 			assignFunc(0, temp, param, null);
+		}
+		timeoutFunc(endCallback);
+	};
+*/
+	UMScene.prototype.load_mtlx = function (mtlxpath, text, endCallback) {
+		var parser = new DOMParser(),
+			i,
+			mtlx,
+			name,
+			param,
+			temp,
+			mesh_index = 0,
+			loading = 0;
+
+		mtlx = ummtlx.load(parser.parseFromString(text, 'text/xml'));
+
+		this.images = {};
+		this.textures = {};
+
+		var timeoutFunc = function (callback) {
+			setTimeout(function () {
+				if (loading < 0) {
+					timeoutFunc(callback);
+				} else {
+					callback();
+				}
+			}, 100);
+		};
+
+		var assignFunc = function (i, target, param, callback) {
+			var img,
+				tex,
+				id,
+				mesh;
+
+			if (i >= this.mesh_list.length) { return; }
+			id = this.mesh_list[i].id;
+			mesh = this.mesh_list[i];
+			if (id.indexOf(target) >= 0) {
+				mesh.material_list[0].set_diffuse(param.diffuse[0], param.diffuse[1], param.diffuse[2], param.diffuse[3]);
+				mesh.material_list[0].set_specular(param.specular[0], param.specular[1], param.specular[2], param.specular[3]);
+				mesh.material_list[0].set_ambient(param.ambient[0], param.ambient[1], param.ambient[2], param.ambient[3]);
+
+				if (param.diffuse_texture.length > 0) {
+					var path = require('path');
+					var file = path.join(path.dirname(mtlxpath), param.diffuse_texture);
+
+					if (this.images.hasOwnProperty(file)) {
+						img = this.images[file];
+						tex = this.textures[file];
+						this._assign_texture(mesh.material_list[0], img, tex);
+					} else {
+						img = new Image();
+						tex = this.gl.createTexture();
+						this.images[file] = img;
+						this.textures[file] = tex;
+						loading = loading + 1;
+						img.onload = (function (self, mesh, img, tex) {
+							return function () {
+								self._assign_texture(mesh.material_list[0], img, tex);
+								loading = loading  - 1;
+							};
+						}(this, mesh, img, tex));
+						img.src = require('electron').nativeImage.createFromPath(file).toDataURL();
+					}
+				}
+			}
+			assignFunc(i + 1, target, param, callback);
+		}.bind(this);
+
+		for (name in mtlx.materials) {
+			param = mtlx.materials[name];
+			assignFunc(0, name.split(".").join("_"), param, null);
 		}
 		timeoutFunc(endCallback);
 	};
@@ -800,4 +874,5 @@
 	window.umscene.UMScene = UMScene;
 
 }(window.ummath, window.umline, window.ummesh, window.umboxlist,
-  window.ummaterial, window.umcamera, window.umshader, window.umobj, window.ummtl, window.umbvh));
+  window.ummaterial, window.umcamera, window.umshader, window.umobj, window.ummtl,
+  window.ummtlx, window.umbvh));

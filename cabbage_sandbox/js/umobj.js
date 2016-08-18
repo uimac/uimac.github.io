@@ -168,7 +168,7 @@
 		}
 
 		console.log(materials);
-		//console.log(mesh_verts, mesh_normals, mesh_uvs);
+		console.log(mesh_verts, mesh_normals, mesh_uvs);
 		return { vertices : mesh_verts, normals : mesh_normals, uvs : mesh_uvs, materials : materials };
 	}
 

@@ -73,7 +73,7 @@
 			splitted,
 			ext,
 			extmap = {},
-			supported_exts = ["abc", "obj", "mtl", "png", "jpg", "jpeg"],
+			supported_exts = ["abc", "obj", "mtl", "mtlx", "png", "jpg", "jpeg"],
 			mtl,
 			reader;
 
@@ -107,7 +107,14 @@
 						drawonce();
 						return;
 					}
-					scene.load_abc_mtl(mtl, String(data), function () {
+				});
+			}
+		}
+		if (extmap.hasOwnProperty('mtlx')) {
+			for (i = 0; i < extmap.mtlx.length; i = i + 1) {
+				file = extmap.mtlx[i];
+				require('fs').readFile(file.path, function (err, data) {
+					scene.load_mtlx(file.path, String(data), function () {
 						console.log("end")
 						drawonce();
 					});

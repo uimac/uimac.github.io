@@ -110,7 +110,8 @@
 			param,
 			index,
 			canvas_image = ctx.getImageData(0, 0, width, height),
-			ray = new UMRay();
+			ray = new UMRay(),
+			gpufor_precision = 10000.0;
 
 		render_canvas.width = width;
 		render_canvas.height = height;
@@ -124,6 +125,21 @@
 		}
 		window.umgl.drawonce();
 		*/
+		console.log(canvas_image);
+/*
+		var buffer = gpufor({
+				"float* A": A,
+				"float* B": B,
+				"float num": 0.01
+			}, "n",
+			`
+			float result = 0.0;
+			for(int i = 0; i < 10000; ++i) {
+				result = sqrt(result+A[n]+B[n]+float(i));
+			}
+			return result;
+			`
+		);*/
 
 		for (y = 0; y < height; y = y + 1) {
 			for (x = 0; x < width; x = x + 1) {

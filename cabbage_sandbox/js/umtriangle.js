@@ -100,9 +100,10 @@
 				uv2 = this.mesh_.get_uv(this.face_index_, this.mesh_.is_cw ? 1 : 2);
 
 			info.uv = [
-				ummath.um_clip(uv0[0] * info.uvw[0] + uv1[0] * info.uvw[1] + uv2[0] * info.uvw[2], 0.0, 1.0),
-				ummath.um_clip(uv0[1] * info.uvw[0] + uv1[1] * info.uvw[1] + uv2[1] * info.uvw[2], 0.0, 1.0)
+				ummath.um_fract(uv0[0] * info.uvw[0] + uv1[0] * info.uvw[1] + uv2[0] * info.uvw[2]),
+				ummath.um_fract(uv0[1] * info.uvw[0] + uv1[1] * info.uvw[1] + uv2[1] * info.uvw[2])
 			];
+
 			x = Math.floor(mat.diffuse_texture_image.width * info.uv[0] + 0.5);
 			y = Math.floor(mat.diffuse_texture_image.height * info.uv[1] + 0.5);
 			info.color = mat.get_diffuse_texture_pixel(x, y);

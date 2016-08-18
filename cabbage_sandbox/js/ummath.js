@@ -674,6 +674,10 @@ if (window.SIMD == undefined)
 	  return Math.max(min, Math.min(number, max));
 	}
 
+	function um_fract(number) {
+		return number - Math.floor(number);
+	}
+
 	window.ummath = {};
 	window.ummath.UMMat44d = UMMat44d;
 	window.ummath.UMVec3d = UMVec3d;
@@ -689,6 +693,7 @@ if (window.SIMD == undefined)
 	window.ummath.um_to_degree = um_to_degree;
 	window.ummath.um_sign = um_sign;
 	window.ummath.um_clip = um_clip;
+	window.ummath.um_fract = um_fract;
 	window.ummath.EPSILON = EPSILON;
 }
 }());

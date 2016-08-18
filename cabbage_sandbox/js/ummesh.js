@@ -21,10 +21,6 @@
 		this.uv_vbo = null;
 		this._create_uv_vbo(indices, verts, uvs);
 
-		if (indices && indices.length > 0) {
-			this.index_buffer = gl.createBuffer();
-		}
-
 		this.barycentric_vbo = null;
 
 		this.box = new ummath.UMBox();
@@ -52,39 +48,64 @@
 			size,
 			i;
 
+		if (indices && indices.length > 0) {
+			this.indices = indices;
+		}
+
 		if (verts) {
+			if (indices && indices.length > 0) {
+				this.verts.length = indices.length * 3;
+				for (i = 0; i < indices.length; i = i + 1) {
+					this.verts[i * 3 + 0] = verts[indices[i] * 3 + 0];
+					this.verts[i * 3 + 1] = verts[indices[i] * 3 + 1];
+					this.verts[i * 3 + 2] = verts[indices[i] * 3 + 2];
+				}
+			} else {
+				this.verts = verts;
+			}
+			console.log(this);
+
 			gl.bindBuffer(gl.ARRAY_BUFFER, this.vertex_vbo);
-			gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(verts), gl.STATIC_DRAW);
+			gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(this.verts), gl.STATIC_DRAW);
 			gl.bindBuffer(gl.ARRAY_BUFFER, null);
-			this.verts = verts;
 		}
 
 		if (normals) {
+			if (indices && indices.length > 0 && normals.length === verts.length) {
+				this.normals.length = indices.length * 3;
+				for (i = 0; i < indices.length; i = i + 1) {
+					this.normals[i * 3 + 0] = normals[indices[i] * 3 + 0];
+					this.normals[i * 3 + 1] = normals[indices[i] * 3 + 1];
+					this.normals[i * 3 + 2] = normals[indices[i] * 3 + 2];
+				}
+			} else {
+				this.normals = normals;
+			}
+
 			gl.bindBuffer(gl.ARRAY_BUFFER, this.normal_vbo);
-			gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(normals), gl.STATIC_DRAW);
+			gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(this.normals), gl.STATIC_DRAW);
 			gl.bindBuffer(gl.ARRAY_BUFFER, null);
-			this.normals = normals;
 		}
 
 		if (uvs && uvs.length > 0) {
 			if (!this.uv_vbo) {
 				this._create_uv_vbo(indices, verts, uvs);
 			}
-			if (this.uv_vbo) {
-				gl.bindBuffer(gl.ARRAY_BUFFER, this.uv_vbo);
-				gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(uvs, indices.length * 2), gl.STATIC_DRAW);
-				gl.bindBuffer(gl.ARRAY_BUFFER, null);
+			if (indices && indices.length > 0 && (uvs.length / 2) === (verts.length / 3)) {
+				this.uvs.length = indices.length * 3;
+				for (i = 0; i < indices.length; i = i + 1) {
+					this.uvs[i * 2 + 0] = uvs[indices[i] * 2 + 0];
+					this.uvs[i * 2 + 1] = uvs[indices[i] * 2 + 1];
+				}
+			} else {
 				this.uvs = uvs;
 			}
+			if (this.uv_vbo) {
+				gl.bindBuffer(gl.ARRAY_BUFFER, this.uv_vbo);
+				gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(this.uvs), gl.STATIC_DRAW);
+				gl.bindBuffer(gl.ARRAY_BUFFER, null);
+			}
 		}
-
-		if (indices && indices.length > 0) {
-			gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.index_buffer);
-			gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint32Array(indices), gl.STATIC_DRAW);
-			gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
-			this.indices = indices;
-		}
-
 		if (barycentric && barycentric.length > 0) {
 			gl.bindBuffer(gl.ARRAY_BUFFER, this.barycentric_vbo);
 			gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(barycentric), gl.STATIC_DRAW);
@@ -92,26 +113,16 @@
 			this.barycentric = barycentric;
 		} else {
 			this.barycentric_vbo = gl.createBuffer();
-			if (this.indices && this.indices.length > 0) {
-				this.barycentric = new Float32Array(this.indices.length * 3 * 3);
-				for (i = 0; i < this.indices.length; i = i + 1) {
-					this.barycentric[i * 3 + 0] = ((i % 3) == 0) ? 1 : 0;
-					this.barycentric[i * 3 + 1] = ((i % 3) == 1) ? 1 : 0;
-					this.barycentric[i * 3 + 2] = ((i % 3) == 2) ? 1 : 0;
-				}
-			} else {
-				this.barycentric = new Float32Array(this.verts.length);
-				for (i = 0, size = this.verts.length / 3; i < size; i = i + 1) {
-					this.barycentric[i * 3 + 0] = ((i % 3) == 0) ? 1 : 0;
-					this.barycentric[i * 3 + 1] = ((i % 3) == 1) ? 1 : 0;
-					this.barycentric[i * 3 + 2] = ((i % 3) == 2) ? 1 : 0;
-				}
+			this.barycentric = new Float32Array(this.verts.length);
+			for (i = 0, size = this.verts.length / 3; i < size; i = i + 1) {
+				this.barycentric[i * 3 + 0] = ((i % 3) == 0) ? 1 : 0;
+				this.barycentric[i * 3 + 1] = ((i % 3) == 1) ? 1 : 0;
+				this.barycentric[i * 3 + 2] = ((i % 3) == 2) ? 1 : 0;
 			}
 			gl.bindBuffer(gl.ARRAY_BUFFER, this.barycentric_vbo)
 			gl.bufferData(gl.ARRAY_BUFFER, this.barycentric, gl.STATIC_DRAW);
 			gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
 		}
-
 		//this.update_box();
 	}
 
@@ -132,7 +143,6 @@
 		if (this.barycentric_vbo) {
 			gl.deleteBuffer(this.barycentric_vbo);
 		}
-		//glDeleteBuffers(1, &vertex_index_vbo_);
 	};
 
 	UMMesh.prototype.init_attrib = function (shader) {
@@ -220,14 +230,7 @@
 
 			camera.draw(shader);
 			material.draw(shader);
-
-			if (this.index_buffer) {
-				gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.index_buffer);
-				gl.drawElements(gl.TRIANGLES, index_count, gl.UNSIGNED_INT, index_offset);
-				gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
-			} else {
-				gl.drawArrays(gl.TRIANGLES, index_offset, index_count);
-			}
+			gl.drawArrays(gl.TRIANGLES, index_offset, index_count);
 			index_offset = index_offset + index_count;
 		}
 		gl.bindBuffer(gl.ARRAY_BUFFER, null);
@@ -256,6 +259,7 @@
 	};
 
 	UMMesh.prototype.get_vert = function (faceindex, i) {
+		/*
 		if (this.indices && this.indices.length > 0) {
 			return new ummath.UMVec3d(
 				this.verts[this.indices[faceindex * 3 + i] * 3 + 0],
@@ -263,15 +267,17 @@
 				this.verts[this.indices[faceindex * 3 + i] * 3 + 2]
 			);
 		} else {
+		*/
 			return new ummath.UMVec3d(
 				this.verts[(faceindex * 3 + i) * 3 + 0],
 				this.verts[(faceindex * 3 + i) * 3 + 1],
 				this.verts[(faceindex * 3 + i) * 3 + 2]
 			);
-		}
+		//}
 	};
 
 	UMMesh.prototype.get_normal = function (faceindex, i) {
+		/*
 		if (this.indices && this.indices.length > 0) {
 			return new ummath.UMVec3d(
 				this.normals[this.indices[faceindex * 3 + i] * 3 + 0],
@@ -279,38 +285,41 @@
 				this.normals[this.indices[faceindex * 3 + i] * 3 + 2]
 			);
 		} else {
+		*/
 			return new ummath.UMVec3d(
 				this.normals[(faceindex * 3 + i) * 3 + 0],
 				this.normals[(faceindex * 3 + i) * 3 + 1],
 				this.normals[(faceindex * 3 + i) * 3 + 2]
 			);
-		}
+		//}
 	};
 
 	UMMesh.prototype.get_uv = function (faceindex, i) {
+		/*
 		if (this.indices && this.indices.length > 0) {
 			return [
 				this.uvs[this.indices[faceindex * 3 + i] * 2 + 0],
 				this.uvs[this.indices[faceindex * 3 + i] * 2 + 1]
 			];
-		} else {
+		} else {*/
 			return [
 				this.uvs[(faceindex * 3 + i) * 2 + 0],
 				this.uvs[(faceindex * 3 + i) * 2 + 1]
 			];
-		}
+		//}
 	};
 
 	UMMesh.prototype.get_vindex = function (faceindex) {
+		/*
 		if (this.indices && this.indices.length > 0) {
 			return [this.indices[faceindex * 3 + 0],
 					this.indices[this.is_cw ? faceindex * 3 + 2 : faceindex * 3 + 1],
 					this.indices[this.is_cw ? faceindex * 3 + 1 : faceindex * 3 + 2]];
-		} else {
+		} else {*/
 			return [(faceindex * 3 + 0),
 					this.is_cw ? (faceindex * 3 + 2) : (faceindex * 3 + 1),
 					this.is_cw ? (faceindex * 3 + 1) : (faceindex * 3 + 2)];
-		}
+		//}
 	};
 
 	UMMesh.prototype.add_triangle = function (v1, v2, v3, min_time, max_time) {
@@ -455,6 +464,7 @@
 			tri,
 			primitive_list = [];
 
+			/*
 		if (this.indices && this.indices.length > 0) {
 			polycount = this.indices.length / 3;
 			primitive_list.length = polycount;
@@ -463,6 +473,7 @@
 				primitive_list[i] = tri;
 			}
 		} else if (this.verts && this.verts.length > 0) {
+		*/
 		/*
 			this.create_mesh_index();
 			polycount = this.indices.length / 3;
@@ -473,13 +484,13 @@
 				primitive_list[i] = tri;
 			}
 			*/
-			console.log(this.indices)
+			console.log(this)
 			polycount = this.verts.length / 3 / 3;
 			for (i = 0; i < polycount; i = i + 1) {
 				tri = new umtriangle.UMTriangle(this, i);
 				primitive_list[i] = tri;
 			}
-		}
+		//}
 		this.primitive_list = primitive_list;
 
 		return primitive_list;

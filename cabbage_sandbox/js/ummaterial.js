@@ -151,13 +151,13 @@
 
 	UMMaterial.prototype.get_diffuse_texture_pixel = function (x, y) {
 		var w = this.diffuse_texture_image.width,
-			h = this.diffuse_texture_image.height,
-			data = this.texture[ (y * h + x) * 4 ];
+			h = this.diffuse_texture_image.height;
+
 		return [
-			this.texture[ (y * h + x) * 4 + 0] * toFloat,
-			this.texture[ (y * h + x) * 4 + 1] * toFloat,
-			this.texture[ (y * h + x) * 4 + 2] * toFloat,
-			this.texture[ (y * h + x) * 4 + 3] * toFloat];
+			this.texture[ (y * w + x) * 4 + 0] * toFloat,
+			this.texture[ (y * w + x) * 4 + 1] * toFloat,
+			this.texture[ (y * w + x) * 4 + 2] * toFloat,
+			this.texture[ (y * w + x) * 4 + 3] * toFloat];
 	};
 
 	UMMaterial.prototype.set_video_texture = function (texture, video) {
