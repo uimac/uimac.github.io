@@ -1,8 +1,6 @@
 /*jslint devel:true*/
 (function () {
 	"use strict";
-if (window.SIMD == undefined)
-{
 	var UMVec3d,
 		UMVec4d,
 		UMMat44d,
@@ -695,5 +693,4 @@ if (window.SIMD == undefined)
 	window.ummath.um_clip = um_clip;
 	window.ummath.um_fract = um_fract;
 	window.ummath.EPSILON = EPSILON;
-}
 }());
