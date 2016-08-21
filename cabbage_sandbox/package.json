@@ -1,10 +1,11 @@
 {
-  "name": "cabbage_sandbox",
+  "name": "cabbage",
   "main": "main.js",
+  "version" : "0.0.1",
   "dependencies" : {
-      "electron-process" : "*",
-      "alembic" : "*"
+      "alembic" : "git://github.com/uimac/alembic.git"
   },
+  "author" : "Kazuma Hatta",
   "window": {
     "toolbar": false,
     "resizable": false,

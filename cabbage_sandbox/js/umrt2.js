@@ -221,44 +221,47 @@
 			umrt.render(window.umgl.get_scene(), canvas, render_canvas, progress_callback);
 		}
 
-		var honban = false;
-
+		var honban = true;
 		if (window && window.process && window.process.type && honban) {
 			var canvas = document.getElementById('render_canvas');
 			clearInterval(window.umgl.get_auto_resize_handle());
 			//require('electron').remote.getCurrentWindow().maximize();
-			canvas.width = 1920;
-			canvas.height = 1080;
-			scene.resize(1920, 1080);
-			scene.load_abc("abc/reiko5.abc");
-			scene.load_abc("abc/camera.abc");
-			var mtlx = "abc/reiko.mtlx";
-			require('fs').readFile(mtlx, function (err, data) {
-				scene.load_mtlx(mtlx, String(data), function () {
-					window.umgl.drawonce();
-					setTimeout(function () {
-						start_render();
-					}, 100);
+			setTimeout(function () {
+				canvas.width = 1920;
+				canvas.height = 1080;
+				scene.resize(1920, 1080);
+				scene.load_abc(require("path").join(__dirname, "abc/reiko5.abc"));
+				scene.load_abc(require("path").join(__dirname, "abc/camera.abc"));
+				var mtlx = require("path").join(__dirname, "abc/reiko.mtlx");
+				require('fs').readFile(mtlx, function (err, data) {
+					scene.load_mtlx(mtlx, String(data), function () {
+						window.umgl.drawonce();
+						setTimeout(function () {
+							start_render();
+						}, 100);
+					});
 				});
-			});
+			}, 60);
 		}
 		if (window && window.process && window.process.type && !honban) {
 			var canvas = document.getElementById('render_canvas');
 			clearInterval(window.umgl.get_auto_resize_handle());
-			canvas.width = 1920;
-			canvas.height = 1080;
-			scene.resize(1920, 1080);
-			scene.load_abc("abc/test.abc");
-			scene.load_abc("abc/camera.abc");
-			var mtlx = "abc/test.mtlx";
-			require('fs').readFile(mtlx, function (err, data) {
-				scene.load_mtlx(mtlx, String(data), function () {
-					window.umgl.drawonce();
-					setTimeout(function () {
-						start_render();
-					}, 100);
+			setTimeout(function () {
+				canvas.width = 1920;
+				canvas.height = 1080;
+				scene.resize(1920, 1080);
+				scene.load_abc(require("path").join(__dirname, "abc/test.abc"));
+				scene.load_abc(require("path").join(__dirname, "abc/camera.abc"));
+				var mtlx = require("path").join(__dirname, "abc/test.mtlx");
+				require('fs').readFile(mtlx, function (err, data) {
+					scene.load_mtlx(mtlx, String(data), function () {
+						window.umgl.drawonce();
+						setTimeout(function () {
+							start_render();
+						}, 100);
+					});
 				});
-			});
+			}, 60)
 		}
 	}
 
