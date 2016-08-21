@@ -8,7 +8,8 @@
 		current_tool,
 		stats = null,
 		mainloop_handle = null,
-		is_drawing = false;
+		is_drawing = false,
+		auto_resize_handle = null;
 
 	function main_loop() {
 		var canvas = document.getElementById('canvas');
@@ -396,7 +397,8 @@
 				cancelAnimationFrame(mainloop_handle);
 			};
 		}
-		setInterval(function () {
+
+		auto_resize_handle = setInterval(function () {
 			var mainview = document.getElementById('mainview');
 			if (mainview.clientWidth !== canvas.clientWidth || mainview.clientHeight !== canvas.clientHeight) {
 				resize();
@@ -433,5 +435,6 @@
 	window.umgl.drawonce = drawonce;
 	window.umgl.start_mainloop = start_mainloop;
 	window.umgl.stop_mainloop = stop_mainloop;
+	window.umgl.get_auto_resize_handle = function () { return auto_resize_handle; }
 	window.umgl.get_scene = function () { return scene; };
 }(window.umscene));

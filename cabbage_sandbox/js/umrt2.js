@@ -156,9 +156,10 @@
 				//ctx.fillRect(x, y, 1, 1);
 				result_params[y * height + x] = JSON.parse(JSON.stringify(shader_parameter));
 			}
-			progress_callback(y / height);
+			progress_callback(y / height, canvas_image);
 		}
 		ctx.putImageData(canvas_image, 0, 0);
+		progress_callback(1, canvas_image);
 
 		//this.outline(scene, result_params);
 	};
@@ -174,9 +175,33 @@
 
 	function init() {
 		umrt = new UMRT();
-		var progress_callback = function (progress) {
-
-		};
+		var scene = window.umgl.get_scene(),
+			count = 1,
+			progress_callback = function (progress, canvas_image) {
+				var canvas = document.getElementById('render_canvas'),
+					ctx,
+				 	time = new Date(),
+					currentTime = time - window.start_time,
+					data,
+					out;
+				console.log(currentTime + "ms", progress);
+				if(Math.floor(currentTime / 29500) === count || progress === 1) {
+					count = count + 1;
+					ctx = canvas.getContext('2d');
+					if (progress !== 1) {
+						ctx.putImageData(canvas_image, 0, 0, 0, 0, scene.width, scene.height * progress);
+					}
+					data = canvas.toDataURL().split(',')[1];
+					if (progress === 1) {
+						require('fs').writeFileSync("out_final.png", data, 'base64');
+					} else {
+						require('fs').writeFileSync("out_" + (count-1) + ".png", data, 'base64');
+					}
+				}
+				if (progress >= 1) {
+					require('electron').remote.getCurrentWindow().close();
+				}
+			};
 
 		if (document.getElementById('tool_render')) {
 			document.getElementById('tool_render').onclick = function (evt) {
@@ -187,6 +212,53 @@
 				console.timeEnd('render');
 				//document.getElementById('tool_test2').click();
 			}
+		}
+
+		var start_render = function () {
+			var render_canvas = document.getElementById('render_canvas');
+			var canvas = document.getElementById('canvas');
+			console.time('render');
+			umrt.render(window.umgl.get_scene(), canvas, render_canvas, progress_callback);
+		}
+
+		var honban = false;
+
+		if (window && window.process && window.process.type && honban) {
+			var canvas = document.getElementById('render_canvas');
+			clearInterval(window.umgl.get_auto_resize_handle());
+			//require('electron').remote.getCurrentWindow().maximize();
+			canvas.width = 1920;
+			canvas.height = 1080;
+			scene.resize(1920, 1080);
+			scene.load_abc("abc/reiko5.abc");
+			scene.load_abc("abc/camera.abc");
+			var mtlx = "abc/reiko.mtlx";
+			require('fs').readFile(mtlx, function (err, data) {
+				scene.load_mtlx(mtlx, String(data), function () {
+					window.umgl.drawonce();
+					setTimeout(function () {
+						start_render();
+					}, 100);
+				});
+			});
+		}
+		if (window && window.process && window.process.type && !honban) {
+			var canvas = document.getElementById('render_canvas');
+			clearInterval(window.umgl.get_auto_resize_handle());
+			canvas.width = 1920;
+			canvas.height = 1080;
+			scene.resize(1920, 1080);
+			scene.load_abc("abc/test.abc");
+			scene.load_abc("abc/camera.abc");
+			var mtlx = "abc/test.mtlx";
+			require('fs').readFile(mtlx, function (err, data) {
+				scene.load_mtlx(mtlx, String(data), function () {
+					window.umgl.drawonce();
+					setTimeout(function () {
+						start_render();
+					}, 100);
+				});
+			});
 		}
 	}
 

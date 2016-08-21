@@ -4,6 +4,8 @@
 (function (umgl, umeditor, umtimeline, umlist, umlayout, umrt) {
 	"use strict";
 
+	window.start_time = new Date();
+
 	window.addEventListener('load', function () {
 		umgl.init();
 		umeditor.init();
