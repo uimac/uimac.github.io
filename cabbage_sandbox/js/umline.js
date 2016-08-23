@@ -7,12 +7,11 @@
 	UMLine = function (gl, verts) {
 		this.gl = gl;
 		this.material_list = [];
-		this.vertex_vbo = gl.createBuffer();
-
 		this.verts = null;
 		this.position_attr = null;
 		this.normal_attr = null;
 		this.uv_attr = null;
+		this.vertex_vbo = gl ? gl.createBuffer() : null;
 		this.global_matrix = new ummath.UMMat44d();
 		this.global_matrix_location_ = null;
 
@@ -21,6 +20,7 @@
 
 	UMLine.prototype.dispose = function () {
 		var gl = this.gl;
+		if (!gl) { return; }
 		gl.deleteBuffer(this.vertex_vbo);
 	};
 
@@ -33,6 +33,9 @@
 		if (!verts || verts.length <= 0) {
 			return;
 		}
+
+		if (!gl) { return; }
+		this.vertex_vbo = gl.createBuffer();
 		gl.bindBuffer(gl.ARRAY_BUFFER, this.vertex_vbo);
 		gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(verts), gl.STATIC_DRAW);
 		gl.bindBuffer(gl.ARRAY_BUFFER, null);
@@ -41,6 +44,7 @@
 	UMLine.prototype.init_attrib = function (shader) {
 		var gl = this.gl;
 
+		if (!gl) { return; }
 		gl.bindBuffer(gl.ARRAY_BUFFER, this.vertex_vbo);
 		if (!this.position_attr) {
 			this.position_attr = gl.getAttribLocation(shader.program_object(), 'a_position');
@@ -71,6 +75,7 @@
 			index_offset = 0,
 			material;
 
+		if (!gl) { return; }
 		if (!this.verts) { return; }
 
 		gl.useProgram(shader.program_object());

@@ -28,73 +28,76 @@
 
 	UMMaterial.prototype.draw = function (shader) {
 		var gl = this.gl;
-		if (!this.constant_color_location_) {
-			this.constant_color_location_ = gl.getUniformLocation(shader.program_object(), "constant_color");
-		}
-		if (!this.diffuse_location_) {
-			this.diffuse_location_ = gl.getUniformLocation(shader.program_object(), "mat_diffuse");
-		}
-		if (!this.ambient_location_) {
-			this.ambient_location_ = gl.getUniformLocation(shader.program_object(), "mat_ambient");
-		}
-		if (!this.flag_location_) {
-			this.flag_location_ = gl.getUniformLocation(shader.program_object(), "mat_flags");
-		}
-		if (this.diffuse_texture) {
-			if (!this.sampler_location_) {
-				this.sampler_location_ = gl.getUniformLocation(shader.program_object(), "s_texture");
+		if (gl) {
+			if (!this.constant_color_location_) {
+				this.constant_color_location_ = gl.getUniformLocation(shader.program_object(), "constant_color");
 			}
-			gl.activeTexture(gl.TEXTURE0);
-			gl.bindTexture(gl.TEXTURE_2D, this.diffuse_texture);
-			if (!this.diffuse_texture_assigned) {
-				gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, this.diffuse_texture_image);
-
-				this.canvas_.width = this.diffuse_texture_image.width;
-				this.canvas_.height = this.diffuse_texture_image.height;
-				var ctx = this.canvas_.getContext('2d');
-				ctx.drawImage(this.diffuse_texture_image, 0, 0);
-				this.texture = ctx.getImageData(0, 0, this.canvas_.width, this.canvas_.height).data;
-
-				this.diffuse_texture_assigned = true;
+			if (!this.diffuse_location_) {
+				this.diffuse_location_ = gl.getUniformLocation(shader.program_object(), "mat_diffuse");
 			}
-			gl.uniform1i(this.sampler_location_, 0);
-		}
-		if (this.video_) {
-			if (!this.sampler_location_) {
-				this.sampler_location_ = gl.getUniformLocation(shader.program_object(), "s_texture");
+			if (!this.ambient_location_) {
+				this.ambient_location_ = gl.getUniformLocation(shader.program_object(), "mat_ambient");
 			}
-			gl.activeTexture(gl.TEXTURE0);
-			gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, this.video_);
-			gl.uniform1i(this.sampler_location_, 0);
-		}
-		if (this.flag_.xyzw[1] > 0.5) {
-			gl.uniform4f(this.constant_color_location_,
-				this.constant_color_.xyzw[0],
-				this.constant_color_.xyzw[1],
-				this.constant_color_.xyzw[2],
-				this.constant_color_.xyzw[3]);
-		} else {
-			gl.uniform4f(this.diffuse_location_,
-				this.diffuse_.xyzw[0],
-				this.diffuse_.xyzw[1],
-				this.diffuse_.xyzw[2],
-				this.diffuse_.xyzw[3]);
-
-			if (this.ambient_location_ && this.ambient_location_ >= 0) {
-				gl.uniform4f(this.ambient_location_,
-					this.ambient_.xyzw[0],
-					this.ambient_.xyzw[1],
-					this.ambient_.xyzw[2],
-					this.ambient_.xyzw[3]);
+			if (!this.flag_location_) {
+				this.flag_location_ = gl.getUniformLocation(shader.program_object(), "mat_flags");
 			}
+			if (this.diffuse_texture) {
+				if (!this.sampler_location_) {
+					this.sampler_location_ = gl.getUniformLocation(shader.program_object(), "s_texture");
+				}
+				gl.activeTexture(gl.TEXTURE0);
+				gl.bindTexture(gl.TEXTURE_2D, this.diffuse_texture);
+				if (!this.diffuse_texture_assigned) {
+					gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, this.diffuse_texture_image);
+				}
+				gl.uniform1i(this.sampler_location_, 0);
+			}
+			if (this.video_) {
+				if (!this.sampler_location_) {
+					this.sampler_location_ = gl.getUniformLocation(shader.program_object(), "s_texture");
+				}
+				gl.activeTexture(gl.TEXTURE0);
+				gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, this.video_);
+				gl.uniform1i(this.sampler_location_, 0);
+			}
+			if (this.flag_.xyzw[1] > 0.5) {
+				gl.uniform4f(this.constant_color_location_,
+					this.constant_color_.xyzw[0],
+					this.constant_color_.xyzw[1],
+					this.constant_color_.xyzw[2],
+					this.constant_color_.xyzw[3]);
+			} else {
+				gl.uniform4f(this.diffuse_location_,
+					this.diffuse_.xyzw[0],
+					this.diffuse_.xyzw[1],
+					this.diffuse_.xyzw[2],
+					this.diffuse_.xyzw[3]);
+
+				if (this.ambient_location_ && this.ambient_location_ >= 0) {
+					gl.uniform4f(this.ambient_location_,
+						this.ambient_.xyzw[0],
+						this.ambient_.xyzw[1],
+						this.ambient_.xyzw[2],
+						this.ambient_.xyzw[3]);
+				}
+			}
+
+			gl.uniform4f(this.flag_location_,
+				this.flag_.xyzw[0],
+				this.flag_.xyzw[1],
+				this.flag_.xyzw[2],
+				this.flag_.xyzw[3]);
+
 		}
+		if (this.diffuse_texture_image && !this.diffuse_texture_assigned) {
+			this.canvas_.width = this.diffuse_texture_image.width;
+			this.canvas_.height = this.diffuse_texture_image.height;
+			var ctx = this.canvas_.getContext('2d');
+			ctx.drawImage(this.diffuse_texture_image, 0, 0);
+			this.texture = ctx.getImageData(0, 0, this.canvas_.width, this.canvas_.height).data;
 
-		gl.uniform4f(this.flag_location_,
-			this.flag_.xyzw[0],
-			this.flag_.xyzw[1],
-			this.flag_.xyzw[2],
-			this.flag_.xyzw[3]);
-
+			this.diffuse_texture_assigned = true;
+		}
 		//gl.bindTexture(gl.TEXTURE_2D, null);
 	};
 

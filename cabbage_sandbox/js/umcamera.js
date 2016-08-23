@@ -103,7 +103,8 @@
 
 	UMCamera.prototype.draw = function (shader) {
 		var gl = this.gl;
-
+		if (!gl) { return; }
+		
 		if (!this.view_projection_location_.hasOwnProperty(shader.id())) {
 			this.view_projection_location_[shader.id()] = gl.getUniformLocation(shader.program_object(), "view_projection_matrix");
 		}

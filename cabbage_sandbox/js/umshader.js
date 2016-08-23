@@ -15,6 +15,7 @@
 			felem = document.getElementById(fragment_shader_id),
 			gl = this.gl;
 
+		if (!gl) { return; }
 		this.id_ = vertex_shader_id + "/" + fragment_shader_id;
 
 		this.vertex_shader_ = gl.createShader(gl.VERTEX_SHADER);
@@ -59,6 +60,7 @@
 
 	UMShader.prototype.dispose = function () {
 		var gl = this.gl;
+		if (!gl) { return; }
 		gl.DetachShader(this.program_object_, this.vertex_shader_);
 		gl.DetachShader(this.program_object_, this.fragment_shader_);
 		gl.DeleteShader(this.vertex_shader_);

@@ -79,6 +79,7 @@
 
 	UMNurbs.prototype.update = function (positions) {
 		var gl = this.gl;
+		if (!gl) { return; }
 		this.positions = positions;
 		for (var i = 0; i < positions.length; ++i) {
 			positions[i] = positions[i] * 10;
@@ -99,6 +100,7 @@
 			normal_attr,
 			uv_attr;
 
+		if (!gl) { return; }
 		gl.bindBuffer(gl.ARRAY_BUFFER, this.static_vbo);
 		uv_attr = gl.getAttribLocation(shader.program_object(), 'inUV');
 		gl.enableVertexAttribArray(uv_attr);
@@ -117,6 +119,7 @@
 			index_offset = 0,
 			material;
 
+		if (!gl) { return; }
 		gl.useProgram(shader.program_object());
 		this.init_attrib(shader);
 

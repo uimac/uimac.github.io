@@ -45,7 +45,9 @@
 			mainview = document.getElementById('mainview');
 		canvas.width = mainview.clientWidth;
 		canvas.height = mainview.clientHeight;
-		gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
+		if (gl) {
+			gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
+		}
 		console.log(mainview.clientWidth, mainview.clientHeight);
 		scene.resize(canvas.width, canvas.height);
 		drawonce();
@@ -233,44 +235,45 @@
 			is_right_down = false,
 			ext;
 
-		gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
-		if (!gl) {
-			alert("init failed");
-			return;
-		}
+		gl = null; //canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
 
-		ext = gl.getExtension("OES_element_index_uint");
-		if (!ext) {
-			alert("No OES_element_index_uint support");
-			return;
-		}
-		ext = gl.getExtension('OES_standard_derivatives');
-		if (!ext) {
-			alert("No OES_standard_derivatives support");
-			return;
-		}
-		ext = gl.getExtension('OES_texture_float');
-		if (!ext) {
-			alert("No OES_texture_float support");
-			return;
-		}
-		ext = gl.getExtension('ANGLE_instanced_arrays');
-		if (!ext) {
-			alert("No ANGLE_instanced_arrays support");
-			return;
-		}
+		if (gl) {
+			ext = gl.getExtension("OES_element_index_uint");
+			if (!ext) {
+				alert("No OES_element_index_uint support");
+				return;
+			}
+			ext = gl.getExtension('OES_standard_derivatives');
+			if (!ext) {
+				alert("No OES_standard_derivatives support");
+				return;
+			}
+			ext = gl.getExtension('OES_texture_float');
+			if (!ext) {
+				alert("No OES_texture_float support");
+				return;
+			}
+			ext = gl.getExtension('ANGLE_instanced_arrays');
+			if (!ext) {
+				alert("No ANGLE_instanced_arrays support");
+				return;
+			}
 
 
-		gl.enable(gl.DEPTH_TEST);
-		gl.depthFunc(gl.LESS);
-		gl.enable(gl.CULL_FACE);
-		gl.enable(gl.BLEND);
-		gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-		gl.clearColor(0.25, 0.25, 0.25, 1.0);
+			gl.enable(gl.DEPTH_TEST);
+			gl.depthFunc(gl.LESS);
+			gl.enable(gl.CULL_FACE);
+			gl.enable(gl.BLEND);
+			gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+			gl.clearColor(0.25, 0.25, 0.25, 1.0);
+		}
 
 		scene = new umscene.UMScene(gl);
 		scene.init();
-		resize();
+
+		if (!window.is_auto_mode) {
+			resize();
+		}
 
 /*
 		(function () {
@@ -376,9 +379,11 @@
 			evt.preventDefault();
 			return false;
 		};
-		window.addEventListener('resize', function (event) {
-			resize();
-		});
+		if (!window.is_auto_mode) {
+			window.addEventListener('resize', function (event) {
+				resize();
+			});
+		}
 		if (document.getElementById('tool_play')) {
 			document.getElementById('tool_play').onclick = function (evt) {
 				scene.play();
@@ -398,12 +403,14 @@
 			};
 		}
 
-		auto_resize_handle = setInterval(function () {
-			var mainview = document.getElementById('mainview');
-			if (mainview.clientWidth !== canvas.clientWidth || mainview.clientHeight !== canvas.clientHeight) {
-				resize();
-			}
-		}, 30);
+		if (!window.is_auto_mode) {
+			auto_resize_handle = setInterval(function () {
+				var mainview = document.getElementById('mainview');
+				if (mainview.clientWidth !== canvas.clientWidth || mainview.clientHeight !== canvas.clientHeight) {
+					resize();
+				}
+			}, 30);
+		}
 
 		document.body.ondragover = function (ev) {
 			ev.preventDefault();

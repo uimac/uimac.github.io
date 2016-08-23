@@ -7,10 +7,10 @@
 	UMPoint = function (gl, positions, normals, colors) {
 		this.gl = gl;
 		this.material_list = [];
-		this.position_vbo = gl.createBuffer();
+		this.position_vbo = gl ? gl.createBuffer() : null;
 
 		if (normals && normals.length > 0) {
-			this.normal_vbo = gl.createBuffer();
+			this.normal_vbo = gl ? gl.createBuffer() : null;
 		}
 
 		this.box = new ummath.UMBox();
@@ -22,6 +22,7 @@
 
 	UMPoint.prototype.update = function (positions, normals, colors) {
 		var gl = this.gl;
+		if (!gl) { return; }
 		gl.bindBuffer(gl.ARRAY_BUFFER, this.position_vbo);
 		gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);
 		gl.bindBuffer(gl.ARRAY_BUFFER, null);
@@ -39,6 +40,7 @@
 
 	UMPoint.prototype.dispose = function () {
 		var gl = this.gl;
+		if (!gl) { return; }
 		gl.deleteBuffer(this.vertex_vbo);
 		gl.deleteBuffer(this.normal_vbo);
 		if (this.uv_vbo) {
@@ -56,6 +58,7 @@
 			normal_attr,
 			uv_attr;
 
+		if (!gl) { return; }
 		gl.bindBuffer(gl.ARRAY_BUFFER, this.position_vbo);
 		position_attr = gl.getAttribLocation(shader.program_object(), 'a_position');
 		gl.enableVertexAttribArray(position_attr);
@@ -82,6 +85,7 @@
 			index_offset = 0,
 			material;
 
+		if (!gl) { return; }
 		gl.useProgram(shader.program_object());
 		this.init_attrib(shader);
 

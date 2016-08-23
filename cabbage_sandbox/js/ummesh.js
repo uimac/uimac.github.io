@@ -7,8 +7,8 @@
 	UMMesh = function (gl, id, verts, normals, uvs, indices) {
 		this.gl = gl;
 		this.material_list = [];
-		this.vertex_vbo = gl.createBuffer();
-		this.normal_vbo = gl.createBuffer();
+		this.vertex_vbo = gl ? gl.createBuffer() : null;
+		this.normal_vbo = gl ?gl.createBuffer() : null;
 		this.verts = [];
 		this.normals = [];
 		this.uvs = [];
@@ -32,6 +32,7 @@
 	};
 
 	UMMesh.prototype._create_uv_vbo = function (indices, verts, uvs) {
+		if (!this.gl) { return; }
 		if (uvs && uvs.length > 0) {
 			if (indices && indices.length > 0) {
 				if (indices.length * 2 === uvs.length) {
@@ -64,10 +65,11 @@
 				this.verts = verts;
 			}
 			console.log(this);
-
-			gl.bindBuffer(gl.ARRAY_BUFFER, this.vertex_vbo);
-			gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(this.verts), gl.STATIC_DRAW);
-			gl.bindBuffer(gl.ARRAY_BUFFER, null);
+			if (gl) {
+				gl.bindBuffer(gl.ARRAY_BUFFER, this.vertex_vbo);
+				gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(this.verts), gl.STATIC_DRAW);
+				gl.bindBuffer(gl.ARRAY_BUFFER, null);
+			}
 		}
 
 		if (normals) {
@@ -82,9 +84,11 @@
 				this.normals = normals;
 			}
 
-			gl.bindBuffer(gl.ARRAY_BUFFER, this.normal_vbo);
-			gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(this.normals), gl.STATIC_DRAW);
-			gl.bindBuffer(gl.ARRAY_BUFFER, null);
+			if (gl) {
+				gl.bindBuffer(gl.ARRAY_BUFFER, this.normal_vbo);
+				gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(this.normals), gl.STATIC_DRAW);
+				gl.bindBuffer(gl.ARRAY_BUFFER, null);
+			}
 		}
 
 		if (uvs && uvs.length > 0) {
@@ -100,34 +104,37 @@
 			} else {
 				this.uvs = uvs;
 			}
-			if (this.uv_vbo) {
+			if (this.uv_vbo && gl) {
 				gl.bindBuffer(gl.ARRAY_BUFFER, this.uv_vbo);
 				gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(this.uvs), gl.STATIC_DRAW);
 				gl.bindBuffer(gl.ARRAY_BUFFER, null);
 			}
 		}
-		if (barycentric && barycentric.length > 0) {
-			gl.bindBuffer(gl.ARRAY_BUFFER, this.barycentric_vbo);
-			gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(barycentric), gl.STATIC_DRAW);
-			gl.bindBuffer(gl.ARRAY_BUFFER, null);
-			this.barycentric = barycentric;
-		} else {
-			this.barycentric_vbo = gl.createBuffer();
-			this.barycentric = new Float32Array(this.verts.length);
-			for (i = 0, size = this.verts.length / 3; i < size; i = i + 1) {
-				this.barycentric[i * 3 + 0] = ((i % 3) == 0) ? 1 : 0;
-				this.barycentric[i * 3 + 1] = ((i % 3) == 1) ? 1 : 0;
-				this.barycentric[i * 3 + 2] = ((i % 3) == 2) ? 1 : 0;
+		if (gl) {
+			if (barycentric && barycentric.length > 0) {
+				gl.bindBuffer(gl.ARRAY_BUFFER, this.barycentric_vbo);
+				gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(barycentric), gl.STATIC_DRAW);
+				gl.bindBuffer(gl.ARRAY_BUFFER, null);
+				this.barycentric = barycentric;
+			} else {
+				this.barycentric_vbo = gl.createBuffer();
+				this.barycentric = new Float32Array(this.verts.length);
+				for (i = 0, size = this.verts.length / 3; i < size; i = i + 1) {
+					this.barycentric[i * 3 + 0] = ((i % 3) == 0) ? 1 : 0;
+					this.barycentric[i * 3 + 1] = ((i % 3) == 1) ? 1 : 0;
+					this.barycentric[i * 3 + 2] = ((i % 3) == 2) ? 1 : 0;
+				}
+				gl.bindBuffer(gl.ARRAY_BUFFER, this.barycentric_vbo)
+				gl.bufferData(gl.ARRAY_BUFFER, this.barycentric, gl.STATIC_DRAW);
+				gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
 			}
-			gl.bindBuffer(gl.ARRAY_BUFFER, this.barycentric_vbo)
-			gl.bufferData(gl.ARRAY_BUFFER, this.barycentric, gl.STATIC_DRAW);
-			gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
 		}
 		//this.update_box();
 	}
 
 	UMMesh.prototype.dispose = function () {
 		var gl = this.gl;
+		if (!gl) { return; }
 		if (this.vertex_vbo) {
 			gl.deleteBuffer(this.vertex_vbo);
 		}
@@ -153,6 +160,8 @@
 			barycentric_attr,
 			barycentric,
 			i;
+
+		if (!gl) { return; }
 
 		if (this.vertex_vbo) {
 			gl.bindBuffer(gl.ARRAY_BUFFER, this.vertex_vbo);
@@ -202,26 +211,29 @@
 			index_offset = 0,
 			material;
 
-		if (!this.vertex_vbo) { return; }
+		if (gl) {
 
-		gl.useProgram(shader.program_object());
-		this.init_attrib(shader);
+			if (!this.vertex_vbo) { return; }
 
-		if (!this.global_matrix_location_) {
-			this.global_matrix_location_ = gl.getUniformLocation(shader.program_object(), "global_matrix");
-		}
-		gl.uniformMatrix4fv(this.global_matrix_location_, false, this.global_matrix.value());
+			gl.useProgram(shader.program_object());
+			this.init_attrib(shader);
 
-		gl.bindBuffer(gl.ARRAY_BUFFER, this.vertex_vbo);
+			if (!this.global_matrix_location_) {
+				this.global_matrix_location_ = gl.getUniformLocation(shader.program_object(), "global_matrix");
+			}
+			gl.uniformMatrix4fv(this.global_matrix_location_, false, this.global_matrix.value());
 
-		if (this.normal_vbo) {
-			gl.bindBuffer(gl.ARRAY_BUFFER, this.normal_vbo);
-		}
-		if (this.uv_vbo) {
-			gl.bindBuffer(gl.ARRAY_BUFFER, this.uv_vbo);
-		}
-		if (this.barycentric_vbo) {
-			gl.bindBuffer(gl.ARRAY_BUFFER, this.barycentric_vbo);
+			gl.bindBuffer(gl.ARRAY_BUFFER, this.vertex_vbo);
+
+			if (this.normal_vbo) {
+				gl.bindBuffer(gl.ARRAY_BUFFER, this.normal_vbo);
+			}
+			if (this.uv_vbo) {
+				gl.bindBuffer(gl.ARRAY_BUFFER, this.uv_vbo);
+			}
+			if (this.barycentric_vbo) {
+				gl.bindBuffer(gl.ARRAY_BUFFER, this.barycentric_vbo);
+			}
 		}
 
 		for (i = 0; i < this.material_list.length; i = i + 1) {
@@ -230,10 +242,14 @@
 
 			camera.draw(shader);
 			material.draw(shader);
-			gl.drawArrays(gl.TRIANGLES, index_offset, index_count);
+			if (gl) {
+				gl.drawArrays(gl.TRIANGLES, index_offset, index_count);
+			}
 			index_offset = index_offset + index_count;
 		}
-		gl.bindBuffer(gl.ARRAY_BUFFER, null);
+		if (gl) {
+			gl.bindBuffer(gl.ARRAY_BUFFER, null);
+		}
 	};
 
 	UMMesh.prototype.reset_shader_location = function () {

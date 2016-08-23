@@ -153,7 +153,9 @@
 	};
 
 	UMScene.prototype.clear = function () {
-		this.gl.clear(this.gl.COLOR_BUFFER_BIT | this.gl.DEPTH_BUFFER_BIT);
+		if (this.gl) {
+			this.gl.clear(this.gl.COLOR_BUFFER_BIT | this.gl.DEPTH_BUFFER_BIT);
+		}
 	};
 
 	UMScene.prototype.update = function () {
@@ -176,6 +178,7 @@
 
 	UMScene.prototype.set_front_face = function (is_cw) {
 		var gl = this.gl;
+		if (!this.gl) { return; }
 		if (this.is_cw !== is_cw) {
 			this.is_cw = is_cw;
 			if (this.is_cw) {
@@ -359,11 +362,13 @@
 
 	UMScene.prototype._assign_texture = function (material, image, tex) {
 		var gl = this.gl;
-		gl.bindTexture(gl.TEXTURE_2D, tex);
-		gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
-		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-		gl.bindTexture(gl.TEXTURE_2D, null);
+		if (gl) {
+			gl.bindTexture(gl.TEXTURE_2D, tex);
+			gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+			gl.bindTexture(gl.TEXTURE_2D, null);
+		}
 		material.set_texture(tex, image);
 	};
 /*
@@ -491,7 +496,7 @@
 						this._assign_texture(mesh.material_list[0], img, tex);
 					} else {
 						img = new Image();
-						tex = this.gl.createTexture();
+						tex = this.gl ? this.gl.createTexture() : null;
 						this.images[file] = img;
 						this.textures[file] = tex;
 						loading = loading + 1;
@@ -579,7 +584,7 @@
 						this._assign_texture(material, img, tex);
 					} else {
 						img = new Image();
-						tex = this.gl.createTexture();
+						tex = this.gl ? this.gl.createTexture() : null;
 						this.images[texture_name] = img;
 						this.textures[texture_name] = tex;
 						loading = loading + 1;
