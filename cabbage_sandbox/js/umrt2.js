@@ -236,10 +236,10 @@
 				var render_canvas = document.getElementById('render_canvas');
 				var canvas = document.getElementById('canvas');
 				console.time('render');
-				umrt.render(window.umgl.get_scene(), canvas, render_canvas, progress_callback,
+				umrt.render(window.umgl.get_scene(), canvas, render_canvas, function () {},
 				[0, 0, canvas.width, canvas.height, canvas.width, canvas.height]);
 				console.timeEnd('render');
-				//document.getElementById('tool_test2').click();
+				document.getElementById('tool_test2').click();
 			}
 		}
 
