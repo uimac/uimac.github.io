@@ -235,7 +235,7 @@
 			is_right_down = false,
 			ext;
 
-		gl = null; //canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+		gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
 
 		if (gl) {
 			ext = gl.getExtension("OES_element_index_uint");
