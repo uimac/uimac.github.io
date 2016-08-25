@@ -275,67 +275,32 @@
 	};
 
 	UMMesh.prototype.get_vert = function (faceindex, i) {
-		/*
-		if (this.indices && this.indices.length > 0) {
-			return new ummath.UMVec3d(
-				this.verts[this.indices[faceindex * 3 + i] * 3 + 0],
-				this.verts[this.indices[faceindex * 3 + i] * 3 + 1],
-				this.verts[this.indices[faceindex * 3 + i] * 3 + 2]
-			);
-		} else {
-		*/
-			return new ummath.UMVec3d(
-				this.verts[(faceindex * 3 + i) * 3 + 0],
-				this.verts[(faceindex * 3 + i) * 3 + 1],
-				this.verts[(faceindex * 3 + i) * 3 + 2]
-			);
-		//}
+		return [
+			this.verts[(faceindex * 3 + i) * 3 + 0],
+			this.verts[(faceindex * 3 + i) * 3 + 1],
+			this.verts[(faceindex * 3 + i) * 3 + 2]
+		];
 	};
 
 	UMMesh.prototype.get_normal = function (faceindex, i) {
-		/*
-		if (this.indices && this.indices.length > 0) {
-			return new ummath.UMVec3d(
-				this.normals[this.indices[faceindex * 3 + i] * 3 + 0],
-				this.normals[this.indices[faceindex * 3 + i] * 3 + 1],
-				this.normals[this.indices[faceindex * 3 + i] * 3 + 2]
-			);
-		} else {
-		*/
-			return new ummath.UMVec3d(
-				this.normals[(faceindex * 3 + i) * 3 + 0],
-				this.normals[(faceindex * 3 + i) * 3 + 1],
-				this.normals[(faceindex * 3 + i) * 3 + 2]
-			);
-		//}
+		return [
+			this.normals[(faceindex * 3 + i) * 3 + 0],
+			this.normals[(faceindex * 3 + i) * 3 + 1],
+			this.normals[(faceindex * 3 + i) * 3 + 2]
+		];
 	};
 
 	UMMesh.prototype.get_uv = function (faceindex, i) {
-		/*
-		if (this.indices && this.indices.length > 0) {
-			return [
-				this.uvs[this.indices[faceindex * 3 + i] * 2 + 0],
-				this.uvs[this.indices[faceindex * 3 + i] * 2 + 1]
-			];
-		} else {*/
-			return [
-				this.uvs[(faceindex * 3 + i) * 2 + 0],
-				this.uvs[(faceindex * 3 + i) * 2 + 1]
-			];
-		//}
+		return [
+			this.uvs[(faceindex * 3 + i) * 2 + 0],
+			this.uvs[(faceindex * 3 + i) * 2 + 1]
+		];
 	};
 
 	UMMesh.prototype.get_vindex = function (faceindex) {
-		/*
-		if (this.indices && this.indices.length > 0) {
-			return [this.indices[faceindex * 3 + 0],
-					this.indices[this.is_cw ? faceindex * 3 + 2 : faceindex * 3 + 1],
-					this.indices[this.is_cw ? faceindex * 3 + 1 : faceindex * 3 + 2]];
-		} else {*/
-			return [(faceindex * 3 + 0),
-					this.is_cw ? (faceindex * 3 + 2) : (faceindex * 3 + 1),
-					this.is_cw ? (faceindex * 3 + 1) : (faceindex * 3 + 2)];
-		//}
+		return [(faceindex * 3 + 0),
+				this.is_cw ? (faceindex * 3 + 2) : (faceindex * 3 + 1),
+				this.is_cw ? (faceindex * 3 + 1) : (faceindex * 3 + 2)];
 	};
 
 	UMMesh.prototype.add_triangle = function (v1, v2, v3, min_time, max_time) {

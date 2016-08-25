@@ -9,7 +9,7 @@
 		this.projection_matrix_ = new ummath.UMMat44d();
 		this.view_projection_matrix_ = new ummath.UMMat44d();
 		this.aspect = parseFloat(w) / parseFloat(h);
-		this.fov_y = 45.0;
+		this.fov_y = 40.0;
 		this.near = 0.1;
 		this.far = 1000.0;
 		this.position = new ummath.UMVec3d(0, 15, 50);
@@ -104,7 +104,7 @@
 	UMCamera.prototype.draw = function (shader) {
 		var gl = this.gl;
 		if (!gl) { return; }
-		
+
 		if (!this.view_projection_location_.hasOwnProperty(shader.id())) {
 			this.view_projection_location_[shader.id()] = gl.getUniformLocation(shader.program_object(), "view_projection_matrix");
 		}

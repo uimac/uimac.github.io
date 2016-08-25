@@ -37,16 +37,41 @@
 				a : info.color[3] };
 		}
 		*/
+		var light_pos = new ummath.UMVec3d(20.0, 50.0, 20.0);
+		var pos = new ummath.UMVec3d(
+			info.intersect_point[0],
+			info.intersect_point[1],
+			info.intersect_point[2]);
+		var L = light_pos.sub(pos).normalized();
+		var N = new ummath.UMVec3d(
+			info.normal[0],
+			info.normal[1],
+			info.normal[2]
+		);
+		var NL = N.dot(L) * (Math.random() + 1.2);
+		if (NL < 1.0) {
+			NL = 1.0;
+		} else if (NL < 0.01) {
+			NL = 0.5;
+		}
+
+/*
+		return { r : NL,
+				g : NL,
+				b : NL,
+				a : NL };
+*/
+
 		if (prim.mark !== undefined && prim.mark) {
 			return { r : 0.0,
 					g : 1.0,
 					b : 0.0,
 					a : 1.0 };
 		} else {
-			return { r : info.color[0],
-					g : info.color[1],
-					b : info.color[2],
-					a : info.color[3] };
+			return { r : info.color[0] * NL,
+					g : info.color[1] * NL,
+					b : info.color[2] * NL,
+					a : info.color[3] * NL };
 		}
 				/*
 		return { r : (n.xyz[0] + 1.0) * 0.5,
@@ -63,7 +88,7 @@
 			},
 			prim;
 
-		if (scene.bvh.intersects3(scene.bvh.root, info, ray.org, ray.dir)) {
+		if (scene.bvh.intersects(scene.bvh.root, info, ray.org, ray.dir)) {
 			return this.shade(scene, ray, shader_parameter, info);
 		}
 		return { r : 1.0, g : 0.5, b : 0.5, a : 1.0 }
@@ -95,7 +120,7 @@
 	};
 	*/
 
-	UMRT.prototype.render = function (scene, canvas, render_canvas, progress_callback) {
+	UMRT.prototype.render = function (scene, canvas, render_canvas, progress_callback, area) {
 		var ctx = render_canvas.getContext('2d'),
 			width = scene.width,
 			height = scene.height,
@@ -141,8 +166,8 @@
 			`
 		);*/
 
-		for (y = 0; y < height; y = y + 1) {
-			for (x = 0; x < width; x = x + 1) {
+		for (y = area[1]; y < (area[1] + area[3]); y = y + 1) {
+			for (x = area[0]; x < (area[0] + area[2]); x = x + 1) {
 				shader_parameter = {};
 				ray.set(scene.camera.position, scene.camera.generate_ray_dir(x, height - y));
 				color = toIntColor(this.trace(scene, ray, shader_parameter, x, height - y));
@@ -156,10 +181,10 @@
 				//ctx.fillRect(x, y, 1, 1);
 				result_params[y * height + x] = JSON.parse(JSON.stringify(shader_parameter));
 			}
-			progress_callback(y / height, canvas_image);
+			progress_callback(y / height, canvas_image, area);
 		}
 		ctx.putImageData(canvas_image, 0, 0);
-		progress_callback(1, canvas_image);
+		progress_callback(1, canvas_image, area);
 
 		//this.outline(scene, result_params);
 	};
@@ -177,7 +202,7 @@
 		umrt = new UMRT();
 		var scene = window.umgl.get_scene(),
 			count = 1,
-			progress_callback = function (progress, canvas_image) {
+			progress_callback = function (progress, canvas_image, area) {
 				var canvas = document.getElementById('render_canvas'),
 					ctx,
 				 	time = new Date(),
@@ -188,18 +213,21 @@
 				if(Math.floor(currentTime / 29500) === count || progress === 1) {
 					count = count + 1;
 					ctx = canvas.getContext('2d');
+
 					if (progress !== 1) {
 						ctx.putImageData(canvas_image, 0, 0, 0, 0, scene.width, scene.height * progress);
 					}
 					data = canvas.toDataURL().split(',')[1];
 					if (progress === 1) {
-						require('fs').writeFileSync("out_final.png", data, 'base64');
-					} else {
-						require('fs').writeFileSync("out_" + (count-1) + ".png", data, 'base64');
+						var filename = "out_" + area[0] + "_" + area[1] + "final.png";
+						require('fs').writeFileSync(filename, data, 'base64');
+						electron.ipcRenderer.send("umrt_finished", area, filename);
+					} else if (area[0] === 0 && area[1] === 0) {
+						require('fs').writeFileSync("00" + String(count-1) + ".png", data, 'base64');
 					}
 				}
 				if (progress >= 1) {
-					//require('electron').remote.getCurrentWindow().close();
+					require('electron').remote.getCurrentWindow().close();
 				}
 			};
 
@@ -214,47 +242,55 @@
 			}
 		}
 
-		var start_render = function () {
+		var start_render = function (area) {
 			var render_canvas = document.getElementById('render_canvas');
 			var canvas = document.getElementById('canvas');
 			console.time('render');
-			umrt.render(window.umgl.get_scene(), canvas, render_canvas, progress_callback);
+			umrt.render(window.umgl.get_scene(), canvas, render_canvas, progress_callback, area);
 		}
 
-		var do_render = false;
-		var honban = false;
-		if (window && window.process && window.process.type && honban && do_render) {
-			var canvas = document.getElementById('render_canvas');
-			canvas.width = 1920;
-			canvas.height = 1080;
-			scene.resize(1920, 1080);
-			scene.load_abc(require("path").join(__dirname, "abc/reiko5.abc"));
-			scene.load_abc(require("path").join(__dirname, "abc/camera.abc"));
-			var mtlx = require("path").join(__dirname, "abc/reiko.mtlx");
-			require('fs').readFile(mtlx, function (err, data) {
-				scene.load_mtlx(mtlx, String(data), function () {
-					window.umgl.drawonce();
-					setTimeout(function () {
-						start_render();
-					}, 100);
-				});
-			});
-		}
-		if (window && window.process && window.process.type && !honban && do_render) {
-			var canvas = document.getElementById('render_canvas');
-			canvas.width = 1920;
-			canvas.height = 1080;
-			scene.resize(1920, 1080);
-			scene.load_abc(require("path").join(__dirname, "abc/test.abc"));
-			scene.load_abc(require("path").join(__dirname, "abc/camera.abc"));
-			var mtlx = require("path").join(__dirname, "abc/test.mtlx");
-			require('fs').readFile(mtlx, function (err, data) {
-				scene.load_mtlx(mtlx, String(data), function () {
-					window.umgl.drawonce();
-					setTimeout(function () {
-						start_render();
-					}, 100);
-				});
+		if (window && window.process && window.process.type)
+		{
+			var electron = require('electron');
+			var win = electron.remote.getCurrentWindow();
+			electron.ipcRenderer.send("init_umrt");
+
+			electron.ipcRenderer.on('start_render', function (sender, area, is_test) {
+				console.log('start_render', area, is_test);
+				if (!is_test) {
+					var canvas = document.getElementById('render_canvas');
+					canvas.width = area[4];
+					canvas.height = area[5];
+					scene.resize(area[4], area[5]);
+					scene.load_abc(require("path").join(__dirname, "abc/reiko5.abc"));
+					//scene.load_abc(require("path").join(__dirname, "abc/camera.abc"));
+					var mtlx = require("path").join(__dirname, "abc/reiko.mtlx");
+					require('fs').readFile(mtlx, function (err, data) {
+						scene.load_mtlx(mtlx, String(data), function () {
+							window.umgl.drawonce();
+							setTimeout(function () {
+								start_render(area);
+							}, 100);
+						});
+					});
+				}
+				if (is_test) {
+					var canvas = document.getElementById('render_canvas');
+					canvas.width = area[4];
+					canvas.height = area[5];
+					scene.resize(area[4], area[5]);
+					scene.load_abc(require("path").join(__dirname, "abc/test.abc"));
+					scene.load_abc(require("path").join(__dirname, "abc/camera.abc"));
+					var mtlx = require("path").join(__dirname, "abc/test.mtlx");
+					require('fs').readFile(mtlx, function (err, data) {
+						scene.load_mtlx(mtlx, String(data), function () {
+							window.umgl.drawonce();
+							setTimeout(function () {
+								start_render(area);
+							}, 100);
+						});
+					});
+				}
 			});
 		}
 	}

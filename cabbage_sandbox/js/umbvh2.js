@@ -45,40 +45,6 @@
 		items[secondIndex] = temp;
 	}
 
-	function partition(items, left, right, axis, pivot) {
-		var i	   = left,
-			j	   = right;
-
-		while (i <= j) {
-			while (sortFunc(items[i], pivot, axis) < 0) {
-				i++;
-			}
-			while (sortFunc(items[j], pivot, axis) > 0) {
-				j--;
-			}
-			if (i <= j) {
-				swap(items, i, j);
-				i++;
-				j--;
-			}
-		}
-		return i;
-	}
-
-	function quickSort(items, left, right, axis) {
-		var index;
-		if (items.length > 1) {
-			index = partition(items, left, right, axis, items[Math.floor((right + left) / 2)]);
-			if (left < index - 1) {
-				quickSort(items, left, index - 1, axis, items[Math.floor((right + left) / 2)]);
-			}
-			if (index < right) {
-				quickSort(items, index, right, axis, items[Math.floor((right + left) / 2)]);
-			}
-		}
-		return items;
-	}
-
 	function qsplit(items, left, right, axis, pivot) {
 		var i = left,
 			j = right,
@@ -179,7 +145,7 @@
 		this.root.init(this.flat_node_list, primitive_list, 0, primitive_list.length - 1);
 	};
 
-	UMBvh.prototype.intersects3 = function (bvhnode, info, origin, dir) {
+	UMBvh.prototype.intersects = function (bvhnode, info, origin, dir) {
 		var i,
 			result = false,
 			param = {},
@@ -198,7 +164,7 @@
 		if (!bvhnode) { return false; }
 		while (1) {
 			node = this.flat_node_list[index];
-			if (node.box.intersects(origin, dir, invdir, negdir, 0.01, info.closest_distance)) {
+			if (node.box.intersects(origin, dir, invdir, negdir, 0.0001, info.closest_distance)) {
 				if (!node.left && !node.right) {
 					for (i = node.from; i <= node.to; i = i + 1) {
 						if (this.primitive_list[i].intersects(origin, dir, param)) {

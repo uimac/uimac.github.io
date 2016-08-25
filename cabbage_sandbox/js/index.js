@@ -5,6 +5,7 @@
 	"use strict";
 
 	window.start_time = new Date();
+	window.is_auto_mode = false;
 
 	window.addEventListener('load', function () {
 		umgl.init();

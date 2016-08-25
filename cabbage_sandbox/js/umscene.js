@@ -744,13 +744,16 @@
 		console.log("_load_abc_camera", path_list);
 		for (i = 0; i < path_list.length; i = i + 1) {
 			abccamera = abcio.get_camera(abcpath, path_list[i]);
-			console.log(abccamera.global_transform);
+			console.log("abccamera.global_transform", abccamera.global_transform);
 			viewmat = new ummath.UMMat44d(abccamera.global_transform).inverted();
 			for (n = 0; n < 4; n = n + 1) {
 				for (m = 0; m < 4; m = m + 1) {
 					this.camera.view_matrix_.m[n][m] = viewmat.m[n][m];
 				}
 			}
+			this.camera.position.xyz[0] = abccamera.global_transform[4 * 3 + 0];
+			this.camera.position.xyz[1] = abccamera.global_transform[4 * 3 + 1];
+			this.camera.position.xyz[2] = abccamera.global_transform[4 * 3 + 2];
 			this.camera.update();
 		}
 	};
@@ -786,7 +789,11 @@
 		var abcio = require('alembic'),
 			update_func;
 
-		abcio.load(abcpath);
+		try {
+			abcio.load(abcpath);
+		} catch (e) {
+			console.log(e);
+		}
 		this._load_abc_mesh(abcio, abcpath);
 		this._load_abc_curve(abcio, abcpath);
 		this._load_abc_nurbs(abcio, abcpath);

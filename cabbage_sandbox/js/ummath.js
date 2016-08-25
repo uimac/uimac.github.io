@@ -51,33 +51,33 @@
 
 	UMVec3d.prototype.cross = function (v) {
 		return new UMVec3d(
-			this.y() * v.z() - this.z() * v.y(),
-			this.z() * v.x() - this.x() * v.z(),
-			this.x() * v.y() - this.y() * v.x()
+			this.xyz[1] * v.xyz[2] - this.xyz[2] * v.xyz[1],
+			this.xyz[2] * v.xyz[0] - this.xyz[0] * v.xyz[2],
+			this.xyz[0] * v.xyz[1] - this.xyz[1] * v.xyz[0]
 		);
 	};
 
 	UMVec3d.prototype.add = function (v) {
-		return new UMVec3d(this.x() + v.x(), this.y() + v.y(), this.z() + v.z());
+		return new UMVec3d(this.xyz[0] + v.xyz[0], this.xyz[1] + v.xyz[1], this.xyz[2] + v.xyz[2]);
 	};
 
 	UMVec3d.prototype.sub = function (v) {
-		return new UMVec3d(this.x() - v.x(), this.y() - v.y(), this.z() - v.z());
+		return new UMVec3d(this.xyz[0] - v.xyz[0], this.xyz[1] - v.xyz[1], this.xyz[2] - v.xyz[2]);
 	};
 
 	UMVec3d.prototype.multiply = function (v) {
-		return new UMVec3d(this.x() * v.x(), this.y() * v.y(), this.z() * v.z());
+		return new UMVec3d(this.xyz[0] * v.xyz[0], this.xyz[1] * v.xyz[1], this.xyz[2] * v.xyz[2]);
 	};
 
 	UMVec3d.prototype.normalized = function () {
-		var dst = new UMVec3d(this.x(), this.y(), this.z()),
-			a = this.x() * this.x() + this.y() * this.y() + this.z() * this.z(),
+		var dst = new UMVec3d(this.xyz[0], this.xyz[1], this.xyz[2]),
+			a = this.xyz[0] * this.xyz[0] + this.xyz[1] * this.xyz[1] + this.xyz[2] * this.xyz[2],
 			b;
 		if (a > EPSILON) {
 			b = 1.0 / Math.sqrt(a);
-			dst.xyz[0] = this.x() * b;
-			dst.xyz[1] = this.y() * b;
-			dst.xyz[2] = this.z() * b;
+			dst.xyz[0] = this.xyz[0] * b;
+			dst.xyz[1] = this.xyz[1] * b;
+			dst.xyz[2] = this.xyz[2] * b;
 		} else {
 			dst.xyz[0] = dst.xyz[1] = dst.xyz[2] = 0;
 		}
@@ -143,47 +143,47 @@
 	};
 
 	UMVec4d.prototype.cross = function (v1, v2) {
-		return new UMVec4d((this.y() * (v1.z() * v2.w() - v2.z() * v1.w())
-			- this.z() * (v1.y() * v2.w() - v2.y() * v1.w())
-			+ this.w() * (v1.y() * v2.z() - v1.z() * v2.y())),
-			-(this.x() * (v1.z() * v2.w() - v2.z() * v1.w())
-			- this.z() * (v1.x() * v2.w() - v2.x() * v1.w())
-			+ this.w() * (v1.x() * v2.z() - v1.z() * v2.x())),
-			 (this.x() * (v1.y() * v2.w() - v2.y() * v1.w())
-			- this.y() * (v1.x() * v2.w() - v2.x() * v1.w())
-			+ this.w() * (v1.x() * v2.y() - v2.x() * v1.y())),
-			-(this.x() * (v1.y() * v2.z() - v2.y() * v1.z())
-			- this.y() * (v1.x() * v2.z() - v2.x() * v1.z())
-			+ this.z() * (v1.x() * v2.y() - v2.x() * v1.y()))
+		return new UMVec4d((this.xyzw[1] * (v1.xyzw[2] * v2.xyzw[3] - v2.xyzw[2] * v1.xyzw[3])
+			- this.xyzw[2] * (v1.xyzw[1] * v2.xyzw[3] - v2.xyzw[1] * v1.xyzw[3])
+			+ this.xyzw[3] * (v1.xyzw[1] * v2.xyzw[2] - v1.xyzw[2] * v2.xyzw[1])),
+			-(this.xyzw[0] * (v1.xyzw[2] * v2.xyzw[3] - v2.xyzw[2] * v1.xyzw[3])
+			- this.xyzw[2] * (v1.xyzw[0] * v2.xyzw[3] - v2.xyzw[0] * v1.xyzw[3])
+			+ this.xyzw[3] * (v1.xyzw[0] * v2.xyzw[2] - v1.xyzw[2] * v2.xyzw[0])),
+			 (this.xyzw[0] * (v1.xyzw[1] * v2.xyzw[3] - v2.xyzw[1] * v1.xyzw[3])
+			- this.xyzw[1] * (v1.xyzw[0] * v2.xyzw[3] - v2.xyzw[0] * v1.xyzw[3])
+			+ this.xyzw[3] * (v1.xyzw[0] * v2.xyzw[1] - v2.xyzw[0] * v1.xyzw[1])),
+			-(this.xyzw[0] * (v1.xyzw[1] * v2.xyzw[2] - v2.xyzw[1] * v1.xyzw[2])
+			- this.xyzw[1] * (v1.xyzw[0] * v2.xyzw[2] - v2.xyzw[0] * v1.xyzw[2])
+			+ this.xyzw[2] * (v1.xyzw[0] * v2.xyzw[1] - v2.xyzw[0] * v1.xyzw[1]))
 			);
 	};
 
 	UMVec4d.prototype.add = function (v) {
 		if (v instanceof UMVec4d) {
-			return new UMVec4d(this.x() + v.x(), this.y() + v.y(), this.z() + v.z(), this.w() + v.w());
+			return new UMVec4d(this.xyzw[0] + v.xyzw[0], this.xyzw[1] + v.xyzw[1], this.xyzw[2] + v.xyzw[2], this.xyzw[3] + v.xyzw[3]);
 		} else {
-			return new UMVec3d(this.x() + v.x(), this.y() + v.y(), this.z() + v.z());
+			return new UMVec3d(this.xyzw[0] + v.xyzw[0], this.xyzw[1] + v.xyzw[1], this.xyzw[2] + v.xyzw[2]);
 		}
 	};
 
 	UMVec4d.prototype.sub = function (v) {
-		return new UMVec4d(this.x() - v.x(), this.y() - v.y(), this.z() - v.z(), this.w() - v.w());
+		return new UMVec4d(this.xyzw[0] - v.xyzw[0], this.xyzw[1] - v.xyzw[1], this.xyzw[2] - v.xyzw[2], this.xyzw[3] - v.xyzw[3]);
 	};
 
 	UMVec4d.prototype.multiply = function (v) {
-		return new UMVec4d(this.x() * v.x(), this.y() * v.y(), this.z() * v.z(), this.w() * v.w());
+		return new UMVec4d(this.xyzw[0] * v.xyzw[0], this.xyzw[1] * v.xyzw[1], this.xyzw[2] * v.xyzw[2], this.xyzw[3] * v.xyzw[3]);
 	};
 
 	UMVec4d.prototype.normalized = function () {
-		var dst = new UMVec4d(this.x(), this.y(), this.z(), this.w()),
-			a = this.x() * this.x() + this.y() * this.y() + this.z() * this.z() + this.w() * this.w(),
+		var dst = new UMVec4d(this.xyzw[0], this.xyzw[1], this.xyzw[2], this.xyzw[3]),
+			a = this.xyzw[0] * this.xyzw[0] + this.xyzw[1] * this.xyzw[1] + this.xyzw[2] * this.xyzw[2] + this.xyzw[3] * this.xyzw[3],
 			b;
 		if (a > EPSILON) {
 			b = 1.0 / Math.sqrt(a);
-			dst.xyzw[0] = this.x() * b;
-			dst.xyzw[1] = this.y() * b;
-			dst.xyzw[2] = this.z() * b;
-			dst.xyzw[3] = this.w() * b;
+			dst.xyzw[0] = this.xyzw[0] * b;
+			dst.xyzw[1] = this.xyzw[1] * b;
+			dst.xyzw[2] = this.xyzw[2] * b;
+			dst.xyzw[3] = this.xyzw[3] * b;
 		} else {
 			dst.xyzw[0] = dst.xyzw[1] = dst.xyzw[2] = dst.xyzw[3] = 0;
 		}
@@ -340,10 +340,10 @@
 			v = new UMVec4d(vec[0].xyzw[0], vec[0].xyzw[1], vec[0].xyzw[2], vec[0].xyzw[3]);
 			v = v.cross(vec[1], vec[2]);
 			rev_det = 1.0 / det;
-			dst.m[0][i] = Math.pow(-1.0, i) * v.x() * rev_det;
-			dst.m[1][i] = Math.pow(-1.0, i) * v.y() * rev_det;
-			dst.m[2][i] = Math.pow(-1.0, i) * v.z() * rev_det;
-			dst.m[3][i] = Math.pow(-1.0, i) * v.w() * rev_det;
+			dst.m[0][i] = Math.pow(-1.0, i) * v.xyzw[0] * rev_det;
+			dst.m[1][i] = Math.pow(-1.0, i) * v.xyzw[1] * rev_det;
+			dst.m[2][i] = Math.pow(-1.0, i) * v.xyzw[2] * rev_det;
+			dst.m[3][i] = Math.pow(-1.0, i) * v.xyzw[3] * rev_det;
 		}
 		return dst;
 	};
@@ -432,8 +432,6 @@
 			interval_max = tmax;
 
 		x = (negdir[0]) ? [this.max_[0], this.min_[0]] : [this.min_[0], this.max_[0]];
-		y = (negdir[1]) ? [this.max_[1], this.min_[1]] : [this.min_[1], this.max_[1]];
-		z = (negdir[2]) ? [this.max_[2], this.min_[2]] : [this.min_[2], this.max_[2]];
 
 		txmin = (x[0] - rayorg.xyz[0]) * invdir[0];
 		txmax = (x[1] - rayorg.xyz[0]) * invdir[0];
@@ -441,11 +439,15 @@
 		if (txmax < interval_max) { interval_max = txmax; }
 		if (interval_min > interval_max) { return false; }
 
+		y = (negdir[1]) ? [this.max_[1], this.min_[1]] : [this.min_[1], this.max_[1]];
+
 		tymin = (y[0] - rayorg.xyz[1]) * invdir[1];
 		tymax = (y[1] - rayorg.xyz[1]) * invdir[1];
 		if (tymin > interval_min) { interval_min = tymin; }
 		if (tymax < interval_max) { interval_max = tymax; }
 		if (interval_min > interval_max) { return false; }
+
+		z = (negdir[2]) ? [this.max_[2], this.min_[2]] : [this.min_[2], this.max_[2]];
 
 		tzmin = (z[0] - rayorg.xyz[2]) * invdir[2];
 		tzmax = (z[1] - rayorg.xyz[2]) * invdir[2];
