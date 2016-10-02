@@ -10,7 +10,7 @@ const fs = require("fs");
 // Keep a global reference of the window object, if you don't, the window will
 // be closed automatically when the JavaScript object is garbage collected.
 var mainWindow = null;
-var divide = 2;
+var divide = 1;
 var width  = 1920;
 var height = 1280;
 var dx = width / divide;
@@ -22,7 +22,7 @@ app.on('window-all-closed', function() {
 });
 
 //app.commandLine.appendSwitch('--javascript-harmony');
-app.disableHardwareAcceleration();
+//app.disableHardwareAcceleration();
 
 function init_ipc() {
 	var ipc = electron.ipcMain;
@@ -40,7 +40,7 @@ function init_ipc() {
 		doing = true;
 		var area = [dx * xblock, dy * yblock, dx, dy, width, height];
 		console.log("start_render", xblock, yblock, area);
-		event.sender.send('start_render', area, false);
+		//event.sender.send('start_render', area, false);
 		if (xblock === (divide-1)) {
 			xblock = 0;
 			yblock = yblock + 1;

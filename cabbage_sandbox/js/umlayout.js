@@ -238,7 +238,7 @@
 				},
 				{
 					id : 'layout2',
-					size : "-246px",
+					size : "-43px",
 					direction : 'vertical',
 					contents : [
 						{
@@ -275,7 +275,8 @@
 							minSize : "42px"
 						}
 					]
-				},
+				}
+				/*,
 				{
 					size : "3px",
 					splitter : "3px"
@@ -284,7 +285,8 @@
 					id : 'timeline',
 					size : "200px",
 					minSize : "50px"
-				}]
+				}*/]
+
 			};
 
 		layout = new UMLayout(setting)
