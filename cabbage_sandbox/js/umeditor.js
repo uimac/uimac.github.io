@@ -417,22 +417,29 @@ print("python pen tool loaded")
 		window.addEventListener('keyup', function (evt) {
 			keyup();
 		});
+
+		var gesturePos = null;
 		canvas.addEventListener('touchstart', function (evt) {
-			var pos = getTouchPos(evt);
-			mousedown(pos[0], pos[1], 0);
+			if (!gesturePos) {
+				var pos = getTouchPos(evt);
+				mousedown(pos[0], pos[1], 0);
+			}
 		});
 		canvas.addEventListener('touchmove', function (evt) {
-			var pos = getTouchPos(evt);
-			mousemove(pos[0], pos[1], 0);
-			evt.preventDefault();
+			if (!gesturePos) {
+				var pos = getTouchPos(evt);
+				mousemove(pos[0], pos[1], 0);
+				evt.preventDefault();
+			}
 		});
 		canvas.addEventListener('touchend', function (evt) {
-			var pos = getTouchPos(evt);
-			mouseup(pos[0], pos[1], 0);
+			if (!gesturePos) {
+				var pos = getTouchPos(evt);
+				mouseup(pos[0], pos[1], 0);
+			}
 		});
 
 		if (window.ongesturestart !== undefined) {
-			var gesturePos = null;
 			canvas.addEventListener("gesturestart", function (evt) {
 				var rect = canvas.getBoundingClientRect();
 				gesturePos = rect.top + (rect.bottom - rect.top) / 2;
