@@ -1,7 +1,7 @@
 /*jslint devel:true */
 /*global ace */
 
-(function (umgl, umeditor, umtimeline, umlist, umlayout, umrt) {
+(function (umgl, umeditor, umtimeline, umlist, umlayout) {
 	"use strict";
 
 	window.start_time = new Date();
@@ -13,7 +13,6 @@
 		umtimeline.init();
 		umlist.init();
 		umlayout.init();
-		umrt.init();
 	});
 
 	window.addEventListener('unload', function () {
@@ -24,4 +23,4 @@
 		umlayout.dispose();
 	});
 
-}(window.umgl, window.umeditor, window.umtimeline, window.umlist, window.umlayout, window.umrt));
+}(window.umgl, window.umeditor, window.umtimeline, window.umlist, window.umlayout));
