@@ -431,6 +431,25 @@ print("python pen tool loaded")
 			mouseup(pos[0], pos[1], 0);
 		});
 
+		if (window.ongesturestart !== undefined) {
+			var gesturePos = null;
+			canvas.addEventListener("gesturestart", function (evt) {
+				var rect = canvas.getBoundingClientRect();
+				gesturePos = rect.top + (rect.bottom - rect.top) / 2;
+				mousedown(0, gesturePos, 2);
+			}, false);
+			canvas.addEventListener("gesturechange", function (evt) {
+				if (gesturePos) {
+					gesturePos = gesturePos + 10 * e.scale;
+					mousedown(0, gesturePos, 2);
+				}
+			}, false);
+			canvas.addEventListener("gestureend", function (evt) {
+				mouseup(0, gesturePos, 2);
+				gesturePos = null;
+			}, false);
+		}
+
 		document.getElementById('execute_button').onclick = execute_script;
 
 		editor.$blockScrolling = Infinity;
