@@ -454,7 +454,7 @@ print("python pen tool loaded")
 					} else {
 						gesturePos = gesturePos + 10 * e.scale;
 					}
-					mousedown(0, gesturePos, 2);
+					mousemove(0, gesturePos, 2);
 					e.stopPropagation();
 					e.preventDefault();
 				}
