@@ -121,7 +121,7 @@ $builtinmodule = function(name) {
 		$loc.__setitem__ = new Sk.builtin.func(function (self, key, value) {
 			self.vec.xyz[key.v] = value.v;
 		});
-
+		
 		$loc.__len__ = new Sk.builtin.func(function (self) {
 			return Sk.builtin.int_(4);
 		});
@@ -304,7 +304,10 @@ $builtinmodule = function(name) {
 				//console.log(info);
 				var dst = Sk.misceval.callsim(mod.vec3);
 				console.log(info);
-				dst.vec = info.intersect_point;
+				dst.vec = new ummath.UMVec3d(
+					info.intersect_point[0],
+					info.intersect_point[1],
+					info.intersect_point[2]);
 				return dst;
 			} else {
 				return Sk.builtin.int_(-1);
