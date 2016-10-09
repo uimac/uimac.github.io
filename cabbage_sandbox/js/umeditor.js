@@ -28,7 +28,6 @@ class CameraTool:
 		self.pre_y = 0
 
 	def mousemove(self, x, y, button):
-		print(y)
 		mx = x - self.pre_x
 		my = y - self.pre_y
 		if self.is_dragging:
@@ -450,10 +449,10 @@ print("python pen tool loaded")
 			}, false);
 			canvas.addEventListener("gesturechange", function (evt) {
 				if (gesturePos) {
-					if (e.scale > 1.0) {
-						gesturePos = gesturePos - 10 * e.scale;
+					if (evt.scale > 1.0) {
+						gesturePos = gesturePos - 10 * evt.scale;
 					} else {
-						gesturePos = gesturePos + 10 * e.scale;
+						gesturePos = gesturePos + 10 * evt.scale;
 					}
 					mousemove(0, gesturePos, 2);
 					e.stopPropagation();
