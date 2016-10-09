@@ -437,11 +437,15 @@ print("python pen tool loaded")
 				var rect = canvas.getBoundingClientRect();
 				gesturePos = rect.top + (rect.bottom - rect.top) / 2;
 				mousedown(0, gesturePos, 2);
+				e.stopPropagation();
+				e.preventDefault();
 			}, false);
 			canvas.addEventListener("gesturechange", function (evt) {
 				if (gesturePos) {
 					gesturePos = gesturePos + 10 * e.scale;
 					mousedown(0, gesturePos, 2);
+					e.stopPropagation();
+					e.preventDefault();
 				}
 			}, false);
 			canvas.addEventListener("gestureend", function (evt) {
