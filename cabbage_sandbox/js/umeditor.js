@@ -450,9 +450,9 @@ print("python pen tool loaded")
 			canvas.addEventListener("gesturechange", function (evt) {
 				if (gesturePos) {
 					if (evt.scale > 1.0) {
-						gesturePos = gesturePos + 15 * evt.scale;
+						gesturePos = gesturePos + 15;
 					} else {
-						gesturePos = gesturePos - 15 * evt.scale;
+						gesturePos = gesturePos - 15;
 					}
 					mousemove(0, gesturePos, 2);
 					e.stopPropagation();
