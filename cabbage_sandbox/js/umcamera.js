@@ -10,7 +10,7 @@
 		this.view_projection_matrix_ = new ummath.UMMat44d();
 		this.aspect = parseFloat(w) / parseFloat(h);
 		this.fov_y = 40.0;
-		this.near = 0.1;
+		this.near = 1;
 		this.far = 1000.0;
 		this.position = new ummath.UMVec3d(0, 15, 50);
 		this.target = new ummath.UMVec3d(0, 15, 0);
