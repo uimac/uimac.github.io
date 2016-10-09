@@ -146,7 +146,6 @@
 							console.log("mtlend")
 							drawonce();
 						});
-						drawonce();
 					}
 				} else {
 					scene.load_obj(splitted[splitted.length-2], reader.result);
