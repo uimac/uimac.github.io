@@ -28,7 +28,7 @@ class CameraTool:
 		self.pre_y = 0
 
 	def mousemove(self, x, y, button):
-		print(str(x), str(y), str(button), "\n")
+		print(y)
 		mx = x - self.pre_x
 		my = y - self.pre_y
 		if self.is_dragging:
