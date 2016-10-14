@@ -1,7 +1,7 @@
 /*jslint devel:true*/
 /*global Float32Array, Uint8Array */
 (function (ummath, umline, ummesh, umboxlist, ummaterial, umcamera, umshader,
-	umobj, ummtl, ummtlx, umbvh) {
+	umobj, ummtl, ummtlx, umgltf, umbvh) {
 	"use strict";
 	var UMScene,
 		now = window.performance && (
@@ -298,6 +298,23 @@
 
 	UMScene.prototype.load_obj = function (name, obj_text) {
 		var obj = umobj.load(obj_text),
+			mesh = new ummesh.UMMesh(this.gl, name, obj.vertices, obj.normals, obj.uvs),
+			i,
+			meshmat;
+
+		for (i = 0; i < obj.materials.length; i = i + 1) {
+			meshmat = new ummaterial.UMMaterial(this.gl);
+			meshmat.name = obj.materials[i].name;
+			meshmat.set_polygon_count(obj.materials[i].index_count / 3);
+			mesh.material_list.push(meshmat);
+		}
+		this.mesh_list.push(mesh);
+		this.add_mesh_to_primitive_list(mesh, true);
+		//console.log("primitive list ", this.primitive_list)
+	};
+
+	UMScene.prototype.load_gltf = function (name, text) {
+		var obj = umgltf.load(text),
 			mesh = new ummesh.UMMesh(this.gl, name, obj.vertices, obj.normals, obj.uvs),
 			i,
 			meshmat;
@@ -826,4 +843,4 @@
 
 }(window.ummath, window.umline, window.ummesh, window.umboxlist,
   window.ummaterial, window.umcamera, window.umshader, window.umobj, window.ummtl,
-  window.ummtlx, window.umbvh));
+  window.ummtlx, window.umgltf, window.umbvh));

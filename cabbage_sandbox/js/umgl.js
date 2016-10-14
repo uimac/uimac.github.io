@@ -76,7 +76,7 @@
 			splitted,
 			ext,
 			extmap = {},
-			supported_exts = ["abc", "obj", "mtl", "mtlx", "png", "jpg", "jpeg"],
+			supported_exts = ["abc", "obj", "mtl", "mtlx", "png", "jpg", "jpeg", "gltf"],
 			mtl,
 			reader;
 
@@ -151,6 +151,15 @@
 					scene.load_obj(splitted[splitted.length-2], reader.result);
 					drawonce();
 				}
+			};
+		}
+		if (extmap.hasOwnProperty('gltf')) {
+			file = extmap.gltf[0];
+			reader = new FileReader();
+			reader.readAsText(file);
+			reader.onload = function(ev) {
+				scene.load_gltf(splitted[splitted.length-2], reader.result);
+				drawonce();
 			};
 		}
 	}
