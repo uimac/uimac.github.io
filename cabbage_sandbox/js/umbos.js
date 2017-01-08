@@ -199,7 +199,9 @@
 			for (i = 0; i < index_size; i = i + 1) {
 				index_pair_list[i] = [bosmesh.material_index[i], i];
 			}
-			index_pair_list.sort();
+			index_pair_list.sort(function (a, b) {
+				return a[0] - b[0];
+			});
 		}
 		else
 		{

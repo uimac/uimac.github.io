@@ -350,23 +350,13 @@
 			}, 100);
 		};
 
-		var assignFunc = function (material_name, param, callback) {
+		var assignFunc = function (mesh, material, param, callback) {
 			var k,
 				img,
 				tex,
-				id,
-				mesh,
-				material = null;
+				id;
 
-			mesh = this.mesh_list[this.mesh_list.length - 1];
 			id = mesh.id;
-			for (k = 0; k < mesh.material_list.length; k = k + 1) {
-				if (mesh.material_list[k].name === material_name) {
-					material = mesh.material_list[k];
-					break;
-				}
-			}
-			if (!material) { return; }
 			material.set_diffuse(param.diffuse[0], param.diffuse[1], param.diffuse[2], param.diffuse[3]);
 			material.set_specular(param.specular[0], param.specular[1], param.specular[2], param.specular[3]);
 			material.set_ambient(param.ambient[0], param.ambient[1], param.ambient[2], param.ambient[3]);
@@ -402,11 +392,11 @@
 					}
 					var mtlreader = new FileReader();
 					mtlreader.readAsDataURL(texture);
-					mtlreader.onload = (function(img, reader) {
+					mtlreader.onload = (function(img) {
 						return function (ev) {
-							img.src = reader.result;
+							img.src = this.result;
 						}
-					}(img, mtlreader));
+					}(img));
 				}
 			}
 		}.bind(this);
@@ -433,14 +423,13 @@
 			}
 			mesh.global_matrix = new ummath.UMVec4d(bosmesh.global_transform);
 			this.mesh_list.push(mesh);
-
 			for (k in mat_index_count) {
 				bosmat = bosmesh.material_list[k];
 				meshmat = new ummaterial.UMMaterial(this.gl);
 				meshmat.set_polygon_count(mat_index_count[k]);
 				meshmat.name = k;
 				mesh.material_list.push(meshmat);
-				assignFunc(k, bosmat, null);
+				assignFunc(mesh, meshmat, bosmat, null);
 			}
 		}
 		timeoutFunc(endCallback);
