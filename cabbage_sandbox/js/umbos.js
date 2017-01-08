@@ -1,5 +1,4 @@
-/*jslint devel:true*/
-/*global Float32Array */
+// client side parser using messagepack-lite
 (function () {
 	function UMNodeMsg(data) {
 		this.parent_id = data[0][0];
