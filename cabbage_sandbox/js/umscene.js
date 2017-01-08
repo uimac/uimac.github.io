@@ -1,7 +1,7 @@
 /*jslint devel:true*/
 /*global Float32Array, Uint8Array */
 (function (ummath, umline, ummesh, umboxlist, ummaterial, umcamera, umshader,
-	umobj, ummtl, ummtlx, umgltf, umbvh) {
+	umobj, ummtl, ummtlx, umgltf, umbvh, umbos) {
 	"use strict";
 	var UMScene,
 		now = window.performance && (
@@ -311,6 +311,12 @@
 		this.mesh_list.push(mesh);
 		this.add_mesh_to_primitive_list(mesh, true);
 		//console.log("primitive list ", this.primitive_list)
+	};
+
+	UMScene.prototype.load_bos = function (name, arrayBuf) {
+		console.log("load_bos");
+		var bos = umbos.load(new Uint8Array(arrayBuf));
+		console.log(bos);
 	};
 
 	UMScene.prototype.load_gltf = function (name, text) {
@@ -843,4 +849,4 @@
 
 }(window.ummath, window.umline, window.ummesh, window.umboxlist,
   window.ummaterial, window.umcamera, window.umshader, window.umobj, window.ummtl,
-  window.ummtlx, window.umgltf, window.umbvh));
+  window.ummtlx, window.umgltf, window.umbvh, window.umbos));

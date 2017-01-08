@@ -76,7 +76,7 @@
 			splitted,
 			ext,
 			extmap = {},
-			supported_exts = ["abc", "obj", "mtl", "mtlx", "png", "jpg", "jpeg", "gltf"],
+			supported_exts = ["abc", "obj", "mtl", "mtlx", "png", "jpg", "jpeg", "gltf", "bos"],
 			mtl,
 			reader;
 
@@ -159,6 +159,15 @@
 			reader.readAsText(file);
 			reader.onload = function(ev) {
 				scene.load_gltf(splitted[splitted.length-2], reader.result);
+				drawonce();
+			};
+		}
+		if (extmap.hasOwnProperty('bos')) {
+			file = extmap.bos[0];
+			reader = new FileReader();
+			reader.readAsArrayBuffer(file);
+			reader.onload = function(ev) {
+				scene.load_bos(splitted[splitted.length-2], reader.result);
 				drawonce();
 			};
 		}
