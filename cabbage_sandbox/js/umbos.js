@@ -187,9 +187,76 @@
 		}
 	}
 
-	function load(array) {
+	function sort_by_material(bosmesh) {
+		var i, k;
+		var index_size = bosmesh.material_index.length;
+		var index_pair_list = [];
+		var uv_list = bosmesh.layered_uv_list[0];
+		var normal_list = bosmesh.layered_normal_list[0];
+		var pair;
+		if (index_size > 0) {
+			index_pair_list.length = index_size;
+			for (i = 0; i < index_size; i = i + 1) {
+				index_pair_list[i] = [bosmesh.material_index[i], i];
+			}
+			index_pair_list.sort();
+		}
+		else
+		{
+			index_size = bosmesh.vertex_index_list.length;
+			index_pair_list.length = index_size;
+			for (i = 0; i < index_size; i = i + 1) {
+				index_pair_list[i] = [0, i];
+			}
+		}
+		var is_vertex_sized_normal =  uv_list && (bosmesh.vertex_list.length == uv_list.length);
+		var is_vetrtex_sized_uv = normal_list && (bosmesh.vertex_list.length == normal_list.length);
+		var sorted_uv = [],
+			sorted_normal = [],
+			sorted_vertex_index = [],
+			sorted_material_index = [];
+
+		for (i = 0; i < index_size; ++i)
+		{
+			sorted_material_index[i] = index_pair_list[i][0]
+			sorted_vertex_index[i] = bosmesh.vertex_index_list[index_pair_list[i][1]];
+			if (is_vetrtex_sized_uv) {
+				for (k = 0; k < 3; ++k) {
+					var h = sorted_vertex_index[i][k];
+					sorted_uv[i * 3 + k] = uv_list[sorted_vertex_index[i][k]];
+				}
+			}
+			else if (uv_list) {
+				for (k = 0; k < 3; ++k) {
+					sorted_uv[i * 3 + k] = uv_list[index_pair_list[i][1] * 3 + k];
+				}
+			}
+			if (!is_vertex_sized_normal) {
+				for (k = 0; k < 3; ++k) {
+					sorted_normal[i * 3 + k] = normal_list[index_pair_list[i][1] * 3 + k];
+				}
+			}
+		}
+		bosmesh.vertex_index_list = sorted_vertex_index;
+		bosmesh.material_index = sorted_material_index;
+		if (!is_vetrtex_sized_uv && !uv_list) {
+			bosmesh.layered_uv_list[0] = sorted_uv;
+		}
+		if (!is_vertex_sized_normal) {
+			bosmesh.layered_normal_list[0] = sorted_normal;
+		}
+	}
+
+	function load(array, material_sort) {
 		var data = msgpack.decode(array);
-		return new UMObjectMsg(data);
+		var obj = new UMObjectMsg(data);
+		var i;
+		if (material_sort) {
+			for (i in obj.mesh_map) {
+				sort_by_material(obj.mesh_map[i]);
+			}
+		}
+		return obj;
 	}
 
 	window.umbos = {};

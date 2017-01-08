@@ -324,7 +324,7 @@
 
 	UMScene.prototype.load_bos = function (name, arrayBuf) {
 		console.log("load_bos");
-		var bos = umbos.load(new Uint8Array(arrayBuf));
+		var bos = umbos.load(new Uint8Array(arrayBuf), true);
 		console.log(bos);
 		var i, k,
 			bosmesh,
@@ -345,16 +345,19 @@
 				normals, 
 				null, 
 				indices);
-			meshmat = new ummaterial.UMMaterial(this.gl);
-			
-			meshmat.set_polygon_count(indices.length / 3);
-			mesh.material_list.push(meshmat);
-				/*
-			if (bosmesh.material_index.length === 0) {
-			} else {
-				console.log(bosmesh.material_index)
+
+			var mat_index_count = {};
+			for (k = 0; k < bosmesh.material_index.length; ++k) {
+				if (!mat_index_count[bosmesh.material_index[k]]) {
+					mat_index_count[bosmesh.material_index[k]] = 0;
+				}
+				++mat_index_count[bosmesh.material_index[k]];
 			}
-			*/
+			for (k in mat_index_count) {
+				meshmat = new ummaterial.UMMaterial(this.gl);
+				meshmat.set_polygon_count(mat_index_count[k]);
+				mesh.material_list.push(meshmat);
+			}
 			mesh.global_matrix = new ummath.UMVec4d(bosmesh.global_transform);
 			this.mesh_list.push(mesh);
 		}
