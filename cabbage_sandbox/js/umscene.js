@@ -313,10 +313,52 @@
 		//console.log("primitive list ", this.primitive_list)
 	};
 
+	function to_flat_list(list) {
+		var i,
+			flat_list = [];
+		for (i = 0; i < list.length; i = i + 1) {
+			Array.prototype.push.apply(flat_list, list[i]);
+		}
+		return flat_list;
+	}
+
 	UMScene.prototype.load_bos = function (name, arrayBuf) {
 		console.log("load_bos");
 		var bos = umbos.load(new Uint8Array(arrayBuf));
 		console.log(bos);
+		var i, k,
+			bosmesh,
+			bosmat,
+			mesh,
+			meshmat,
+			verts,
+			normals,
+			indices;
+		for (i in bos.mesh_map) {
+			bosmesh = bos.mesh_map[i];
+			indices = to_flat_list(bosmesh.vertex_index_list);
+			verts = to_flat_list(bosmesh.vertex_list);
+			normals = to_flat_list(bosmesh.layered_normal_list[0]);
+
+			mesh = new ummesh.UMMesh(this.gl, bosmesh.name, 
+				verts, 
+				normals, 
+				null, 
+				indices);
+			meshmat = new ummaterial.UMMaterial(this.gl);
+			
+			meshmat.set_polygon_count(indices.length / 3);
+			mesh.material_list.push(meshmat);
+				/*
+			if (bosmesh.material_index.length === 0) {
+			} else {
+				console.log(bosmesh.material_index)
+			}
+			*/
+			mesh.global_matrix = new ummath.UMVec4d(bosmesh.global_transform);
+			this.mesh_list.push(mesh);
+		}
+		
 	};
 
 	UMScene.prototype.load_gltf = function (name, text) {

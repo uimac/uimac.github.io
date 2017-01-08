@@ -55,13 +55,14 @@
 	{
 		vec4 global_pos = global_matrix * vec4(a_position, 1.0);
 		vec4 pos = view_projection_matrix * global_pos;
-		normal =  a_normal;
+		vec4 n = global_matrix * vec4(a_normal, 0.0);
+		normal = vec3(n.x, n.y, n.z);
 		if (mat_flags.x > 0.5)
 		{
 			uv = a_uv;
 		}
 		pos.z = 2.0 * pos.z - pos.w;
-		light_direction = normalize(vec4(a_position, 0.0) - light_position);
+		light_direction = normalize(global_pos - light_position);
 		gl_PointSize = 4.0;
 		gl_Position = pos;
 	}
@@ -205,11 +206,12 @@
 	{
 		vec4 global_pos = global_matrix * vec4(a_position, 1.0);
 		vec4 pos = view_projection_matrix * global_pos;
-		normal =  a_normal;
+		vec4 n = global_matrix * vec4(a_normal, 0.0);
+		normal = vec3(n.x, n.y, n.z);
 		uv = a_uv;
 		barycentric = a_barycentric;
 		pos.z = 2.0 * pos.z - pos.w;
-		light_direction = normalize(vec4(a_position, 0.0) - light_position);
+		light_direction = normalize(global_pos - light_position);
 		gl_PointSize = 2.0;
 		gl_Position = pos;
 	}
