@@ -3,15 +3,25 @@
 	"use strict";
 	var UMList;
 
-	UMList = function (div, setting) {
+	UMList = function (div) {
+		this.setting = { contents : [] };
+		this.div = div;
+		this.update();
+	};
+
+	UMList.prototype.update = function () {
 		var content,
 			container,
 			name,
 			type,
 			i;
 
-		for (i = 0; i < setting.contents.length; i = i + 1) {
-			content = setting.contents[i];
+		this.div.innerHTML = "";
+		if (!this.setting.contents) {
+			return;
+		}
+		for (i = 0; i < this.setting.contents.length; i = i + 1) {
+			content = this.setting.contents[i];
 			container = document.createElement('div');
 			name = document.createElement('div');
 			type = document.createElement('div');
@@ -41,37 +51,22 @@
 
 			container.appendChild(name);
 			container.appendChild(type);
-			div.appendChild(container);
+			this.div.appendChild(container);
 		}
 	}
 
-	function init() {
-		var setting = {
-			contents : [
-					{
-						name : "test",
-						type : "mesh"
-					},
-					{
-						type : "mesh",
-						name : "point"
-					},
-					{
-						name : "test3",
-						type : "curve"
-					},
-					{
-						name : "hogehoge",
-						type : "stroke"
-					}
-				]
-			},
-			div = document.getElementById('listview');
+	UMList.prototype.add = function (name, type) {
+		this.setting.contents.push({
+			name : name,
+			type : type
+		});
+	}
 
-		new UMList(div, setting);
+	function init() {
+		var div = document.getElementById('listview');
+		window.umlist.UMList = new UMList(div);
 	}
 
 	window.umlist = {};
-	window.umlist.UMList = UMList;
 	window.umlist.init = init;
 }());

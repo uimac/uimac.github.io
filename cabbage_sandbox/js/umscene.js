@@ -430,7 +430,9 @@
 				meshmat.name = k;
 				mesh.material_list.push(meshmat);
 				assignFunc(mesh, meshmat, bosmat, null);
+				window.umlist.UMList.add(bosmat.name, "material");
 			}
+			window.umlist.UMList.update();
 		}
 		timeoutFunc(endCallback);
 	};
