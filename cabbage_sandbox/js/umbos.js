@@ -224,11 +224,13 @@
 				for (k = 0; k < 3; ++k) {
 					var h = sorted_vertex_index[i][k];
 					sorted_uv[i * 3 + k] = uv_list[sorted_vertex_index[i][k]];
+					sorted_uv[i * 3 + k][1] = 1.0 - sorted_uv[i * 3 + k][1];
 				}
 			}
 			else if (uv_list) {
 				for (k = 0; k < 3; ++k) {
 					sorted_uv[i * 3 + k] = uv_list[index_pair_list[i][1] * 3 + k];
+					sorted_uv[i * 3 + k][1] = 1.0 - sorted_uv[i * 3 + k][1];
 				}
 			}
 			if (!is_vertex_sized_normal) {
@@ -239,7 +241,7 @@
 		}
 		bosmesh.vertex_index_list = sorted_vertex_index;
 		bosmesh.material_index = sorted_material_index;
-		if (!is_vetrtex_sized_uv && !uv_list) {
+		if (!is_vetrtex_sized_uv) {
 			bosmesh.layered_uv_list[0] = sorted_uv;
 		}
 		if (!is_vertex_sized_normal) {

@@ -322,7 +322,7 @@
 		return flat_list;
 	}
 
-	UMScene.prototype.load_bos = function (name, arrayBuf) {
+	UMScene.prototype.load_bos = function (name, arrayBuf, texture_files, endCallback) {
 		console.log("load_bos");
 		var bos = umbos.load(new Uint8Array(arrayBuf), true);
 		console.log(bos);
@@ -333,17 +333,95 @@
 			meshmat,
 			verts,
 			normals,
-			indices;
+			uvs,
+			indices,
+			loading = 0;
+			
+		this.images = {};
+		this.textures = {};
+
+		var timeoutFunc = function (callback) {
+			setTimeout(function () {
+				if (loading < 0) {
+					timeoutFunc(callback);
+				} else {
+					callback();
+				}
+			}, 100);
+		};
+
+		var assignFunc = function (material_name, param, callback) {
+			var k,
+				img,
+				tex,
+				id,
+				mesh,
+				material = null;
+
+			mesh = this.mesh_list[this.mesh_list.length - 1];
+			id = mesh.id;
+			for (k = 0; k < mesh.material_list.length; k = k + 1) {
+				if (mesh.material_list[k].name === material_name) {
+					material = mesh.material_list[k];
+					break;
+				}
+			}
+			if (!material) { return; }
+			material.set_diffuse(param.diffuse[0], param.diffuse[1], param.diffuse[2], param.diffuse[3]);
+			material.set_specular(param.specular[0], param.specular[1], param.specular[2], param.specular[3]);
+			material.set_ambient(param.ambient[0], param.ambient[1], param.ambient[2], param.ambient[3]);
+
+			if (param.texture_list.length > 0) {
+				var temp = param.texture_list[0].file_name.split('/');
+				temp = temp[temp.length - 1].split('\\');
+				var texture_name = temp[temp.length - 1]
+				var texture = null;
+				for (k = 0; k < texture_files.length; ++k) {
+					if (texture_files[k].name === texture_name) {
+						texture = texture_files[k];
+						break;
+					}
+				}
+				if (texture) {
+					if (this.images.hasOwnProperty(texture_name)) {
+						img = this.images[texture_name];
+						tex = this.textures[texture_name];
+						this._assign_texture(material, img, tex);
+					} else {
+						img = new Image();
+						tex = this.gl ? this.gl.createTexture() : null;
+						this.images[texture_name] = img;
+						this.textures[texture_name] = tex;
+						loading = loading + 1;
+						img.onload = (function (self, mesh, material, img, tex) {
+							return function () {
+								self._assign_texture(material, img, tex);
+								loading = loading  - 1;
+							};
+						}(this, mesh, material, img, tex));
+					}
+					var mtlreader = new FileReader();
+					mtlreader.readAsDataURL(texture);
+					mtlreader.onload = (function(img, reader) {
+						return function (ev) {
+							img.src = reader.result;
+						}
+					}(img, mtlreader));
+				}
+			}
+		}.bind(this);
+		
 		for (i in bos.mesh_map) {
 			bosmesh = bos.mesh_map[i];
 			indices = to_flat_list(bosmesh.vertex_index_list);
 			verts = to_flat_list(bosmesh.vertex_list);
 			normals = to_flat_list(bosmesh.layered_normal_list[0]);
-
+			uvs = to_flat_list(bosmesh.layered_uv_list[0]);
+			var flat_verts = [];
 			mesh = new ummesh.UMMesh(this.gl, bosmesh.name, 
 				verts, 
 				normals, 
-				null, 
+				uvs.length > 0 ? uvs : null, 
 				indices);
 
 			var mat_index_count = {};
@@ -353,15 +431,19 @@
 				}
 				++mat_index_count[bosmesh.material_index[k]];
 			}
-			for (k in mat_index_count) {
-				meshmat = new ummaterial.UMMaterial(this.gl);
-				meshmat.set_polygon_count(mat_index_count[k]);
-				mesh.material_list.push(meshmat);
-			}
 			mesh.global_matrix = new ummath.UMVec4d(bosmesh.global_transform);
 			this.mesh_list.push(mesh);
+
+			for (k in mat_index_count) {
+				bosmat = bosmesh.material_list[k];
+				meshmat = new ummaterial.UMMaterial(this.gl);
+				meshmat.set_polygon_count(mat_index_count[k]);
+				meshmat.name = k;
+				mesh.material_list.push(meshmat);
+				assignFunc(k, bosmat, null);
+			}
 		}
-		
+		timeoutFunc(endCallback);
 	};
 
 	UMScene.prototype.load_gltf = function (name, text) {
@@ -569,7 +651,6 @@
 				}
 			}
 			if (!material) { return; }
-			console.log("mesh.material_list", mesh.material_list)
 			material.set_diffuse(param.diffuse[0], param.diffuse[1], param.diffuse[2], param.diffuse[3]);
 			material.set_specular(param.specular[0], param.specular[1], param.specular[2], param.specular[3]);
 			material.set_ambient(param.ambient[0], param.ambient[1], param.ambient[2], param.ambient[3]);
@@ -578,7 +659,6 @@
 				var texture_name = param.diffuse_texture;
 				var texture = null;
 				for (k = 0; k < texture_files.length; ++k) {
-				console.log(texture_files[k].name , texture_name)
 					if (texture_files[k].name === texture_name) {
 						texture = texture_files[k];
 						break;

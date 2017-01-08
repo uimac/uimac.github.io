@@ -167,8 +167,16 @@
 			reader = new FileReader();
 			reader.readAsArrayBuffer(file);
 			reader.onload = function(ev) {
-				scene.load_bos(splitted[splitted.length-2], reader.result);
-				drawonce();
+				var texture_files = [];
+				for (i = 0; i < supported_exts.length; i = i + 1) {
+					if (extmap.hasOwnProperty(supported_exts[i])) {
+						texture_files = texture_files.concat(extmap[supported_exts[i]]);
+					}
+				}
+				scene.load_bos(splitted[splitted.length-2], reader.result, texture_files, function () {
+					console.log("bosend")
+					drawonce();
+				});
 			};
 		}
 	}
