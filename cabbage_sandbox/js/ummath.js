@@ -671,11 +671,20 @@
 	}
 
 	function um_clip(number, min, max) {
-	  return Math.max(min, Math.min(number, max));
+		return Math.max(min, Math.min(number, max));
 	}
 
 	function um_fract(number) {
 		return number - Math.floor(number);
+	}
+
+	function um_matrix_remove_scale(dst, src) {
+		var len_x_inv = 1.0 / (new window.ummath.UMVec3d(src.m[0][0], src.m[0][1], src.m[0][2])).length();
+		var len_y_inv = 1.0 / (new window.ummath.UMVec3d(src.m[1][0], src.m[1][1], src.m[1][2])).length();
+		var len_z_inv = 1.0 / (new window.ummath.UMVec3d(src.m[2][0], src.m[2][1], src.m[2][2])).length();
+		dst.m[0][0] *= len_x_inv; dst.m[0][1] *= len_x_inv; dst.m[0][2] *= len_x_inv;
+		dst.m[1][0] *= len_y_inv; dst.m[1][1] *= len_y_inv; dst.m[1][2] *= len_y_inv;
+		dst.m[2][0] *= len_z_inv; dst.m[2][1] *= len_z_inv; dst.m[2][2] *= len_z_inv;
 	}
 
 	window.ummath = {};
@@ -694,5 +703,6 @@
 	window.ummath.um_sign = um_sign;
 	window.ummath.um_clip = um_clip;
 	window.ummath.um_fract = um_fract;
+	window.ummath.um_matrix_remove_scale = um_matrix_remove_scale;
 	window.ummath.EPSILON = EPSILON;
 }());

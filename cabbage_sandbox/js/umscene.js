@@ -1,6 +1,6 @@
 /*jslint devel:true*/
 /*global Float32Array, Uint8Array */
-(function (ummath, umline, ummesh, umboxlist, ummaterial, umcamera, umshader,
+(function (ummath, umline, ummesh, umboxlist, umnode, ummaterial, umcamera, umshader,
 	umobj, ummtl, ummtlx, umgltf, umbvh, umbos) {
 	"use strict";
 	var UMScene,
@@ -23,6 +23,7 @@
 		this.point_list = [];
 		this.nurbs_list = [];
 		this.box_list = [];
+		this.node_list = [];
 		this.update_func_list = [];
 		this.primitive_list = [];
 		this.wedge_list = [];
@@ -219,6 +220,9 @@
 				this.box_list[i].draw(this.current_shader, this.camera);
 			}
 		}
+		for (i = 0; i < this.node_list.length; i = i + 1) {
+			this.node_list[i].draw(this.shader_list[3], this.camera);
+		}
 		for (i = 0; i < this.nurbs_list.length; i = i + 1) {
 			this.set_front_face(true);
 			this.nurbs_list[i].draw(this.shader_list[2], this.camera);
@@ -265,6 +269,9 @@
 		}
 		for (i = 0; i < this.box_list.length; i = i + 1) {
 			this.box_list[i].reset_shader_location();
+		}
+		for (i = 0; i < this.node_list.length; i = i + 1) {
+			this.node_list[i].reset_shader_location();
 		}
 		this.camera.reset_shader_location();
 		this.current_shader = this.shader_list[shader_number];
@@ -329,7 +336,9 @@
 		var i, k,
 			bosmesh,
 			bosmat,
+			bosnode,
 			mesh,
+			node,
 			meshmat,
 			verts,
 			normals,
@@ -433,6 +442,27 @@
 				window.umlist.UMList.add(bosmat.name, "material");
 			}
 			window.umlist.UMList.update();
+		}
+		var skeleton_map = {}
+		for (i in bos.skeleton_map) {
+			bosnode = bos.skeleton_map[i];
+			node = new umnode.UMNode(this.gl);
+			node.global_transform = new ummath.UMMat44d(bosnode.global_transform);
+			node.local_transform = new ummath.UMMat44d(bosnode.local_transform);
+			node.initial_global_transform = new ummath.UMMat44d(bosnode.global_transform);
+			node.initial_local_transform = new ummath.UMMat44d(bosnode.local_transform);
+			node.id = bosnode.id;
+			skeleton_map[node.id] = node;
+			this.node_list.push(node);
+		}
+		for (i in bos.skeleton_map) {
+			bosnode = bos.skeleton_map[i];
+			if (skeleton_map.hasOwnProperty(bosnode.parent_id)) {
+				skeleton_map[i].parent = skeleton_map[bosnode.parent_id];
+			}
+		}
+		for (i in skeleton_map) {
+			skeleton_map[i].update();
 		}
 		timeoutFunc(endCallback);
 	};
@@ -946,6 +976,9 @@
 		for (i = 0; i < this.box_list.length; i = i + 1) {
 			this.box_list[i].dispose();
 		}
+		for (i = 0; i < this.node_list.length; i = i + 1) {
+			this.node_list[i].dispose();
+		}
 		for (i = 0; i < this.nurbs_list.length; i = i + 1) {
 			this.nurbs_list[i].dispose();
 		}
@@ -963,6 +996,6 @@
 	window.umscene = {};
 	window.umscene.UMScene = UMScene;
 
-}(window.ummath, window.umline, window.ummesh, window.umboxlist,
+}(window.ummath, window.umline, window.ummesh, window.umboxlist, window.umnode,
   window.ummaterial, window.umcamera, window.umshader, window.umobj, window.ummtl,
   window.ummtlx, window.umgltf, window.umbvh, window.umbos));

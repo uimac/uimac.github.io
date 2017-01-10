@@ -64,7 +64,6 @@
 			} else {
 				this.verts = verts;
 			}
-			console.log(this);
 			if (gl) {
 				gl.bindBuffer(gl.ARRAY_BUFFER, this.vertex_vbo);
 				gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(this.verts), gl.STATIC_DRAW);
