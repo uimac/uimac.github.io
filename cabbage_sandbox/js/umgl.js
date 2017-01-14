@@ -187,7 +187,7 @@
 		};
 		document.getElementById('tool_open_pronama').onclick = function (evt) {
 			var oReq = new XMLHttpRequest();
-			oReq.open("GET", "/model/pronama/pronama-chan.bos", true);
+			oReq.open("GET", "model/pronama/pronama-chan.bos", true);
 			oReq.responseType = "arraybuffer";
 			oReq.onload = function (oEvent) {
 				var arrayBuffer = oReq.response; // Note: not oReq.responseText
