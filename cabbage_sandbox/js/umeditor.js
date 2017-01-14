@@ -423,6 +423,9 @@ print("python pen tool loaded")
 			if (!gesturePos) {
 				var pos = getTouchPos(evt);
 				mousedown(pos[0], pos[1], 0);
+			} else {
+				var pos = getTouchPos(evt);
+				mousedown(pos[0], pos[1], 1);
 			}
 		});
 		canvas.addEventListener('touchmove', function (evt) {
@@ -430,12 +433,19 @@ print("python pen tool loaded")
 				var pos = getTouchPos(evt);
 				mousemove(pos[0], pos[1], 0);
 				evt.preventDefault();
+			} else {
+				var pos = getTouchPos(evt);
+				mousemove(pos[0], pos[1], 1);
+				evt.preventDefault();
 			}
 		});
 		canvas.addEventListener('touchend', function (evt) {
 			if (!gesturePos) {
 				var pos = getTouchPos(evt);
 				mouseup(pos[0], pos[1], 0);
+			} else {
+				var pos = getTouchPos(evt);
+				mouseup(pos[0], pos[1], 1);
 			}
 		});
 
