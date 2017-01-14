@@ -220,9 +220,11 @@
 				this.box_list[i].draw(this.current_shader, this.camera);
 			}
 		}
+		/*
 		for (i = 0; i < this.node_list.length; i = i + 1) {
 			this.node_list[i].draw(this.shader_list[3], this.camera);
 		}
+		*/
 		for (i = 0; i < this.nurbs_list.length; i = i + 1) {
 			this.set_front_face(true);
 			this.nurbs_list[i].draw(this.shader_list[2], this.camera);
