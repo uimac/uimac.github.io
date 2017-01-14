@@ -185,6 +185,20 @@
 		document.getElementById('tool_open').onchange = function (evt) {
 			load_files(evt.target.files)
 		};
+		document.getElementById('tool_open_pronama').onclick = function (evt) {
+			var oReq = new XMLHttpRequest();
+			oReq.open("GET", "/model/pronama/pronama-chan.bos", true);
+			oReq.responseType = "arraybuffer";
+			oReq.onload = function (oEvent) {
+				var arrayBuffer = oReq.response; // Note: not oReq.responseText
+				if (arrayBuffer) {
+					scene.load_bos("pronama-chan", arrayBuffer, [], function () {
+						drawonce();
+					});
+				}
+			};
+			oReq.send(null);
+		};
 	}
 
 	function init_tools() {

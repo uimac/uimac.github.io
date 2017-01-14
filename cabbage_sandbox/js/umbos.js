@@ -185,6 +185,14 @@
 		for (i = 0; i < data[4].length; i = i + 1) {
 			this.pose_list[i] = new UMPoseMsg(data[4][i]);
 		}
+		this.embedded_file_map = {};
+		for (i in data[5]) {
+			if (i.toLowerCase().indexOf('.png') > 0) {
+				this.embedded_file_map[i] = new Blob([data[5][i]], { type : "image/png"});
+			} else if (i.toLowerCase().indexOf('.jpg') > 0 || i.toLowerCase().indexOf('.jpeg') > 0) {
+				this.embedded_file_map[i] = new Blob([data[5][i]], { type : "image/jpeg"});
+			}
+		}
 	}
 
 	function sort_by_material(bosmesh) {

@@ -182,6 +182,14 @@ html, body {
 	height : 32px;
 }
 
+#tool_open_pronama {
+	position: absolute;
+	top : 5px;
+	left : 38px;
+	width : 32px;
+	height : 32px;
+}
+
 #tool_open_img:hover {
 	background-color : gray;
 }

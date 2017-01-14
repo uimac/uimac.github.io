@@ -374,18 +374,12 @@
 				var temp = param.texture_list[0].file_name.split('/');
 				temp = temp[temp.length - 1].split('\\');
 				var texture_name = temp[temp.length - 1]
-				var texture = null;
-				for (k = 0; k < texture_files.length; ++k) {
-					if (texture_files[k].name === texture_name) {
-						texture = texture_files[k];
-						break;
-					}
-				}
-				if (texture) {
+				if (bos.embedded_file_map.hasOwnProperty(texture_name)) {
 					if (this.images.hasOwnProperty(texture_name)) {
 						img = this.images[texture_name];
 						tex = this.textures[texture_name];
 						this._assign_texture(material, img, tex);
+						return;
 					} else {
 						img = new Image();
 						tex = this.gl ? this.gl.createTexture() : null;
@@ -399,13 +393,7 @@
 							};
 						}(this, mesh, material, img, tex));
 					}
-					var mtlreader = new FileReader();
-					mtlreader.readAsDataURL(texture);
-					mtlreader.onload = (function(img) {
-						return function (ev) {
-							img.src = this.result;
-						}
-					}(img));
+					img.src = window.URL.createObjectURL(bos.embedded_file_map[texture_name]);
 				}
 			}
 		}.bind(this);
