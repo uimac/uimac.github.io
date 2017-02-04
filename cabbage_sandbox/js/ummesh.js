@@ -1,6 +1,6 @@
 /*jslint devel:true*/
 /*global Float32Array */
-(function (ummath, umtriangle, umwingededge) {
+(function (ummath, umtriangle) {
 	"use strict";
 	var UMMesh;
 
@@ -452,6 +452,7 @@
 				primitive_list[i] = tri;
 			}
 		} else if (this.verts && this.verts.length > 0) {
+			/*
 			this.create_mesh_index();
 			polycount = this.indices.length / 3;
 			console.log(polycount);
@@ -460,25 +461,20 @@
 				tri = new umtriangle.UMTriangle(this, i);
 				primitive_list[i] = tri;
 			}
-		/*
+			*/
 			console.log(this)
 			polycount = this.verts.length / 3 / 3;
 			for (i = 0; i < polycount; i = i + 1) {
 				tri = new umtriangle.UMTriangle(this, i);
 				primitive_list[i] = tri;
 			}
-			*/
 		}
 		this.primitive_list = primitive_list;
 
 		return primitive_list;
 	};
 
-	UMMesh.prototype.create_winged_edge = function () {
-		return umwingededge.create(this);
-	};
-
 	window.ummesh = {};
 	window.ummesh.UMMesh = UMMesh;
 
-}(window.ummath, window.umtriangle, window.umwingededge));
+}(window.ummath, window.umtriangle));

@@ -199,6 +199,20 @@
 			};
 			oReq.send(null);
 		};
+		document.getElementById('tool_open_cabbage').onclick = function (evt) {
+			var oReq = new XMLHttpRequest();
+			oReq.open("GET", "model/cabbage/cabbage.bos", true);
+			oReq.responseType = "arraybuffer";
+			oReq.onload = function (oEvent) {
+				var arrayBuffer = oReq.response; // Note: not oReq.responseText
+				if (arrayBuffer) {
+					scene.load_bos("cabbage", arrayBuffer, [], function () {
+						drawonce();
+					});
+				}
+			};
+			oReq.send(null);
+		};
 	}
 
 	function init_tools() {

@@ -291,7 +291,7 @@
 		console.timeEnd('create primitive list');
 
 		console.time('create winged edge');
-		this.wedge_list = this.wedge_list.concat(mesh.create_winged_edge());
+		//this.wedge_list = this.wedge_list.concat(mesh.create_winged_edge());
 		console.timeEnd('create winged edge');
 
 		console.time('bvh build');
