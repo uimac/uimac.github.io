@@ -8,7 +8,7 @@
 		this.gl = gl;
 		this.material_list = [];
 		this.vertex_vbo = gl ? gl.createBuffer() : null;
-		this.normal_vbo = gl ?gl.createBuffer() : null;
+		this.normal_vbo = gl ? gl.createBuffer() : null;
 		this.verts = [];
 		this.normals = [];
 		this.uvs = [];

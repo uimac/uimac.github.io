@@ -3,6 +3,9 @@
 (function (ummath, ummesh, ummaterial) {
 	"use strict";
 	var UMNode;
+	var linemat_x = null;
+	var linemat_y = null;
+	var linemat_z = null;
 
 	UMNode = function (gl) {
 		this.gl = gl;
@@ -13,6 +16,27 @@
 		this.initial_global_transform = new ummath.UMMat44d();
 		this.parent = null;
 		this.children = [];
+		
+		if (!linemat_x) {
+			linemat_x = new ummaterial.UMMaterial(gl);
+			linemat_x.set_polygon_count(1);
+			linemat_x.set_constant_color(new ummath.UMVec4d(0.9, 0.3, 0.3, 1.0));
+		}
+		if (!linemat_y) {
+			linemat_y = new ummaterial.UMMaterial(gl);
+			linemat_y.set_polygon_count(1);
+			linemat_y.set_constant_color(new ummath.UMVec4d(0.3, 0.9, 0.3, 1.0));
+		}
+		if (!linemat_z) {
+			linemat_z = new ummaterial.UMMaterial(gl);
+			linemat_z.set_polygon_count(1);
+			linemat_z.set_constant_color(new ummath.UMVec4d(0.3, 0.3, 0.9, 1.0));
+		}
+
+		this.line = new umline.UMLine(gl, null);
+		this.line.material_list.push(linemat_x);
+		this.line.material_list.push(linemat_y);
+		this.line.material_list.push(linemat_z);
 	};
 
 	UMNode.prototype.dispose = function () {
@@ -61,6 +85,7 @@
 		if (len <= ummath.EPSILON) { len = 1.0; }
 		var dir = (end.sub(start)).normalized();
 		var middle = (start.add(end)).scale(0.5).sub(new ummath.UMVec3d(dir.xyz[0], dir.xyz[1], dir.xyz[2]).scale(len * 0.2));
+		var global_x = new ummath.UMVec3d(global_rot.m[0][0], global_rot.m[0][1], global_rot.m[0][2]);
 		var global_y = new ummath.UMVec3d(global_rot.m[1][0], global_rot.m[1][1], global_rot.m[1][2]);
 		var global_z = new ummath.UMVec3d(global_rot.m[2][0], global_rot.m[2][1], global_rot.m[2][2]);
 
@@ -138,6 +163,24 @@
 		} else {
 			this.mesh.material_list[0].set_polygon_count(verts.length / 3 / 3);
 		}
+
+		// line
+		global_x.scale(0.1);
+		global_y.scale(0.1);
+		global_z.scale(0.1);
+		var line_verts = [
+			start,
+			start.add(global_x),
+			start,
+			start.add(global_y),
+			start,
+			start.add(global_z)
+		];
+		var lines = [];
+		for (i = 0; i < line_verts.length; i = i + 1) {
+			Array.prototype.push.apply(lines, line_verts[i].xyz);
+		}
+		this.line.update(lines);
 	};
 
 	UMNode.prototype.add = function (box) {
@@ -153,6 +196,7 @@
 			this.gl.disable(this.gl.DEPTH_TEST);
 			//this.gl.disable(this.gl.CULL_FACE);
 			this.mesh.draw(shader, camera);
+			this.line.draw(shader, camera);
 			//this.gl.enable(this.gl.CULL_FACE);
 			this.gl.enable(this.gl.DEPTH_TEST);
 		}
