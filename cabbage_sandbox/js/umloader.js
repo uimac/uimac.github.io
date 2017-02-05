@@ -30,7 +30,7 @@
 	UMLoader.prototype.load_bos = function (name, arrayBuf, texture_files, endCallback) {
 		var bos = umbos.load(new Uint8Array(arrayBuf), true);
 		console.log(bos);
-		var i, k,
+		var i, k, n, m,
 			bosmesh,
 			bosmat,
 			bosnode,
@@ -40,12 +40,18 @@
 			verts,
 			normals,
 			uvs,
+			bosskin,
+			cluster,
+			index,
+			weight,
+			boscluster,
 			indices,
 			loading = 0;
 			
 		var result = {
 			mesh_list : [],
-			node_list : []
+			node_list : [],
+			cluster_list : []
 		};
 
 		var timeoutFunc = function (callback) {
@@ -53,6 +59,7 @@
 				if (loading < 0) {
 					timeoutFunc(callback);
 				} else {
+					console.log(this)
 					callback(this);
 				}
 			}.bind(result), 100);
@@ -97,11 +104,22 @@
 			}
 		}.bind(this);
 		
+		// mesh
+		var mesh_map = {}
 		for (i in bos.mesh_map) {
 			bosmesh = bos.mesh_map[i];
+			var mesh_matrix = new ummath.UMMat44d(bosmesh.global_transform);
 			indices = to_flat_list(bosmesh.vertex_index_list);
-			verts = to_flat_list(bosmesh.vertex_list);
-			normals = to_flat_list(bosmesh.layered_normal_list[0]);
+			verts = bosmesh.vertex_list;
+			normals = bosmesh.layered_normal_list[0];
+			for (k = 0; k < verts.length; k = k + 1) {
+				verts[k] = mesh_matrix.multiply(new ummath.UMVec3d(verts[k])).xyz;
+			}
+			for (k = 0; k < normals.length; k = k + 1) {
+				normals[k] = mesh_matrix.multiply(new ummath.UMVec3d(normals[k])).xyz;
+			}
+			verts = to_flat_list(verts);
+			normals = to_flat_list(normals);
 			uvs = to_flat_list(bosmesh.layered_uv_list[0]);
 			var flat_verts = [];
 			mesh = new ummesh.UMMesh(this.gl, bosmesh.name, 
@@ -110,6 +128,7 @@
 				uvs.length > 0 ? uvs : null, 
 				indices);
 
+			// material
 			var mat_index_count = {};
 			for (k = 0; k < bosmesh.material_index.length; ++k) {
 				if (!mat_index_count[bosmesh.material_index[k]]) {
@@ -117,7 +136,8 @@
 				}
 				++mat_index_count[bosmesh.material_index[k]];
 			}
-			mesh.global_matrix = new ummath.UMVec4d(bosmesh.global_transform);
+			//mesh.global_transform = new ummath.UMMat44d(bosmesh.global_transform);
+			mesh.reset_shader_location();
 			result.mesh_list.push(mesh);
 			for (k in mat_index_count) {
 				bosmat = bosmesh.material_list[k];
@@ -128,9 +148,11 @@
 				assign_material(mesh, meshmat, bosmat, null);
 				window.umlist.UMList.add(bosmat.name, "material");
 			}
+			mesh_map[i] = mesh;
 			window.umlist.UMList.update();
 		}
-		var skeleton_map = {}
+		// nodes
+		var node_map = {}
 		for (i in bos.skeleton_map) {
 			bosnode = bos.skeleton_map[i];
 			node = new umnode.UMNode(this.gl);
@@ -139,17 +161,80 @@
 			node.initial_global_transform = new ummath.UMMat44d(bosnode.global_transform);
 			node.initial_local_transform = new ummath.UMMat44d(bosnode.local_transform);
 			node.id = bosnode.id;
-			skeleton_map[node.id] = node;
+			node.name = bosnode.name;
+			node_map[node.id] = node;
 			result.node_list.push(node);
 		}
 		for (i in bos.skeleton_map) {
 			bosnode = bos.skeleton_map[i];
-			if (skeleton_map.hasOwnProperty(bosnode.parent_id)) {
-				skeleton_map[i].parent = skeleton_map[bosnode.parent_id];
+			if (node_map.hasOwnProperty(bosnode.parent_id)) {
+				node_map[i].parent = node_map[bosnode.parent_id];
+				node_map[bosnode.parent_id].children.push(node_map[i]);
 			}
 		}
-		for (i in skeleton_map) {
-			skeleton_map[i].update();
+		for (i in node_map) {
+			node_map[i].update();
+			if (!node_map[i].parent) {
+				node_map[i].local_transform = mesh_matrix.multiply(node_map[i].local_transform);
+				node_map[i].update_transform();
+			}
+		}
+
+		// normalize weights
+		var normalized_weights = {};
+		for (i in bos.mesh_map) {
+			bosmesh = bos.mesh_map[i];
+			for (k in bosmesh.skin_list) {
+				bosskin = bosmesh.skin_list[k];
+				if (mesh_map.hasOwnProperty(bosskin.geometry_node_id)) {
+					for (n = 0; n < bosskin.cluster_list.length; n = n + 1) {
+						boscluster = bosskin.cluster_list[n];
+						for (m = 0; m < boscluster.index_list.length; m = m + 1) {
+							index = boscluster.index_list[m];
+							weight = boscluster.weight_list[m];
+							if (!normalized_weights.hasOwnProperty(index)) {
+								normalized_weights[index] = 0.0;
+							}
+							normalized_weights[index] = normalized_weights[index] + weight;
+						}
+					}
+				}
+			}
+		}
+
+		// cluster
+		for (i in bos.mesh_map) {
+			bosmesh = bos.mesh_map[i];
+			for (k in bosmesh.skin_list) {
+				bosskin = bosmesh.skin_list[k];
+				if (mesh_map.hasOwnProperty(bosskin.geometry_node_id)) {
+					for (n = 0; n < bosskin.cluster_list.length; n = n + 1) {
+						boscluster = bosskin.cluster_list[n];
+						if (boscluster.index_list.length > 0) {
+							if (node_map.hasOwnProperty(boscluster.link_node_id)) {
+								cluster = new umcluster.UMCluster();
+								var weight_list = [];
+								for (m = 0; m < boscluster.index_list.length; m = m + 1) {
+									weight_list[m] = 
+										boscluster.weight_list[m] /
+											normalized_weights[boscluster.index_list[m]];
+								}
+								cluster.update(
+									boscluster.weight_list,
+									boscluster.index_list,
+									node_map[boscluster.link_node_id],
+									mesh_map[bosskin.geometry_node_id]
+									);
+								result.cluster_list.push(cluster);
+							} else {
+								console.error("not found link_node_id :", boscluster.link_node_id)
+							}
+						}
+					}
+				} else {
+					console.error("not found geometry_node_id :", bosskin.geometry_node_id)
+				}
+			}
 		}
 		timeoutFunc(endCallback);
 	};

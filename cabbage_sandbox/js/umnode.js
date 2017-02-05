@@ -80,7 +80,7 @@
 		var start = new ummath.UMVec3d(parent_global.m[3][0], parent_global.m[3][1], parent_global.m[3][2]);
 		var end = new ummath.UMVec3d(global.m[3][0], global.m[3][1], global.m[3][2]);
 		var global_rot = new ummath.UMMat44d(parent_global);
-		global_rot.m[3][0] = global_rot.m[3][1] = global_rot.m[3][2] = 0.0;
+		ummath.um_matrix_remove_trans(global_rot);
 		var len = (end.sub(start)).length();
 		if (len <= ummath.EPSILON) { len = 1.0; }
 		var dir = (end.sub(start)).normalized();
@@ -151,7 +151,6 @@
 			Array.prototype.push.apply(normals, n.value());
 			Array.prototype.push.apply(normals, n.value());
 		}
-
 		this.mesh.update(verts, normals, null, null, null);
 		this.mesh.update_box();
 
@@ -181,6 +180,18 @@
 			Array.prototype.push.apply(lines, line_verts[i].xyz);
 		}
 		this.line.update(lines);
+	};
+	
+	UMNode.prototype.update_transform = function () {
+		var i;
+		if (this.parent) {
+			this.global_transform = this.local_transform.multiply(this.parent.global_transform);
+		} else {
+			this.global_transform = this.local_transform;
+		}
+		for (var i = 0; i < this.children.length; i = i + 1) {
+			this.children[i].update_transform();
+		}
 	};
 
 	UMNode.prototype.add = function (box) {

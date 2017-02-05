@@ -260,9 +260,9 @@
 			dst = new UMVec4d(tmp[0], tmp[1], tmp[2], tmp[3]);
 		} else if (vecOrMat instanceof UMVec3d) {
 			tmp = [
-				vecOrMat.at(0) * this.m[0][0] + vecOrMat.at(1) * this.m[1][0] + vecOrMat.at(2) * this.m[2][0],
-				vecOrMat.at(0) * this.m[0][1] + vecOrMat.at(1) * this.m[1][1] + vecOrMat.at(2) * this.m[2][1],
-				vecOrMat.at(0) * this.m[0][2] + vecOrMat.at(1) * this.m[1][2] + vecOrMat.at(2) * this.m[2][2]
+				vecOrMat.at(0) * this.m[0][0] + vecOrMat.at(1) * this.m[1][0] + vecOrMat.at(2) * this.m[2][0] + this.m[3][0],
+				vecOrMat.at(0) * this.m[0][1] + vecOrMat.at(1) * this.m[1][1] + vecOrMat.at(2) * this.m[2][1] + this.m[3][1],
+				vecOrMat.at(0) * this.m[0][2] + vecOrMat.at(1) * this.m[1][2] + vecOrMat.at(2) * this.m[2][2] + this.m[3][2]
 			];
 			dst = new UMVec3d(tmp[0], tmp[1], tmp[2]);
 		}
@@ -346,6 +346,14 @@
 			dst.m[3][i] = Math.pow(-1.0, i) * v.xyzw[3] * rev_det;
 		}
 		return dst;
+	};
+
+	UMMat44d.prototype.scale = function (value) {
+		this.m[0][0] *= value;
+		this.m[1][1] *= value;
+		this.m[2][2] *= value;
+		this.m[3][3] *= value;
+		return this;
 	};
 
 	UMMat44d.prototype.translation = function () {
@@ -687,6 +695,10 @@
 		dst.m[2][0] *= len_z_inv; dst.m[2][1] *= len_z_inv; dst.m[2][2] *= len_z_inv;
 	}
 
+	function um_matrix_remove_trans(src) {
+		src.m[3][0] = src.m[3][1] = src.m[3][2] = 0;
+	}
+
 	window.ummath = {};
 	window.ummath.UMMat44d = UMMat44d;
 	window.ummath.UMVec3d = UMVec3d;
@@ -704,5 +716,6 @@
 	window.ummath.um_clip = um_clip;
 	window.ummath.um_fract = um_fract;
 	window.ummath.um_matrix_remove_scale = um_matrix_remove_scale;
+	window.ummath.um_matrix_remove_trans = um_matrix_remove_trans;
 	window.ummath.EPSILON = EPSILON;
 }());

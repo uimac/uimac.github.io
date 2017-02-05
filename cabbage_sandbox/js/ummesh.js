@@ -12,7 +12,12 @@
 		this.verts = [];
 		this.normals = [];
 		this.uvs = [];
+		this.original_verts = [];
+		this.original_normals = [];
+		this.deform_verts = [];
+		this.deform_normals = [];
 		this.indices = [];
+		this.weights = [];
 		this.id = "";
 
 		if (id) {
@@ -29,6 +34,7 @@
 		this.update(verts, normals, uvs, indices);
 		this.update_box();
 		this.is_cw = false;
+		this.vertex_index_to_face_index_map = null;
 	};
 
 	UMMesh.prototype._create_uv_vbo = function (indices, verts, uvs) {
@@ -64,6 +70,10 @@
 			} else {
 				this.verts = verts;
 			}
+			if (this.original_verts.length === 0) {
+				this.original_verts = JSON.parse(JSON.stringify(verts));
+				this.deform_verts = JSON.parse(JSON.stringify(verts));
+			}
 			if (gl) {
 				gl.bindBuffer(gl.ARRAY_BUFFER, this.vertex_vbo);
 				gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(this.verts), gl.STATIC_DRAW);
@@ -81,6 +91,10 @@
 				}
 			} else {
 				this.normals = normals;
+			}
+			if (this.original_normals.length === 0) {
+				this.original_normals = JSON.parse(JSON.stringify(normals));
+				this.deform_normals = JSON.parse(JSON.stringify(normals));
 			}
 
 			if (gl) {

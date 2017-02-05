@@ -237,7 +237,7 @@
 					sorted_uv[i * 3 + k][1] = 1.0 - sorted_uv[i * 3 + k][1];
 				}
 			}
-			else if (uv_list) {
+			else if (uv_list && uv_list.length > 0) {
 				for (k = 0; k < 3; ++k) {
 					sorted_uv[i * 3 + k] = uv_list[index_pair_list[i][1] * 3 + k];
 					sorted_uv[i * 3 + k][1] = 1.0 - sorted_uv[i * 3 + k][1];
