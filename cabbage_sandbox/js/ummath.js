@@ -260,9 +260,9 @@
 			dst = new UMVec4d(tmp[0], tmp[1], tmp[2], tmp[3]);
 		} else if (vecOrMat instanceof UMVec3d) {
 			tmp = [
-				vecOrMat.at(0) * this.m[0][0] + vecOrMat.at(1) * this.m[1][0] + vecOrMat.at(2) * this.m[2][0] + this.m[3][0],
-				vecOrMat.at(0) * this.m[0][1] + vecOrMat.at(1) * this.m[1][1] + vecOrMat.at(2) * this.m[2][1] + this.m[3][1],
-				vecOrMat.at(0) * this.m[0][2] + vecOrMat.at(1) * this.m[1][2] + vecOrMat.at(2) * this.m[2][2] + this.m[3][2]
+				vecOrMat.at(0) * this.m[0][0] + vecOrMat.at(1) * this.m[1][0] + vecOrMat.at(2) * this.m[2][0],
+				vecOrMat.at(0) * this.m[0][1] + vecOrMat.at(1) * this.m[1][1] + vecOrMat.at(2) * this.m[2][1],
+				vecOrMat.at(0) * this.m[0][2] + vecOrMat.at(1) * this.m[1][2] + vecOrMat.at(2) * this.m[2][2]
 			];
 			dst = new UMVec3d(tmp[0], tmp[1], tmp[2]);
 		}

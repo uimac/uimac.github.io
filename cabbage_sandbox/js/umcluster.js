@@ -57,16 +57,17 @@
 		for (i = 0; i < this.indices.length; i = i + 1) {
 			index = this.indices[i];
 			weight = this.weights[i];
-			original_vertex = new ummath.UMVec3d(
+			original_vertex = new ummath.UMVec4d(
 				geo.original_verts[index * 3 + 0],
 				geo.original_verts[index * 3 + 1],
-				geo.original_verts[index * 3 + 2]
+				geo.original_verts[index * 3 + 2],
+				1.0
 			);
 			vertex = deform_mat.multiply(original_vertex);
 
-			geo.deform_verts[index * 3 + 0] += vertex.xyz[0] * weight
-			geo.deform_verts[index * 3 + 1] += vertex.xyz[1] * weight
-			geo.deform_verts[index * 3 + 2] += vertex.xyz[2] * weight
+			geo.deform_verts[index * 3 + 0] += vertex.xyzw[0] * weight
+			geo.deform_verts[index * 3 + 1] += vertex.xyzw[1] * weight
+			geo.deform_verts[index * 3 + 2] += vertex.xyzw[2] * weight
 //console.log(this.link_node.name, index, weight, vertex.scale(weight).xyz, gt.m)
 
 			if (geo.original_normals.length > geo.original_verts.length) {
