@@ -36,6 +36,67 @@
 		this.is_cw = false;
 		this.loader = new umloader.UMLoader(gl);
 		this.bvh = new umbvh.UMBvh();
+
+		this.node_map = {};
+			
+		var umiomap = require('umiomap')
+		this.update_func_list.push(function () {
+			var bosdata = umiomap.load("testmmap");
+			var bos = umbos.load(new Uint8Array(bosdata), true);
+			var id;
+			var src, dst;
+			var i, bosnode, node;
+			for (id in bos.skeleton_map) {
+				src = bos.skeleton_map[id];
+				if (this.node_map.hasOwnProperty(src.name)) {
+					dst = this.node_map[src.name];
+					//dst.initial_local_transform = new ummath.UMMat44d(src.local_transform);
+					//dst.local_transform = new ummath.UMMat44d(src.local_transform);
+					dst.global_transform = new ummath.UMMat44d(src.global_transform);
+					//dst.initial_global_transform = new ummath.UMMat44d(src.global_transform);
+					if (dst.name === "uparm.L") {
+						console.log(src.global_transform);
+					}
+					dst.update();
+				} else {
+					var node_map = {}
+					for (i in bos.skeleton_map) {
+						bosnode = bos.skeleton_map[i];
+						node = new umnode.UMNode(this.gl);
+						node.global_transform = new ummath.UMMat44d(bosnode.global_transform);
+						node.local_transform = new ummath.UMMat44d(bosnode.local_transform);
+						node.initial_global_transform = new ummath.UMMat44d(bosnode.global_transform);
+						node.initial_local_transform = new ummath.UMMat44d(bosnode.local_transform);
+						node.id = bosnode.id;
+						node.name = bosnode.name;
+						node_map[node.id] = node;
+						this.node_list.push(node);
+						this.node_map[node.name] = node;
+					}
+					for (i in bos.skeleton_map) {
+						bosnode = bos.skeleton_map[i];
+						if (node_map.hasOwnProperty(bosnode.parent_id)) {
+							node_map[i].parent = node_map[bosnode.parent_id];
+							node_map[bosnode.parent_id].children.push(node_map[i]);
+						}
+					}
+					for (i in node_map) {
+						node_map[i].update();
+						if (!node_map[i].parent) {
+							//node_map[i].local_transform = mesh_matrix.multiply(node_map[i].local_transform);
+							node_map[i].update_transform();
+						}
+					}
+				}
+			}
+			/*
+			for (name in this.node_map) {
+				if (!this.node_map[name].parent) {
+					this.node_map[name].update_transform();
+				}
+			}
+			*/
+		}.bind(this));
 	};
 
 	function create_test_mesh(gl) {
