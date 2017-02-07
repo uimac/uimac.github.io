@@ -213,6 +213,20 @@
 			};
 			oReq.send(null);
 		};
+		document.getElementById('tool_open_reiko').onclick = function (evt) {
+			var oReq = new XMLHttpRequest();
+			oReq.open("GET", "model/reiko/reiko.bos", true);
+			oReq.responseType = "arraybuffer";
+			oReq.onload = function (oEvent) {
+				var arrayBuffer = oReq.response; // Note: not oReq.responseText
+				if (arrayBuffer) {
+					scene.load_bos("reiko", arrayBuffer, [], function () {
+						drawonce();
+					});
+				}
+			};
+			oReq.send(null);
+		};
 	}
 
 	function init_tools() {
