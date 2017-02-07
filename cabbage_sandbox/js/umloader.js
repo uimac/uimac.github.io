@@ -145,8 +145,10 @@
 				meshmat.set_polygon_count(mat_index_count[k]);
 				meshmat.name = k;
 				mesh.material_list.push(meshmat);
-				assign_material(mesh, meshmat, bosmat, null);
-				window.umlist.UMList.add(bosmat.name, "material");
+				if (bosmat) {
+					assign_material(mesh, meshmat, bosmat, null);
+					window.umlist.UMList.add(bosmat.name, "material");
+				}
 			}
 			mesh_map[i] = mesh;
 			window.umlist.UMList.update();
@@ -173,11 +175,13 @@
 			}
 		}
 		for (i in node_map) {
-			node_map[i].update();
 			if (!node_map[i].parent) {
-				node_map[i].local_transform = mesh_matrix.multiply(node_map[i].local_transform);
+				node_map[i].local_transform = new ummath.UMMat44d(node_map[i].initial_global_transform);
 				node_map[i].update_transform();
 			}
+		}
+		for (i in node_map) {
+			node_map[i].update();
 		}
 
 		// normalize weights

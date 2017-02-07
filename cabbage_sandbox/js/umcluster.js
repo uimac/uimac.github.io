@@ -72,7 +72,7 @@
 
 			if (geo.original_normals.length > geo.original_verts.length) {
 				var filist = geo.vertex_index_to_face_index_map[index];
-
+				if (!filist) continue;
 				for (k = 0; k < filist.length; k = k + 1) {
 					var fi = filist[k];
 					original_normal = new ummath.UMVec3d(

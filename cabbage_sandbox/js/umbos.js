@@ -260,6 +260,9 @@
 	}
 
 	function load(array, material_sort) {
+		if (array.length <= 0) {
+			return {}
+		}
 		var data = msgpack.decode(array);
 		var obj = new UMObjectMsg(data);
 		var i;

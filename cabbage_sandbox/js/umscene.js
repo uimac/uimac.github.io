@@ -50,6 +50,7 @@
 				src = bos.skeleton_map[id];
 				if (this.node_map.hasOwnProperty(src.name)) {
 					dst = this.node_map[src.name];
+					if (!dst.parent) continue;
 					//dst.initial_local_transform = new ummath.UMMat44d(src.local_transform);
 					//dst.local_transform = new ummath.UMMat44d(src.local_transform);
 					dst.global_transform = new ummath.UMMat44d(src.global_transform);
@@ -57,8 +58,12 @@
 					if (dst.name === "uparm.L") {
 						console.log(src.global_transform);
 					}
-					dst.update();
+					//dst.update();
 				} else {
+					console.log(src.name)
+				}
+				/*
+				 else {
 					var node_map = {}
 					for (i in bos.skeleton_map) {
 						bosnode = bos.skeleton_map[i];
@@ -88,6 +93,7 @@
 						}
 					}
 				}
+				*/
 			}
 			/*
 			for (name in this.node_map) {
@@ -387,15 +393,19 @@
 
 			var root_nodes = [];
 			var arm = null;
+			var node;
 			for (var i = 0; i < result.node_list.length; i = i + 1) {
-
-				if (result.node_list[i].name === "neck" || result.node_list[i].name === "spine1_bb_" || result.node_list[i].name === "Bone.001") {
+				node = result.node_list[i];
+				/*
+				if (node.name === "neck" || node.name === "spine1_bb_" || node.name === "Bone.001") {
 			//		if (result.node_list[i].name === "Bone.001") {
-					arm = result.node_list[i];
+					arm = node;
 				}
-				if (!result.node_list[i].parent) {
-					root_nodes.push(result.node_list[i]);
+				*/
+				if (!node.parent) {
+					root_nodes.push(node);
 				}
+				this.node_map[node.name] = node;
 			}
 			
 			var maxrot = 2
@@ -405,29 +415,33 @@
 					return function () {
 						var mesh;
 						var vtof;
-						currot += unit;
-						if (Math.abs(currot) > maxrot) {
-							unit = -unit;
+						if (arm) {
+							currot += unit;
+							if (Math.abs(currot) > maxrot) {
+								unit = -unit;
+							}
+							var rad = ummath.um_to_radian(10 * unit);
+							var rot = new ummath.UMMat44d([
+								Math.cos(rad), -Math.sin(rad), 0, 0,
+								Math.sin(rad), Math.cos(rad), 0,             0,
+								0, 0, 1, 0,
+								0, 0, 0,             1
+							])
+							var mat = arm.local_transform ;
+							var trans = new ummath.UMVec3d(mat.m[3][0], mat.m[3][1], mat.m[3][2])
+							ummath.um_matrix_remove_trans(mat);
+							mat = mat.multiply(rot);
+							mat.m[3][0] = trans.xyz[0];
+							mat.m[3][1] = trans.xyz[1];
+							mat.m[3][2] = trans.xyz[2];
+							arm.local_transform = mat;
 						}
-						var rad = ummath.um_to_radian(10 * unit);
-						var rot = new ummath.UMMat44d([
-							Math.cos(rad), -Math.sin(rad), 0, 0,
-							Math.sin(rad), Math.cos(rad), 0,             0,
-							0, 0, 1, 0,
-							0, 0, 0,             1
-						])
-						var mat = arm.local_transform ;
-						var trans = new ummath.UMVec3d(mat.m[3][0], mat.m[3][1], mat.m[3][2])
-						ummath.um_matrix_remove_trans(mat);
-						mat = mat.multiply(rot);
-						mat.m[3][0] = trans.xyz[0];
-						mat.m[3][1] = trans.xyz[1];
-						mat.m[3][2] = trans.xyz[2];
-						arm.local_transform = mat;
 						var i, k, n, m;
+						/*
 						for (i = 0; i < roots.length; i = i + 1) {
 							roots[i].update_transform();
 						}
+						*/
 						for (i = 0; i < result.node_list.length; i = i + 1) {
 							result.node_list[i].update();
 						}

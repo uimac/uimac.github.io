@@ -164,9 +164,9 @@
 		}
 
 		// line
-		global_x.scale(0.1);
-		global_y.scale(0.1);
-		global_z.scale(0.1);
+		global_x.scale(0.3);
+		global_y.scale(0.3);
+		global_z.scale(0.3);
 		var line_verts = [
 			start,
 			start.add(global_x),
