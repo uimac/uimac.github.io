@@ -52,14 +52,7 @@
 					if (this.node_map.hasOwnProperty(src.name)) {
 						dst = this.node_map[src.name];
 						if (!dst.parent) continue;
-						//dst.initial_local_transform = new ummath.UMMat44d(src.local_transform);
-						//dst.local_transform = new ummath.UMMat44d(src.local_transform);
-						dst.global_transform = new ummath.UMMat44d(src.global_transform);
-						//dst.initial_global_transform = new ummath.UMMat44d(src.global_transform);
-						if (dst.name === "uparm.L") {
-							console.log(src.global_transform);
-						}
-						//dst.update();
+						dst.local_transform = new ummath.UMMat44d(src.local_transform);
 					} else {
 						console.log(src.name)
 					}
@@ -96,13 +89,6 @@
 					}
 					*/
 				}
-				/*
-				for (name in this.node_map) {
-					if (!this.node_map[name].parent) {
-						this.node_map[name].update_transform();
-					}
-				}
-				*/
 			}.bind(this));
 		}
 	};
@@ -439,11 +425,9 @@
 							arm.local_transform = mat;
 						}
 						var i, k, n, m;
-						/*
 						for (i = 0; i < roots.length; i = i + 1) {
 							roots[i].update_transform();
 						}
-						*/
 						for (i = 0; i < result.node_list.length; i = i + 1) {
 							result.node_list[i].update();
 						}
