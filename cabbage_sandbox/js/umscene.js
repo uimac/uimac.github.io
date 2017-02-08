@@ -39,11 +39,11 @@
 
 		this.node_map = {};
 			
-		//if (window && window.process && window.process.type) {
-		//	this.connectMMAP();
-		//} else {
+		if (window && window.process && window.process.type) {
+			this.connect_mmap();
+		} else {
 			this.connect_ws();
-		//}
+		}
 	};
 
 	UMScene.prototype.assing_bos_nodes = function (bos) {
@@ -100,7 +100,8 @@
 		this.update_func_list.push(function () {
 			var bosdata = umiomap.load("testmmap");
 			var bos = umbos.load(new Uint8Array(bosdata), true);
-		});
+			this.assing_bos_nodes(bos);
+		}.bind(this));
 	}
 
 	var connection;
