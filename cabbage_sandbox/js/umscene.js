@@ -39,59 +39,112 @@
 
 		this.node_map = {};
 			
-		if (window && window.process && window.process.type) {
-			var umiomap = require('umiomap')
-			this.update_func_list.push(function () {
-				var bosdata = umiomap.load("testmmap");
-				var bos = umbos.load(new Uint8Array(bosdata), true);
-				var id;
-				var src, dst;
-				var i, bosnode, node;
-				for (id in bos.skeleton_map) {
-					src = bos.skeleton_map[id];
-					if (this.node_map.hasOwnProperty(src.name)) {
-						dst = this.node_map[src.name];
-						if (!dst.parent) continue;
-						dst.local_transform = new ummath.UMMat44d(src.local_transform);
-					} else {
-						console.log(src.name)
-					}
-					/*
-					else {
-						var node_map = {}
-						for (i in bos.skeleton_map) {
-							bosnode = bos.skeleton_map[i];
-							node = new umnode.UMNode(this.gl);
-							node.global_transform = new ummath.UMMat44d(bosnode.global_transform);
-							node.local_transform = new ummath.UMMat44d(bosnode.local_transform);
-							node.initial_global_transform = new ummath.UMMat44d(bosnode.global_transform);
-							node.initial_local_transform = new ummath.UMMat44d(bosnode.local_transform);
-							node.id = bosnode.id;
-							node.name = bosnode.name;
-							node_map[node.id] = node;
-							this.node_list.push(node);
-							this.node_map[node.name] = node;
-						}
-						for (i in bos.skeleton_map) {
-							bosnode = bos.skeleton_map[i];
-							if (node_map.hasOwnProperty(bosnode.parent_id)) {
-								node_map[i].parent = node_map[bosnode.parent_id];
-								node_map[bosnode.parent_id].children.push(node_map[i]);
-							}
-						}
-						for (i in node_map) {
-							node_map[i].update();
-							if (!node_map[i].parent) {
-								//node_map[i].local_transform = mesh_matrix.multiply(node_map[i].local_transform);
-								node_map[i].update_transform();
-							}
-						}
-					}
-					*/
-				}
-			}.bind(this));
-		}
+		//if (window && window.process && window.process.type) {
+		//	this.connectMMAP();
+		//} else {
+			this.connect_ws();
+		//}
 	};
+
+	UMScene.prototype.assing_bos_nodes = function (bos) {
+		//console.log("assing_bos_nodes")
+		var id;
+		var src, dst;
+		var i, bosnode, node;
+		for (id in bos.skeleton_map) {
+			src = bos.skeleton_map[id];
+			if (this.node_map.hasOwnProperty(src.name)) {
+				dst = this.node_map[src.name];
+				if (!dst.parent) continue;
+				dst.local_transform = new ummath.UMMat44d(src.local_transform);
+			} else {
+				console.log(src.name)
+			}
+			/*
+			else {
+				var node_map = {}
+				for (i in bos.skeleton_map) {
+					bosnode = bos.skeleton_map[i];
+					node = new umnode.UMNode(this.gl);
+					node.global_transform = new ummath.UMMat44d(bosnode.global_transform);
+					node.local_transform = new ummath.UMMat44d(bosnode.local_transform);
+					node.initial_global_transform = new ummath.UMMat44d(bosnode.global_transform);
+					node.initial_local_transform = new ummath.UMMat44d(bosnode.local_transform);
+					node.id = bosnode.id;
+					node.name = bosnode.name;
+					node_map[node.id] = node;
+					this.node_list.push(node);
+					this.node_map[node.name] = node;
+				}
+				for (i in bos.skeleton_map) {
+					bosnode = bos.skeleton_map[i];
+					if (node_map.hasOwnProperty(bosnode.parent_id)) {
+						node_map[i].parent = node_map[bosnode.parent_id];
+						node_map[bosnode.parent_id].children.push(node_map[i]);
+					}
+				}
+				for (i in node_map) {
+					node_map[i].update();
+					if (!node_map[i].parent) {
+						//node_map[i].local_transform = mesh_matrix.multiply(node_map[i].local_transform);
+						node_map[i].update_transform();
+					}
+				}
+			}
+			*/
+		}
+	}
+
+	UMScene.prototype.connect_mmap = function () {
+		var umiomap = require('umiomap')
+		this.update_func_list.push(function () {
+			var bosdata = umiomap.load("testmmap");
+			var bos = umbos.load(new Uint8Array(bosdata), true);
+		});
+	}
+
+	var connection;
+	function connect_ws_forever(messageCallback) {
+		var isConnected = false;
+		connection = new WebSocket('ws://localhost:8000')
+		connection.onopen = function () {
+			isConnected = true;
+			console.log("WebSocket opened")
+			setInterval(function () {
+				connection.send('get_bones');
+			}, 30);
+		};
+		connection.onerror = function (error) {
+			console.log('WebSocket Error ' + error);
+		};
+		connection.onmessage = function (e) {
+			//console.log('got data: ' + e.data);
+			if (messageCallback) {
+				messageCallback(e);
+			}
+		};
+		connection.onclose = function () {
+			if (!isConnected) {
+				setTimeout(function () {
+					connect_ws_forever();
+				}, 2000);
+			}
+		};
+	}
+
+	UMScene.prototype.connect_ws = function () {
+		connect_ws_forever(function (e) {
+			if (this.node_list.length > 0) {
+				var fileReader = new FileReader();
+				fileReader.onload = function() {
+					var arrayBuffer = fileReader.result;
+					var bos = umbos.load(new Uint8Array(arrayBuffer), true);
+					this.assing_bos_nodes(bos);
+				}.bind(this);
+				fileReader.readAsArrayBuffer(e.data);
+			}
+		}.bind(this));
+	}
 
 	function create_test_mesh(gl) {
 		var mesh,
