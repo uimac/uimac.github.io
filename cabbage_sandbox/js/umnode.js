@@ -59,8 +59,8 @@
 					dist, dist, 1.0];
 		}
 	}
-
-	UMNode.prototype.update = function () {
+	
+	UMNode.prototype.update_mesh = function () {
 		var i,
 			k,
 			v0, v1, v2, n,
@@ -74,8 +74,8 @@
 		} else {
 			parent_global = new ummath.UMMat44d(this.global_transform);
 		}
-		ummath.um_matrix_remove_scale(global, global);
-		ummath.um_matrix_remove_scale(parent_global, parent_global);
+		//ummath.um_matrix_remove_scale(global, global);
+		//ummath.um_matrix_remove_scale(parent_global, parent_global);
 
 		var start = new ummath.UMVec3d(parent_global.m[3][0], parent_global.m[3][1], parent_global.m[3][2]);
 		var end = new ummath.UMVec3d(global.m[3][0], global.m[3][1], global.m[3][2]);
@@ -83,8 +83,11 @@
 		ummath.um_matrix_remove_trans(global_rot);
 		var len = (end.sub(start)).length();
 		if (len <= ummath.EPSILON) { len = 1.0; }
-		var dir = (end.sub(start)).normalized();
-		var middle = (start.add(end)).scale(0.5).sub(new ummath.UMVec3d(dir.xyz[0], dir.xyz[1], dir.xyz[2]).scale(len * 0.2));
+		var base_start = new ummath.UMVec3d(0, 0, 0);
+		var base_end = global_rot.inverted().multiply((end.sub(start)).normalized().scale(len));
+		var dir = base_end.normalized();
+		
+		var middle = (new ummath.UMVec3d(base_end.xyz[0], base_end.xyz[1], base_end.xyz[2])).scale(0.5).sub(new ummath.UMVec3d(dir.xyz[0], dir.xyz[1], dir.xyz[2]).scale(len * 0.2));
 		var global_x = new ummath.UMVec3d(global_rot.m[0][0], global_rot.m[0][1], global_rot.m[0][2]);
 		var global_y = new ummath.UMVec3d(global_rot.m[1][0], global_rot.m[1][1], global_rot.m[1][2]);
 		var global_z = new ummath.UMVec3d(global_rot.m[2][0], global_rot.m[2][1], global_rot.m[2][2]);
@@ -92,14 +95,16 @@
 		if (dir.length() == 0) {
 			return;
 		}
-
+		
 		var dst_octahedron = [];
-		dst_octahedron[0] = end;
-		dst_octahedron[1] = middle.add(dir.cross(global_z).scale(0.1 * len));
-		dst_octahedron[2] = middle.add(dir.cross(dir.cross(global_z)).scale(0.1 * len));
-		dst_octahedron[3] = start;
-		dst_octahedron[4] = middle.sub(dir.cross(global_z).scale(0.1 * len));
-		dst_octahedron[5] = middle.sub(dir.cross(dir.cross(global_z)).scale(0.1 * len));
+		var diff1 = dir.cross(global_z).scale(0.1 * len);
+		var diff2 = dir.cross(diff1);
+		dst_octahedron[0] = base_end;
+		dst_octahedron[1] = middle.add(diff1);
+		dst_octahedron[2] = middle.add(diff2);
+		dst_octahedron[3] = base_start;
+		dst_octahedron[4] = middle.sub(diff1);
+		dst_octahedron[5] = middle.sub(diff2);
 	
 		var triangles = [
 			dst_octahedron[0],
@@ -152,6 +157,8 @@
 			Array.prototype.push.apply(normals, n.value());
 		}
 		this.mesh.update(verts, normals, null, null, null);
+		this.mesh.global_matrix = parent_global;
+		this.mesh.reset_shader_location();
 		this.mesh.update_box();
 
 		if (this.mesh.material_list.length === 0) {
@@ -164,22 +171,36 @@
 		}
 
 		// line
-		global_x.scale(0.3);
-		global_y.scale(0.3);
-		global_z.scale(0.3);
+		var line_size = 0.3;
 		var line_verts = [
-			start,
-			start.add(global_x),
-			start,
-			start.add(global_y),
-			start,
-			start.add(global_z)
+			base_start,
+			base_start.add(new ummath.UMVec3d(line_size, 0, 0)),
+			base_start,
+			base_start.add(new ummath.UMVec3d(0, line_size, 0)),
+			base_start,
+			base_start.add(new ummath.UMVec3d(0, 0, line_size))
 		];
 		var lines = [];
 		for (i = 0; i < line_verts.length; i = i + 1) {
 			Array.prototype.push.apply(lines, line_verts[i].xyz);
 		}
+		this.line.global_matrix = parent_global;
+		this.line.reset_shader_location();
 		this.line.update(lines);
+	};
+
+	UMNode.prototype.update = function () {
+		if (this.mesh.verts.length === 0) {
+			this.update_mesh();
+		} else {
+			if (this.parent) {
+				this.mesh.global_matrix = this.parent.global_transform;
+				this.line.global_matrix = this.parent.global_transform;
+			} else {
+				this.mesh.global_matrix = this.global_transform;
+				this.line.global_matrix = this.global_transform;
+			}
+		}
 	};
 	
 	UMNode.prototype.update_transform = function () {
@@ -203,11 +224,15 @@
 	};
 
 	UMNode.prototype.draw = function (shader, camera) {
-		if (this.mesh && this.mesh.verts.length > 0) {
+		if (this.mesh || this.line) {
 			this.gl.disable(this.gl.DEPTH_TEST);
 			//this.gl.disable(this.gl.CULL_FACE);
-			this.mesh.draw(shader, camera);
-			this.line.draw(shader, camera);
+			if (this.mesh && this.mesh.verts.length > 0) {
+				this.mesh.draw(shader, camera);
+			}
+			if (this.line) {
+				this.line.draw(shader, camera);
+			}
 			//this.gl.enable(this.gl.CULL_FACE);
 			this.gl.enable(this.gl.DEPTH_TEST);
 		}
