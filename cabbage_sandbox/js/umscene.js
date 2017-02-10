@@ -20,6 +20,7 @@
 		this.test_mesh = null;
 		this.mesh_list = [];
 		this.line_list = [];
+		this.curve_list = [];
 		this.point_list = [];
 		this.nurbs_list = [];
 		this.box_list = [];
@@ -255,7 +256,7 @@
 		this.current_time = 0;
 		this.is_playing = false;
 		for (i = 0; i < this.update_func_list.length; i = i + 1) {
-			this.update_func_list[i]();
+			this.update_func_list[i](this.current_time);
 		}
 	};
 
@@ -281,7 +282,7 @@
 			step = time - this.last_time;
 			this.current_time = this.current_time + step;
 			for (i = 0; i < this.update_func_list.length; i = i + 1) {
-				this.update_func_list[i]();
+				this.update_func_list[i](this.current_time);
 			}
 			this.last_time = time;
 			console.log(this.current_time);
@@ -524,67 +525,6 @@
 		}.bind(this));
 	};
 
-	UMScene.prototype._load_abc_curve = function (abcio, abcpath) {
-		var abccurve,
-			i,
-			n,
-			m,
-			curve,
-			path_list,
-			material;
-
-		path_list = abcio.get_curve_path_list(abcpath);
-		console.log(path_list);
-		for (i = 0; i < path_list.length; i = i + 1) {
-			abccurve = abcio.get_curve(abcpath, path_list[i]);
-			console.log(abccurve);
-		}
-	};
-
-	UMScene.prototype._load_abc_nurbs = function (abcio, abcpath) {
-		var abcnurbs,
-			i,
-			n,
-			m,
-			nurbs,
-			path_list,
-			material;
-
-		path_list = abcio.get_nurbs_path_list(abcpath);
-		console.log(path_list);
-		for (i = 0; i < path_list.length; i = i + 1) {
-			abcnurbs = abcio.get_nurbs(abcpath, path_list[i], true);
-			//console.log(abcio.get_nurbs(abcpath, path_list[i]));
-			if (abcnurbs && abcnurbs.hasOwnProperty("position")) {
-				nurbs = new umnurbs.UMNurbs(this.gl, new Float32Array(abcnurbs.position));
-				console.log(abcnurbs.global_transform);
-				material = new ummaterial.UMMaterial(this.gl);
-				material.set_polygon_count(abcnurbs.position.length / 3 / 3);
-				nurbs.material_list.push(material);
-				this.nurbs_list.push(nurbs);
-			}
-		}
-	};
-
-	UMScene.prototype._update_abc_nurbs = function (abcio, abcpath) {
-		var abcnurbs,
-			i,
-			n,
-			m,
-			nurbs,
-			path_list,
-			material;
-		path_list = abcio.get_nurbs_path_list(abcpath);
-		for (i = 0; i < path_list.length; i = i + 1) {
-			abcnurbs = abcio.get_nurbs(abcpath, path_list[i], true);
-			nurbs = this.nurbs_list[i];
-
-			if (abcnurbs && abcnurbs.hasOwnProperty("position")) {
-				nurbs.update(abcnurbs.position);
-			}
-		}
-	};
-
 	UMScene.prototype.load_mtlx = function (mtlxpath, text, endCallback) {
 		this.loader.load_mtlx(this.mesh_list, mtlxpath, text, endCallback);
 	};
@@ -593,201 +533,13 @@
 		this.loader.load_mtl(this.mesh_list, mtlname, text, texture_files, endCallback);
 	};
 
-	UMScene.prototype._load_abc_mesh = function (abcio, abcpath) {
-		var abcmesh,
-			i,
-			n,
-			m,
-			mesh,
-			path_list,
-			material;
-		path_list = abcio.get_mesh_path_list(abcpath);
-		console.log(path_list);
-		for (i = 0; i < path_list.length; i = i + 1) {
-			abcmesh = abcio.get_mesh(abcpath, path_list[i], true);
-			console.log(abcmesh);
-			if (abcmesh && abcmesh.hasOwnProperty("vertex")) {
-				console.log(abcmesh);
-				mesh = new ummesh.UMMesh(this.gl, path_list[i], abcmesh.vertex, abcmesh.normal, abcmesh.uv, abcmesh.index);
-				mesh.is_cw = true;
-				console.log(abcmesh.global_transform);
-				material = new ummaterial.UMMaterial(this.gl);
-				if (abcmesh.index.length > 0) {
-					material.set_polygon_count(abcmesh.index.length / 3);
-				} else {
-					material.set_polygon_count(abcmesh.vertex.length / 3 / 3);
-				}
-				mesh.material_list.push(material);
-				this.mesh_list.push(mesh);
-				if (i === path_list.length - 1) {
-					this.add_mesh_to_primitive_list(mesh, true);
-					console.log(this.primitive_list);
-				} else {
-					this.add_mesh_to_primitive_list(mesh, false);
-				}
-			}
-		}
-	};
-
-	UMScene.prototype._update_abc_mesh = function (abcio, abcpath) {
-		var abcinfo,
-			abcmesh,
-			i,
-			n,
-			m,
-			mesh,
-			path_list,
-			material;
-		path_list = abcio.get_mesh_path_list(abcpath);
-
-		for (i = 0; i < path_list.length; i = i + 1) {
-			abcinfo = abcio.get_information(abcpath, path_list[i]);
-			if (abcinfo.has_changed) {
-				abcmesh = abcio.get_mesh(abcpath, path_list[i], true);
-				mesh = this.mesh_list[i];
-				if (abcmesh && abcmesh.hasOwnProperty("vertex")) {
-					mesh.update(abcmesh.vertex, abcmesh.normal, abcmesh.uv, abcmesh.index);
-				}
-			}
-		}
-	};
-
-	UMScene.prototype._load_abc_point = function (abcio, abcpath) {
-		var abcpoint,
-			i,
-			n,
-			m,
-			point,
-			path_list,
-			material;
-		path_list = abcio.get_point_path_list(abcpath);
-		console.log(path_list);
-		for (i = 0; i < path_list.length; i = i + 1) {
-			abcpoint = abcio.get_point(abcpath, path_list[i]);
-			console.log(abcpoint);
-			if (abcpoint && abcpoint.hasOwnProperty("position")) {
-				console.log(abcpoint);
-				point = new umpoint.UMPoint(this.gl, abcpoint.position, abcpoint.normal, abcpoint.color);
-				console.log(abcpoint.global_transform);
-				for (n = 0; n < 4; n = n + 1) {
-					for (m = 0; m < 4; m = m + 1) {
-						point.global_matrix.m[n][m] = abcpoint.global_transform[n * 4 + m];
-					}
-				}
-				material = new ummaterial.UMMaterial(this.gl);
-				material.set_polygon_count(abcpoint.position.length / 3 / 3);
-				point.material_list.push(material);
-				this.point_list.push(point);
-			}
-		}
-	};
-
-	UMScene.prototype._update_abc_point = function (abcio, abcpath) {
-		var abcinfo,
-			abcpoint,
-			i,
-			n,
-			m,
-			point,
-			path_list,
-			material;
-		path_list = abcio.get_point_path_list(abcpath);
-		for (i = 0; i < path_list.length; i = i + 1) {
-			abcinfo = abcio.get_information(abcpath, path_list[i]);
-			if (abcinfo.has_changed) {
-				abcpoint = abcio.get_point(abcpath, path_list[i]);
-				point = this.point_list[i];
-
-				if (abcpoint && abcpoint.hasOwnProperty("position")) {
-					point.update(abcpoint.position, abcpoint.normal, abcpoint.color);
-					for (n = 0; n < 4; n = n + 1) {
-						for (m = 0; m < 4; m = m + 1) {
-							point.global_matrix.m[n][m] = abcpoint.global_transform[n * 4 + m];
-						}
-					}
-				}
-			}
-		}
-	};
-
-	UMScene.prototype._load_abc_camera = function (abcio, abcpath) {
-		var abccamera,
-			i,
-			n,
-			m,
-			camera,
-			viewmat,
-			path_list;
-
-		path_list = abcio.get_camera_path_list(abcpath);
-		console.log("_load_abc_camera", path_list);
-		for (i = 0; i < path_list.length; i = i + 1) {
-			abccamera = abcio.get_camera(abcpath, path_list[i]);
-			console.log("abccamera.global_transform", abccamera.global_transform);
-			viewmat = new ummath.UMMat44d(abccamera.global_transform).inverted();
-			for (n = 0; n < 4; n = n + 1) {
-				for (m = 0; m < 4; m = m + 1) {
-					this.camera.view_matrix_.m[n][m] = viewmat.m[n][m];
-				}
-			}
-			this.camera.position.xyz[0] = abccamera.global_transform[4 * 3 + 0];
-			this.camera.position.xyz[1] = abccamera.global_transform[4 * 3 + 1];
-			this.camera.position.xyz[2] = abccamera.global_transform[4 * 3 + 2];
-			this.camera.update();
-		}
-	};
-
-	UMScene.prototype._update_abc_camera = function (abcio, abcpath) {
-		var abcinfo,
-			abccamera,
-			i,
-			n,
-			m,
-			camera,
-			viewmat,
-			path_list;
-
-		path_list = abcio.get_camera_path_list(abcpath);
-		for (i = 0; i < path_list.length; i = i + 1) {
-			abcinfo = abcio.get_information(abcpath, path_list[i]);
-			if (abcinfo.has_changed) {
-				abccamera = abcio.get_camera(abcpath, path_list[i]);
-				//console.log(abccamera.global_transform);
-				viewmat = new ummath.UMMat44d(abccamera.global_transform).inverted();
-				for (n = 0; n < 4; n = n + 1) {
-					for (m = 0; m < 4; m = m + 1) {
-						this.camera.view_matrix_.m[n][m] = viewmat.m[n][m];
-					}
-				}
-				this.camera.update();
-			}
-		}
-	};
-
 	UMScene.prototype.load_abc = function (abcpath) {
-		var abcio = require('alembic'),
-			update_func;
-
-		try {
-			abcio.load(abcpath);
-		} catch (e) {
-			console.log(e);
-		}
-		this._load_abc_mesh(abcio, abcpath);
-		this._load_abc_curve(abcio, abcpath);
-		this._load_abc_nurbs(abcio, abcpath);
-		this._load_abc_point(abcio, abcpath);
-		this._load_abc_camera(abcio, abcpath);
-		update_func = (function (self) {
-			return function () {
-				abcio.set_time(abcpath, self.current_time);
-				self._update_abc_mesh(abcio, abcpath);
-				self._update_abc_point(abcio, abcpath);
-				//self._update_abc_nurbs(abcio, abcpath);
-				self._update_abc_camera(abcio, abcpath);
-			}
-		}(this));
-		this.update_func_list.push(update_func);
+		var result = this.loader.load_abc(abcpath, this.camera);
+		Array.prototype.push.apply(this.mesh_list, result.buffers.mesh);
+		Array.prototype.push.apply(this.curve_list, result.buffers.curve);
+		Array.prototype.push.apply(this.nurbs_list, result.buffers.nurbs);
+		Array.prototype.push.apply(this.point_list, result.buffers.point);
+		this.update_func_list.push(result.update_func);
 	};
 
 	UMScene.prototype.add_mesh = function () {
