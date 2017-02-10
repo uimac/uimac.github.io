@@ -19,7 +19,9 @@
 		this.is_need_update_deform_ = false;
 		this.vertex_deform_mat = new ummath.UMMat44d();
 		this.normal_deform_mat = new ummath.UMMat44d();
-		
+		this.is_visible_bone = true;
+		this.is_visible_axis = true;
+
 		if (!linemat_x) {
 			linemat_x = new ummaterial.UMMaterial(gl);
 			linemat_x.set_polygon_count(1);
@@ -246,14 +248,22 @@
 		this.mesh.reset_shader_location();
 	};
 
+	UMNode.prototype.set_visible_bone = function (visible) {
+		this.is_visible_bone = visible;
+	}
+
+	UMNode.prototype.set_visible_axis = function (visible) {
+		this.is_visible_axis = visible;
+	}
+
 	UMNode.prototype.draw = function (shader, camera) {
 		if (this.mesh || this.line) {
 			this.gl.disable(this.gl.DEPTH_TEST);
 			//this.gl.disable(this.gl.CULL_FACE);
-			if (this.mesh && this.mesh.verts.length > 0) {
+			if (this.is_visible_bone && this.mesh && this.mesh.verts.length > 0) {
 				this.mesh.draw(shader, camera);
 			}
-			if (this.line) {
+			if (this.is_visible_axis && this.line) {
 				this.line.draw(shader, camera);
 			}
 			//this.gl.enable(this.gl.CULL_FACE);

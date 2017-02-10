@@ -281,6 +281,21 @@
 		}
 	}
 
+	function init_other_tools() {
+		var i,
+			tools = document.getElementsByClassName('visible_tool'),
+			clickfunc = function (evt) {
+				var i;
+				evt.target.classList.toggle("selected");
+				scene.change_visible(evt.target.id, evt.target.classList.contains("selected"));
+				drawonce();
+			};
+
+		for (i = 0; i < tools.length; i = i + 1) {
+			tools[i].onclick = clickfunc;
+		}
+	}
+
 	function start_mainloop() {
 		mainloop_handle = requestAnimationFrame(main_loop);
 	}
@@ -495,6 +510,7 @@
 		init_edit_tool();
 		init_open_tool();
 		init_shader_tools();
+		init_other_tools();
 
 		drawonce();
 	}

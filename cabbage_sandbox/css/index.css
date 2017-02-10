@@ -134,7 +134,7 @@ html, body {
 	background-color : rgba(55, 55, 55, 1.0);
 }
 
-.tool, .shader_tool, .other_tool {
+.tool, .shader_tool, .visible_tool, .other_tool {
 	width : 32px;
 	height : 32px;
 	margin-left : 5px;
@@ -144,12 +144,9 @@ html, body {
 	background-color : rgba(100, 100, 100, 1.0);
 }
 
-.tool:hover {
+.tool:hover, .shader_tool:hover, .other_tool:hover, .visible_tool:hover, #tool_open:hover {
 	background-color : gray;
-}
-
-.other_tool:hover {
-	background-color : gray;
+	cursor: pointer;
 }
 
 .selected {

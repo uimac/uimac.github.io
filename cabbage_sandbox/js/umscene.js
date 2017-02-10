@@ -392,6 +392,19 @@
 		this.current_shader = this.shader_list[shader_number];
 	};
 
+	UMScene.prototype.change_visible = function (id, visible) {
+		var i;
+		if (id === "visible_bone") {
+			for (i = 0; i < this.node_list.length; i = i + 1) {
+				this.node_list[i].set_visible_bone(visible);
+			}
+		} else if (id === "visible_axis") {
+			for (i = 0; i < this.node_list.length; i = i + 1) {
+				this.node_list[i].set_visible_axis(visible);
+			}
+		}
+	};
+
 	UMScene.prototype.resize = function (width, height) {
 		this.width = width;
 		this.height = height;
