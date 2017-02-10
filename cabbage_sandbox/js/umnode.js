@@ -16,6 +16,9 @@
 		this.initial_global_transform = new ummath.UMMat44d();
 		this.parent = null;
 		this.children = [];
+		this.is_need_update_deform_ = false;
+		this.vertex_deform_mat = new ummath.UMMat44d();
+		this.normal_deform_mat = new ummath.UMMat44d();
 		
 		if (!linemat_x) {
 			linemat_x = new ummaterial.UMMaterial(gl);
@@ -204,15 +207,35 @@
 	};
 	
 	UMNode.prototype.update_transform = function () {
+		var pre = JSON.stringify(this.global_transform);
 		var i;
 		if (this.parent) {
 			this.global_transform = this.local_transform.multiply(this.parent.global_transform);
 		} else {
 			this.global_transform = this.local_transform;
 		}
+		this.is_need_update_matrix = (pre !== JSON.stringify(this.global_matrix));
+		if (this.is_need_update_matrix) {
+			var gt = new ummath.UMMat44d(this.global_transform);
+			var igt_inv = this.initial_global_transform.inverted();
+			this.vertex_deform_mat = igt_inv.multiply(gt);
+			this.normal_deform_mat = this.vertex_deform_mat.inverted().transposed();
+		}
 		for (var i = 0; i < this.children.length; i = i + 1) {
 			this.children[i].update_transform();
 		}
+	};
+
+	UMNode.prototype.is_need_update_deform = function () {
+		return this.is_need_update_deform_;
+	};
+
+	UMNode.prototype.vertex_deform_matrix = function () {
+		return this.vertex_deform_mat;
+	};
+
+	UMNode.prototype.normal_deform_matrix = function () {
+		return this.normal_deform_mat;
 	};
 
 	UMNode.prototype.add = function (box) {

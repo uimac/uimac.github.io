@@ -240,7 +240,23 @@
 			k,
 			tmp,
 			dst;
-		if (vecOrMat instanceof UMMat44d) {
+
+		if (vecOrMat instanceof Array) {
+			if (vecOrMat.length === 4) {
+				return [
+					vecOrMat[0] * this.m[0][0] + vecOrMat[1] * this.m[1][0] + vecOrMat[2] * this.m[2][0] + vecOrMat[3] * this.m[3][0],
+					vecOrMat[0] * this.m[0][1] + vecOrMat[1] * this.m[1][1] + vecOrMat[2] * this.m[2][1] + vecOrMat[3] * this.m[3][1],
+					vecOrMat[0] * this.m[0][2] + vecOrMat[1] * this.m[1][2] + vecOrMat[2] * this.m[2][2] + vecOrMat[3] * this.m[3][2],
+					vecOrMat[0] * this.m[0][3] + vecOrMat[1] * this.m[1][3] + vecOrMat[2] * this.m[2][3] + vecOrMat[3] * this.m[3][3]
+				];
+			} else {
+				return [
+					vecOrMat[0] * this.m[0][0] + vecOrMat[1] * this.m[1][0] + vecOrMat[2] * this.m[2][0],
+					vecOrMat[0] * this.m[0][1] + vecOrMat[1] * this.m[1][1] + vecOrMat[2] * this.m[2][1],
+					vecOrMat[0] * this.m[0][2] + vecOrMat[1] * this.m[1][2] + vecOrMat[2] * this.m[2][2]
+				];
+			}
+		} else if (vecOrMat instanceof UMMat44d) {
 			dst = new UMMat44d();
 			for (i = 0; i < 4; i = i + 1) {
 				for (j = 0; j < 4; j = j + 1) {
@@ -699,6 +715,58 @@
 		src.m[3][0] = src.m[3][1] = src.m[3][2] = 0;
 	}
 
+
+	function cross(va, vb) {
+		return [
+			va[1] * vb[2] - va[2] * vb[1],
+			va[2] * vb[0] - va[0] * vb[2],
+			va[0] * vb[1] - va[1] * vb[0]
+		];
+	}
+
+	function sub(va, vb) {
+		return [
+			va[0] - vb[0],
+			va[1] - vb[1],
+			va[2] - vb[2]
+		];
+	}
+
+	function add(va, vb) {
+		return [
+			va[0] + vb[0],
+			va[1] + vb[1],
+			va[2] + vb[2]
+		];
+	}
+
+	function scale(va, b) {
+		return [
+			va[0] * b,
+			va[1] * b,
+			va[2] * b
+		];
+	}
+
+	function dot(va, vb) {
+		return va[0] * vb[0] + va[1] * vb[1] + va[2] * vb[2];
+	}
+
+	function normalize(v) {
+		var dst = [v[0], v[1], v[2]],
+			a = v[0] * v[0] + v[1] * v[1] + v[2] * v[2],
+			b;
+		if (a > window.ummath.EPSILON) {
+			b = 1.0 / Math.sqrt(a);
+			dst[0] = v[0] * b;
+			dst[1] = v[1] * b;
+			dst[2] = v[2] * b;
+		} else {
+			dst[0] = dst[1] = dst[2] = 0;
+		}
+		return dst;
+	}
+
 	window.ummath = {};
 	window.ummath.UMMat44d = UMMat44d;
 	window.ummath.UMVec3d = UMVec3d;
@@ -717,5 +785,13 @@
 	window.ummath.um_fract = um_fract;
 	window.ummath.um_matrix_remove_scale = um_matrix_remove_scale;
 	window.ummath.um_matrix_remove_trans = um_matrix_remove_trans;
+	window.ummath.um_array_func = {
+		corss : cross,
+		sub : sub,
+		add : add,
+		scale : scale,
+		dot : dot,
+		normalize : normalize
+	};
 	window.ummath.EPSILON = EPSILON;
 }());

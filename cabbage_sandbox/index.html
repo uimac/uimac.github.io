@@ -6,6 +6,7 @@
 	<link href="css/index.css" rel="stylesheet" />
 	<script src="https://rawgit.com/kawanet/msgpack-lite/master/dist/msgpack.min.js"></script>
 
+	<script type="text/javascript" src="js/3rd/stats/stats.min.js"></script>
 	<script type="text/javascript" src="js/ummath.js"></script>
 	<script type="text/javascript" src="js/umcamera.js"></script>
 	<script type="text/javascript" src="js/ummaterial.js"></script>
@@ -57,7 +58,7 @@
 	{
 		vec4 global_pos = global_matrix * vec4(a_position, 1.0);
 		vec4 pos = view_projection_matrix * global_pos;
-		vec4 n = global_matrix * vec4(a_normal, 0.0);
+		vec4 n = global_matrix * vec4(normalize(a_normal), 0.0);
 		normal = vec3(n.x, n.y, n.z);
 		if (mat_flags.x > 0.5)
 		{
@@ -208,7 +209,7 @@
 	{
 		vec4 global_pos = global_matrix * vec4(a_position, 1.0);
 		vec4 pos = view_projection_matrix * global_pos;
-		vec4 n = global_matrix * vec4(a_normal, 0.0);
+		vec4 n = global_matrix * vec4(normalize(a_normal), 0.0);
 		normal = vec3(n.x, n.y, n.z);
 		uv = a_uv;
 		barycentric = a_barycentric;

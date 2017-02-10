@@ -453,38 +453,26 @@
 			var maxrot = 2
 			var currot = 0;
 			var unit = 1;
-			this.update_func_list.push((function (arm, roots, result) {
+			this.update_func_list.push((function (self, arm, roots, result) {
 					return function () {
 						var mesh;
+						var node;
 						var vtof;
-						if (arm) {
-							currot += unit;
-							if (Math.abs(currot) > maxrot) {
-								unit = -unit;
-							}
-							var rad = ummath.um_to_radian(10 * unit);
-							var rot = new ummath.UMMat44d([
-								Math.cos(rad), -Math.sin(rad), 0, 0,
-								Math.sin(rad), Math.cos(rad), 0,             0,
-								0, 0, 1, 0,
-								0, 0, 0,             1
-							])
-							var mat = arm.local_transform ;
-							var trans = new ummath.UMVec3d(mat.m[3][0], mat.m[3][1], mat.m[3][2])
-							ummath.um_matrix_remove_trans(mat);
-							mat = mat.multiply(rot);
-							mat.m[3][0] = trans.xyz[0];
-							mat.m[3][1] = trans.xyz[1];
-							mat.m[3][2] = trans.xyz[2];
-							arm.local_transform = mat;
-						}
 						var i, k, n, m;
 						for (i = 0; i < roots.length; i = i + 1) {
 							roots[i].update_transform();
 						}
+						self.node_primitive_list = [];
 						for (i = 0; i < result.node_list.length; i = i + 1) {
-							result.node_list[i].update();
+							node = result.node_list[i];
+							node.update();
+							Array.prototype.push.apply(self.node_primitive_list, node.mesh.create_primitive_list());
 						}
+						console.time('bvh build');
+						self.bvh.build(self.node_primitive_list);
+						console.timeEnd('bvh build');
+						
+						console.time('aaa');
 						for (i = 0; i < result.mesh_list.length; i = i + 1) {
 							mesh = result.mesh_list[i]
 							for (k = 0; k < mesh.deform_verts.length; ++k) {
@@ -503,28 +491,24 @@
 								}
 							}
 						}
+						console.timeEnd('aaa');
+						console.time('bbb');
 						for (i = 0; i < result.cluster_list.length; i = i + 1) {
 							result.cluster_list[i].update_geometry();
 						}
+						console.timeEnd('bbb');
+						console.time('ccc');
 						for (i = 0; i < result.mesh_list.length; i = i + 1) {
 							mesh = result.mesh_list[i];
-							for (k = 0; k < mesh.deform_normals.length / 3; ++k) {
-								n = new ummath.UMVec3d(
-									mesh.deform_normals[k * 3 + 0],
-									mesh.deform_normals[k * 3 + 1],
-									mesh.deform_normals[k * 3 + 2]).normalized();
-								mesh.deform_normals[k * 3 + 0] = n.xyz[0];
-								mesh.deform_normals[k * 3 + 1] = n.xyz[1];
-								mesh.deform_normals[k * 3 + 2] = n.xyz[2];
-							}
 							mesh.update(
 								result.mesh_list[i].deform_verts, 
 								result.mesh_list[i].deform_normals, 
 								null, 
 								result.mesh_list[i].indices);
 						}
+						console.timeEnd('ccc');
 					};
-				}(arm, root_nodes, result)));
+				}(this, arm, root_nodes, result)));
 
 			endCallback();
 		}.bind(this));

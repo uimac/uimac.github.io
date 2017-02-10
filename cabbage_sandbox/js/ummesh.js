@@ -288,11 +288,15 @@
 	};
 
 	UMMesh.prototype.get_vert = function (faceindex, i) {
-		return [
-			this.verts[(faceindex * 3 + i) * 3 + 0],
-			this.verts[(faceindex * 3 + i) * 3 + 1],
-			this.verts[(faceindex * 3 + i) * 3 + 2]
-		];
+		if (this.global_matrix) {
+			return this.global_matrix.multiply([
+					this.verts[(faceindex * 3 + i) * 3 + 0],
+					this.verts[(faceindex * 3 + i) * 3 + 1],
+					this.verts[(faceindex * 3 + i) * 3 + 2],
+					1.0
+			]);
+		}
+		return 
 	};
 
 	UMMesh.prototype.get_normal = function (faceindex, i) {
@@ -476,7 +480,6 @@
 				primitive_list[i] = tri;
 			}
 			*/
-			console.log(this)
 			polycount = this.verts.length / 3 / 3;
 			for (i = 0; i < polycount; i = i + 1) {
 				tri = new umtriangle.UMTriangle(this, i);

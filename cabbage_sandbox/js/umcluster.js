@@ -40,34 +40,26 @@
 		if (!this.link_node) { return; }
 		if (this.weights.length === 0) { return; }
 		if (this.indices.length === 0) { return; }
+		///if (!this.link_node.is_need_update_deform()) { return; }
 		
 		var geo = this.link_geometry;
 
-		var gt = new ummath.UMMat44d(this.link_node.global_transform);
-
-		var igt = new ummath.UMMat44d(this.link_node.initial_global_transform);
-		var igt_inv = igt.inverted();
-
-		var deform_mat = igt_inv.multiply(gt);
-
-		ummath.um_matrix_remove_trans(gt);
-		ummath.um_matrix_remove_trans(igt_inv);
-		var normal_deform_mat = igt_inv.multiply(gt);
+		var vertex_deform_mat = this.link_node.vertex_deform_matrix();
+		var normal_deform_mat = this.link_node.normal_deform_matrix();
 
 		for (i = 0; i < this.indices.length; i = i + 1) {
 			index = this.indices[i];
 			weight = this.weights[i];
-			original_vertex = new ummath.UMVec4d(
+			vertex = vertex_deform_mat.multiply([
 				geo.original_verts[index * 3 + 0],
 				geo.original_verts[index * 3 + 1],
 				geo.original_verts[index * 3 + 2],
 				1.0
-			);
-			vertex = deform_mat.multiply(original_vertex);
+			]);
 
-			geo.deform_verts[index * 3 + 0] += vertex.xyzw[0] * weight
-			geo.deform_verts[index * 3 + 1] += vertex.xyzw[1] * weight
-			geo.deform_verts[index * 3 + 2] += vertex.xyzw[2] * weight
+			geo.deform_verts[index * 3 + 0] += vertex[0] * weight
+			geo.deform_verts[index * 3 + 1] += vertex[1] * weight
+			geo.deform_verts[index * 3 + 2] += vertex[2] * weight
 //console.log(this.link_node.name, index, weight, vertex.scale(weight).xyz, gt.m)
 
 			if (geo.original_normals.length > geo.original_verts.length) {
@@ -75,26 +67,24 @@
 				if (!filist) continue;
 				for (k = 0; k < filist.length; k = k + 1) {
 					var fi = filist[k];
-					original_normal = new ummath.UMVec3d(
-						geo.original_normals[fi * 3 + 0],
-						geo.original_normals[fi * 3 + 1],
-						geo.original_normals[fi * 3 + 2]
-					);
-					normal = normal_deform_mat.multiply(original_normal);
-					geo.deform_normals[fi * 3 + 0] += normal.xyz[0] * weight;
-					geo.deform_normals[fi * 3 + 1] += normal.xyz[1] * weight;
-					geo.deform_normals[fi * 3 + 2] += normal.xyz[2] * weight;
+					normal = normal_deform_mat.multiply([
+							geo.original_normals[fi * 3 + 0],
+							geo.original_normals[fi * 3 + 1],
+							geo.original_normals[fi * 3 + 2]
+						]);
+					geo.deform_normals[fi * 3 + 0] += normal[0] * weight;
+					geo.deform_normals[fi * 3 + 1] += normal[1] * weight;
+					geo.deform_normals[fi * 3 + 2] += normal[2] * weight;
 				}
 			} else {
-				var original_normal = new ummath.UMVec3d(
+				normal = normal_deform_mat.multiply([
 					geo.original_normals[index * 3 + 0],
 					geo.original_normals[index * 3 + 1],
 					geo.original_normals[index * 3 + 2]
-				);
-				normal = normal_deform_mat.multiply(original_normal);
-				geo.deform_normals[index * 3 + 0] += normal.xyz[0] * weight;
-				geo.deform_normals[index * 3 + 1] += normal.xyz[1] * weight;
-				geo.deform_normals[index * 3 + 2] += normal.xyz[2] * weight;
+				]);
+				geo.deform_normals[index * 3 + 0] += normal[0] * weight;
+				geo.deform_normals[index * 3 + 1] += normal[1] * weight;
+				geo.deform_normals[index * 3 + 2] += normal[2] * weight;
 			}
 		}
 
