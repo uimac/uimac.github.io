@@ -17,7 +17,8 @@
 		this.deform_verts = [];
 		this.deform_normals = [];
 		this.indices = [];
-		this.weights = [];
+		this.bone_indices = [];
+		this.bone_weights = [];
 		this.id = "";
 
 		if (id) {
@@ -26,6 +27,9 @@
 		this.uv_vbo = null;
 		this._create_uv_vbo(indices, verts, uvs);
 
+		this.bone_texture = null;
+		this.bone_indices_vbo = null;
+		this.bone_weights_vbo = null;
 		this.barycentric_vbo = null;
 
 		this.box = new ummath.UMBox();
@@ -57,6 +61,8 @@
 
 		if (indices && indices.length > 0) {
 			this.indices = indices;
+			this.bone_indices_vbo = this.gl.createBuffer();
+			this.bone_weights_vbo = this.gl.createBuffer();
 		}
 
 		if (verts) {
@@ -172,6 +178,8 @@
 			uv_attr,
 			barycentric_attr,
 			barycentric,
+			bone_indices_attr,
+			bone_weights_attr,
 			i;
 
 		if (!gl) { return; }
@@ -188,6 +196,23 @@
 			normal_attr = gl.getAttribLocation(shader.program_object(), 'a_normal');
 			gl.enableVertexAttribArray(normal_attr);
 			gl.vertexAttribPointer(normal_attr, 3, gl.FLOAT, false, 0, 0);
+		}
+
+		if (this.bone_indices_vbo) {
+			bone_indices_attr = gl.getAttribLocation(shader.program_object(), 'bone_indices');
+			if (bone_indices_attr >= 0) {
+				gl.bindBuffer(gl.ARRAY_BUFFER, this.bone_indices_vbo);
+				gl.enableVertexAttribArray(bone_indices_attr);
+				gl.vertexAttribPointer(bone_indices_attr, 4, gl.FLOAT, false, 0, 0);
+			}
+		}
+		if (this.bone_weights_vbo) {
+			bone_weights_attr = gl.getAttribLocation(shader.program_object(), 'bone_weights');
+			if (bone_weights_attr >= 0) {
+				gl.bindBuffer(gl.ARRAY_BUFFER, this.bone_weights_vbo);
+				gl.enableVertexAttribArray(bone_weights_attr);
+				gl.vertexAttribPointer(bone_weights_attr, 4, gl.FLOAT, false, 0, 0);
+			}
 		}
 
 		if (this.barycentric_vbo) {
@@ -236,6 +261,15 @@
 			}
 			gl.uniformMatrix4fv(this.global_matrix_location_, false, this.global_matrix.value());
 
+			if (this.bone_texture) {
+				if (!this.bone_texture_location_) {
+					this.bone_texture_location_ = gl.getUniformLocation(shader.program_object(), "bone_texture");
+				}
+				gl.activeTexture(gl.TEXTURE1);
+				gl.bindTexture(gl.TEXTURE_2D, this.bone_texture);
+				gl.uniform1i(this.bone_texture_location_, 1);
+			}
+
 			gl.bindBuffer(gl.ARRAY_BUFFER, this.vertex_vbo);
 
 			if (this.normal_vbo) {
@@ -246,6 +280,12 @@
 			}
 			if (this.barycentric_vbo) {
 				gl.bindBuffer(gl.ARRAY_BUFFER, this.barycentric_vbo);
+			}
+			if (this.bone_indices_vbo) {
+				gl.bindBuffer(gl.ARRAY_BUFFER, this.bone_indices_vbo);
+			}
+			if (this.bone_weights_vbo) {
+				gl.bindBuffer(gl.ARRAY_BUFFER, this.bone_weights_vbo);
 			}
 		}
 
@@ -285,6 +325,57 @@
 				this.box.extend([this.verts[i * 3 + 0], this.verts[i * 3 + 1], this.verts[i * 3 + 2]]);
 			}
 		}
+	};
+
+	UMMesh.prototype.update_bone_data = function (cluster) {
+		var i, k,
+			index,
+			weight;
+
+		if (cluster.link_geometry !== this) { return; }
+		
+		if (this.bone_indices.length === 0) {
+			this.bone_indices.length = this.indices.length * 4;
+			this.bone_weights.length = this.indices.length * 4;
+			for (i = 0; i < this.indices.length * 4; ++i) {
+				this.bone_indices[i] = 0;	
+				this.bone_weights[i] = 0;	
+			}
+		}
+
+		for (i = 0; i < cluster.indices.length; i = i + 1) {
+			index = cluster.indices[i];
+			weight = cluster.weights[i];
+			var filist = this.vertex_index_to_face_index_map[index];
+			if (!filist) continue;
+			for (k = 0; k < filist.length; k = k + 1) {
+				var fi = filist[k];
+				if (!this.bone_indices[fi * 4 + 0]) {
+					this.bone_indices[fi * 4 + 0] = cluster.link_node.number + 1;
+					this.bone_weights[fi * 4 + 0] = weight;
+				} else if (!this.bone_indices[fi * 4 + 1]) {
+					this.bone_indices[fi * 4 + 1] = cluster.link_node.number + 1;
+					this.bone_weights[fi * 4 + 1] = weight;
+				} else if (!this.bone_indices[fi * 4 + 2]) {
+					this.bone_indices[fi * 4 + 2] = cluster.link_node.number + 1;
+					this.bone_weights[fi * 4 + 2] = weight;
+				} else if (!this.bone_indices[fi * 4 + 3]) {
+					this.bone_indices[fi * 4 + 3] = cluster.link_node.number + 1;
+					this.bone_weights[fi * 4 + 3] = weight;
+				}
+			}
+		}
+	};
+
+	UMMesh.prototype.update_bone_data_gpu = function () {
+		var gl = this.gl;
+		gl.bindBuffer(gl.ARRAY_BUFFER, this.bone_indices_vbo);
+		gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(this.bone_indices), gl.STATIC_DRAW);
+		gl.bindBuffer(gl.ARRAY_BUFFER, null);
+
+		gl.bindBuffer(gl.ARRAY_BUFFER, this.bone_weights_vbo);
+		gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(this.bone_weights), gl.STATIC_DRAW);
+		gl.bindBuffer(gl.ARRAY_BUFFER, null);
 	};
 
 	UMMesh.prototype.get_vert = function (faceindex, i) {

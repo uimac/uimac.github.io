@@ -24,6 +24,24 @@
 		};
 	}
 
+	function create_bone_texture(gl, width, height, data) {
+		var texture = gl.createTexture(gl.TEXTURE_2D);
+		gl.activeTexture(gl.TEXTURE1);
+		gl.bindTexture(gl.TEXTURE_2D, texture);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+		gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0,  gl.RGBA, gl.FLOAT, data);
+		gl.bindTexture(gl.TEXTURE_2D, null);
+		return texture;
+	}
+
+	function update_bone_texture(gl, width, height, texture, data) {
+		gl.activeTexture(gl.TEXTURE1);
+		gl.bindTexture(gl.TEXTURE_2D, texture);
+		gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.FLOAT, data);
+		gl.bindTexture(gl.TEXTURE_2D, null);
+	}
+
 	UMScene = function (gl) {
 		this.gl = gl;
 		this.camera = null;
@@ -359,7 +377,7 @@
 			shader;
 		this.camera = new umcamera.UMCamera(gl, this.width, this.height);
 		initial_shader = new umshader.UMShader(gl);
-		initial_shader.create_shader_from_id('vertex_shader', 'fragment_shader');
+		initial_shader.create_shader_from_id('vertex_shader_vtf', 'fragment_shader');
 		this.shader_list.push(initial_shader);
 		this.current_shader = initial_shader;
 
@@ -471,45 +489,63 @@
 			Array.prototype.push.apply(model.mesh_list, result.mesh_list);
 			Array.prototype.push.apply(model.node_list, result.node_list);
 			Array.prototype.push.apply(model.cluster_list, result.cluster_list);
+			var bone_data = new Float32Array(4*64*64);
+			model.bone_texture = create_bone_texture(this.gl, 64, 64, bone_data);
 			this.model_list.push(model);
 
 			var root_nodes = [];
 			var node;
 			for (var i = 0; i < model.node_list.length; i = i + 1) {
 				node = model.node_list[i];
+				node.number = i;
 				if (!node.parent) {
 					root_nodes.push(node);
 				}
 				this.node_map[node.name] = node;
 			}
 			
-			this.update_func_list.push((function (self, roots, result) {
+			this.update_func_list.push((function (self, roots, model, bone_data) {
 					return function () {
 						var mesh;
 						var node;
 						var vtof;
+						var cluster;
 						var i, k, n, m;
 
 						for (i = 0; i < roots.length; i = i + 1) {
 							roots[i].update_transform();
 						}
 						self.node_primitive_list = [];
-						for (i = 0; i < result.node_list.length; i = i + 1) {
-							node = result.node_list[i];
+						for (i = 0; i < model.node_list.length; i = i + 1) {
+							node = model.node_list[i];
+							var vertex_deform_mat = node.vertex_deform_matrix();
+							// bone_texture用データを更新
+							for (k = 0; k < 4; ++k) {
+								bone_data[i * 12 + k] = vertex_deform_mat.m[k][0];
+								bone_data[i * 12 + 4 + k] = vertex_deform_mat.m[k][1];
+								bone_data[i * 12 + 8 + k] = vertex_deform_mat.m[k][2];
+							}
+							// nodeの見た目を更新
 							node.update();
+							// bvh用primitiveデータを作成
 							Array.prototype.push.apply(self.node_primitive_list, node.mesh.create_primitive_list());
 						}
+						// bone_textureを更新
+						update_bone_texture(self.gl, 64, 64, model.bone_texture, bone_data);
+
 						console.time('bvh build');
 						self.bvh.build(self.node_primitive_list);
 						console.timeEnd('bvh build');
 						
 						console.time('aaa');
-						for (i = 0; i < result.mesh_list.length; i = i + 1) {
-							mesh = result.mesh_list[i]
+						for (i = 0; i < model.mesh_list.length; i = i + 1) {
+							mesh = model.mesh_list[i];
+							/*
 							for (k = 0; k < mesh.deform_verts.length; ++k) {
 								mesh.deform_verts[k] = 0;
 								mesh.deform_normals[k] = 0;
 							}
+							*/
 							if (!mesh.vertex_index_to_face_index_map) {
 								mesh.vertex_index_to_face_index_map = {};
 								for (k = 0; k < mesh.indices.length; k = k + 1) {
@@ -522,24 +558,35 @@
 								}
 							}
 						}
+						for (i = 0; i < model.cluster_list.length; i = i + 1) {
+							cluster = model.cluster_list[i];
+							cluster.link_geometry.update_bone_data(cluster);
+							cluster.link_geometry.bone_texture = model.bone_texture;
+						}
+						for (i = 0; i < model.mesh_list.length; i = i + 1) {
+							mesh = model.mesh_list[i];
+							mesh.update_bone_data_gpu();
+						}
 						console.timeEnd('aaa');
+						/*
 						console.time('bbb');
-						for (i = 0; i < result.cluster_list.length; i = i + 1) {
-							result.cluster_list[i].update_geometry();
+						for (i = 0; i < model.cluster_list.length; i = i + 1) {
+							model.cluster_list[i].update_geometry();
 						}
 						console.timeEnd('bbb');
 						console.time('ccc');
-						for (i = 0; i < result.mesh_list.length; i = i + 1) {
-							mesh = result.mesh_list[i];
+						for (i = 0; i < model.mesh_list.length; i = i + 1) {
+							mesh = model.mesh_list[i];
 							mesh.update(
-								result.mesh_list[i].deform_verts, 
-								result.mesh_list[i].deform_normals, 
+								model.mesh_list[i].deform_verts, 
+								model.mesh_list[i].deform_normals, 
 								null, 
-								result.mesh_list[i].indices);
+								model.mesh_list[i].indices);
 						}
 						console.timeEnd('ccc');
+						*/
 					};
-				}(this, root_nodes, result)));
+				}(this, root_nodes, model, bone_data)));
 
 			endCallback();
 		}.bind(this));

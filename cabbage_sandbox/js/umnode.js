@@ -21,6 +21,8 @@
 		this.normal_deform_mat = new ummath.UMMat44d();
 		this.is_visible_bone = true;
 		this.is_visible_axis = true;
+		this.id = "";
+		this.number = 0;
 
 		if (!linemat_x) {
 			linemat_x = new ummaterial.UMMaterial(gl);
