@@ -11,21 +11,26 @@
 	    performance.oNow ||
 	    performance.webkitNow );
 
+	function create_model_buffer() {
+		return {
+			mesh_list : [],
+			line_list : [],
+			curve_list : [],
+			point_list : [],
+			nurbs_list : [],
+			node_list : [],
+			cluster_list : []
+		};
+	}
+
 	UMScene = function (gl) {
 		this.gl = gl;
 		this.camera = null;
 		this.shader_list = [];
 		this.shader = null;
 		this.grid = null;
-		this.test_mesh = null;
-		this.mesh_list = [];
-		this.line_list = [];
-		this.curve_list = [];
-		this.point_list = [];
-		this.nurbs_list = [];
+		this.model_list = [];
 		this.box_list = [];
-		this.node_list = [];
-		this.cluster_list = [];
 		this.update_func_list = [];
 		this.primitive_list = [];
 		this.wedge_list = [];
@@ -304,26 +309,38 @@
 
 	UMScene.prototype.draw = function () {
 		var i,
+			k,
+			buffer,
 			gl = this.gl;
 
-		if (this.test_mesh) {
-			this.test_mesh.draw(this.current_shader, this.camera);
-		}
-		for (i = 0; i < this.mesh_list.length; i = i + 1) {
-			this.set_front_face(this.mesh_list[i].is_cw);
-			if (this.mesh_list[i].material_list.length > 0 && 
-				this.mesh_list[i].material_list[0].diffuse_texture) 
-			{
-				this.mesh_list[i].draw(this.shader_list[0], this.camera);
-			} else {
-				this.mesh_list[i].draw(this.shader_list[4], this.camera);
+		for (k = 0; k < this.model_list.length; k = k + 1) {
+			buffer = this.model_list[k];
+			for (i = 0; i < buffer.mesh_list.length; i = i + 1) {
+				this.set_front_face(buffer.mesh_list[i].is_cw);
+				if (buffer.mesh_list[i].material_list.length > 0 && 
+					buffer.mesh_list[i].material_list[0].diffuse_texture) 
+				{
+					buffer.mesh_list[i].draw(this.shader_list[0], this.camera);
+				} else {
+					buffer.mesh_list[i].draw(this.shader_list[4], this.camera);
+				}
 			}
-		}
-		for (i = 0; i < this.line_list.length; i = i + 1) {
-			this.line_list[i].draw(this.shader_list[3], this.camera);
-		}
-		for (i = 0; i < this.point_list.length; i = i + 1) {
-			this.point_list[i].draw(this.shader_list[3], this.camera);
+			for (i = 0; i < buffer.line_list.length; i = i + 1) {
+				buffer.line_list[i].draw(this.shader_list[3], this.camera);
+			}
+			for (i = 0; i < buffer.point_list.length; i = i + 1) {
+				buffer.point_list[i].draw(this.shader_list[3], this.camera);
+			}
+			for (i = 0; i < buffer.nurbs_list.length; i = i + 1) {
+				buffer.set_front_face(true);
+				buffer.nurbs_list[i].draw(this.shader_list[2], this.camera);
+			}
+			for (i = 0; i < buffer.node_list.length; i = i + 1) {
+				buffer.node_list[i].draw(this.shader_list[0], this.camera);
+			}
+			for (i = 0; i < buffer.cluster_list.length; i = i + 1) {
+				buffer.cluster_list[i].draw(this.shader_list[0], this.camera);
+			}
 		}
 		for (i = 0; i < this.box_list.length; i = i + 1) {
 			if (this.box_list[i].isLine) {
@@ -331,16 +348,6 @@
 			} else {
 				this.box_list[i].draw(this.current_shader, this.camera);
 			}
-		}
-		for (i = 0; i < this.node_list.length; i = i + 1) {
-			this.node_list[i].draw(this.shader_list[0], this.camera);
-		}
-		for (i = 0; i < this.cluster_list.length; i = i + 1) {
-			this.cluster_list[i].draw(this.shader_list[0], this.camera);
-		}
-		for (i = 0; i < this.nurbs_list.length; i = i + 1) {
-			this.set_front_face(true);
-			this.nurbs_list[i].draw(this.shader_list[2], this.camera);
 		}
 		this.grid.draw(this.shader_list[3], this.camera);
 	};
@@ -378,29 +385,43 @@
 	};
 
 	UMScene.prototype.change_shader = function (shader_number) {
-		var i;
-		for (i = 0; i < this.mesh_list.length; i = i + 1) {
-			this.mesh_list[i].reset_shader_location();
+		var i,
+			k,
+			buffer;
+
+		for (k = 0; k < this.model_list.length; k = k + 1) {
+			buffer = this.model_list[k];
+			for (i = 0; i < buffer.mesh_list.length; i = i + 1) {
+				buffer.mesh_list[i].reset_shader_location();
+			}
+			for (i = 0; i < buffer.node_list.length; i = i + 1) {
+				buffer.node_list[i].reset_shader_location();
+			}
 		}
 		for (i = 0; i < this.box_list.length; i = i + 1) {
 			this.box_list[i].reset_shader_location();
-		}
-		for (i = 0; i < this.node_list.length; i = i + 1) {
-			this.node_list[i].reset_shader_location();
 		}
 		this.camera.reset_shader_location();
 		this.current_shader = this.shader_list[shader_number];
 	};
 
 	UMScene.prototype.change_visible = function (id, visible) {
-		var i;
+		var i,
+			k,
+			buffer;
 		if (id === "visible_bone") {
-			for (i = 0; i < this.node_list.length; i = i + 1) {
-				this.node_list[i].set_visible_bone(visible);
+			for (k = 0; k < this.model_list.length; k = k + 1) {
+				buffer = this.model_list[k];
+				for (i = 0; i < buffer.node_list.length; i = i + 1) {
+					buffer.node_list[i].set_visible_bone(visible);
+				}
 			}
 		} else if (id === "visible_axis") {
-			for (i = 0; i < this.node_list.length; i = i + 1) {
-				this.node_list[i].set_visible_axis(visible);
+			for (k = 0; k < this.model_list.length; k = k + 1) {
+				buffer = this.model_list[k];
+				for (i = 0; i < buffer.node_list.length; i = i + 1) {
+					buffer.node_list[i].set_visible_axis(visible);
+				}
 			}
 		}
 	};
@@ -433,31 +454,29 @@
 
 	UMScene.prototype.load_obj = function (name, obj_text) {
 		this.loader.load_obj(name, obj_text, function (result) {
-			Array.prototype.push.apply(this.mesh_list, result.mesh_list);
+			var model = create_model_buffer();
+			Array.prototype.push.apply(model.mesh_list, result.mesh_list);
 			var i;
 			for (i = 0; i < result.mesh_list.length; i = i + 1) {
 				this.add_mesh_to_primitive_list(result.mesh_list[i], true);
 			}
+			this.model_list.push(model);
 		}.bind(this));
 	};
 
 	UMScene.prototype.load_bos = function (name, arrayBuf, texture_files, endCallback) {
 		this.loader.load_bos(name, arrayBuf, texture_files, function (result) {
-			Array.prototype.push.apply(this.mesh_list, result.mesh_list);
-			Array.prototype.push.apply(this.node_list, result.node_list);
-			Array.prototype.push.apply(this.cluster_list, result.cluster_list);
+			var model = create_model_buffer();
+			Array.prototype.push.apply(model.mesh_list, result.mesh_list);
+			Array.prototype.push.apply(model.node_list, result.node_list);
+			Array.prototype.push.apply(model.cluster_list, result.cluster_list);
+			this.model_list.push(model);
 
 			var root_nodes = [];
 			var arm = null;
 			var node;
-			for (var i = 0; i < result.node_list.length; i = i + 1) {
-				node = result.node_list[i];
-				/*
-				if (node.name === "neck" || node.name === "spine1_bb_" || node.name === "Bone.001") {
-			//		if (result.node_list[i].name === "Bone.001") {
-					arm = node;
-				}
-				*/
+			for (var i = 0; i < model.node_list.length; i = i + 1) {
+				node = model.node_list[i];
 				if (!node.parent) {
 					root_nodes.push(node);
 				}
@@ -539,30 +558,38 @@
 	};
 
 	UMScene.prototype.load_mtlx = function (mtlxpath, text, endCallback) {
-		this.loader.load_mtlx(this.mesh_list, mtlxpath, text, endCallback);
+		for (k = this.model_list.length - 1; k >= 0; k = k - 1) {
+			buffer = this.model_list[k];
+			this.loader.load_mtlx(buffer.mesh_list, mtlxpath, text, endCallback);
+		}
 	};
 
 	UMScene.prototype.load_mtl = function (mtlname, text, texture_files, endCallback) {
-		this.loader.load_mtl(this.mesh_list, mtlname, text, texture_files, endCallback);
+		for (k = this.model_list.length - 1; k >= 0; k = k - 1) {
+			this.loader.load_mtl(buffer.mesh_list, mtlname, text, texture_files, endCallback);
+		}
 	};
 
 	UMScene.prototype.load_abc = function (abcpath) {
 		var result = this.loader.load_abc(abcpath, this.camera);
-		Array.prototype.push.apply(this.mesh_list, result.buffers.mesh);
-		Array.prototype.push.apply(this.curve_list, result.buffers.curve);
-		Array.prototype.push.apply(this.nurbs_list, result.buffers.nurbs);
-		Array.prototype.push.apply(this.point_list, result.buffers.point);
+		var model = create_model_buffer();
+		Array.prototype.push.apply(model.mesh_list, result.buffers.mesh);
+		Array.prototype.push.apply(model.curve_list, result.buffers.curve);
+		Array.prototype.push.apply(model.nurbs_list, result.buffers.nurbs);
+		Array.prototype.push.apply(model.point_list, result.buffers.point);
+		this.model_list.push(model);
 		this.update_func_list.push(result.update_func);
 	};
 
-	UMScene.prototype.add_mesh = function () {
+	UMScene.prototype.add_mesh = function (index) {
 		var mesh = new ummesh.UMMesh(this.gl, null, null, null, null),
 			meshmat;
-
+		
+		var model = this.model_list[index];
 		meshmat = new ummaterial.UMMaterial(this.gl);
 		meshmat.set_polygon_count(0);
 		mesh.material_list.push(meshmat);
-		this.mesh_list.push(mesh);
+		model.mesh_list.push(mesh);
 		return mesh;
 	};
 
@@ -597,35 +624,38 @@
 	};
 
 	UMScene.prototype.dispose = function () {
-		var i = 0;
+		var i = 0,
+			k,
+			buffer;
 		this.primitive_list = [];
 		this.wedge_list = [];
-		for (i = 0; i < this.mesh_list.length; i = i + 1) {
-			this.mesh_list[i].dispose();
-		}
-		for (i = 0; i < this.line_list.length; i = i + 1) {
-			this.line_list[i].dispose();
-		}
-		for (i = 0; i < this.point_list.length; i = i + 1) {
-			this.point_list[i].dispose();
+
+		for (k = 0; k < this.model_list.length; k = k + 1) {
+			buffer = this.model_list[k];
+			for (i = 0; i < buffer.mesh_list.length; i = i + 1) {
+				buffer.mesh_list[i].dispose();
+			}
+			for (i = 0; i < buffer.line_list.length; i = i + 1) {
+				buffer.line_list[i].dispose();
+			}
+			for (i = 0; i < buffer.point_list.length; i = i + 1) {
+				buffer.point_list[i].dispose();
+			}
+			for (i = 0; i < buffer.nurbs_list.length; i = i + 1) {
+				buffer.nurbs_list[i].dispose();
+			}
+			for (i = 0; i < buffer.node_list.length; i = i + 1) {
+				buffer.node_list[i].dispose();
+			}
+			for (i = 0; i < buffer.cluster_list.length; i = i + 1) {
+				buffer.cluster_list[i].dispose();
+			}
 		}
 		for (i = 0; i < this.box_list.length; i = i + 1) {
 			this.box_list[i].dispose();
 		}
-		for (i = 0; i < this.node_list.length; i = i + 1) {
-			this.node_list[i].dispose();
-		}
-		for (i = 0; i < this.cluster_list.length; i = i + 1) {
-			this.cluster_list[i].dispose();
-		}
-		for (i = 0; i < this.nurbs_list.length; i = i + 1) {
-			this.nurbs_list[i].dispose();
-		}
 		if (this.grid) {
 			this.grid.dispose();
-		}
-		if (this.test_mesh) {
-			this.test_mesh.dispose();
 		}
 		if (this.shader) {
 			this.shader.dispose();

@@ -71,6 +71,85 @@
 	}
 </script>
 
+<script type="x-shader/x-vertex" id="vertex_shader_vtf">
+	#version 100
+	precision mediump float;
+	attribute vec4 bone_index;
+	attribute vec4 bone_weights;
+	attribute vec3 a_position;
+	attribute vec3 a_normal;
+	attribute vec2 a_uv;
+	varying vec3 normal;
+	varying vec2 uv;
+	varying vec4 light_direction;
+	uniform mat4 view_projection_matrix;
+	uniform mat4 global_matrix;
+	uniform vec4 mat_flags;
+	uniform float bone_texture_size;
+	uniform sampler2D bone_texture;
+
+	const vec4 light_position = vec4(50.0, 50.0, 100.0, 0.0);
+
+	vec2 get_uv(float index, float offset, float unit, float shift) {
+		const float munit = unit * 3;
+		return vec2(
+			fract(index * munit + offset * unit + shift),
+			floor(index * munit + offset * unit) * unit + shift
+		);
+	}
+
+	mat4 get_mat(vec2 mat0, vec2 mat1, vec2 mat2) {
+		return mat4(
+			texture2D(bone_texture, mat0),
+			texture2D(bone_texture, mat1),
+			texture2D(bone_texture, mat2),
+			vec4(0, 0, 0, 1));
+	}
+
+	void main()
+	{
+		// deform matrixをVTFで取得
+		const float unit = 1.0 / bone_texture_size;
+		const float shift = 0.5 / bone_texture_size;
+
+		vec2 x_mat0 = get_uv(bone_index.x, 0, unit, shift);
+		vec2 x_mat1 = get_uv(bone_index.x, 1, unit, shift);
+		vec2 x_mat2 = get_uv(bone_index.x, 2, unit, shift);
+		vec2 y_mat0 = get_uv(bone_index.y, 0, unit, shift);
+		vec2 y_mat1 = get_uv(bone_index.y, 1, unit, shift);
+		vec2 y_mat2 = get_uv(bone_index.y, 2, unit, shift);
+		vec2 z_mat0 = get_uv(bone_index.z, 0, unit, shift);
+		vec2 z_mat1 = get_uv(bone_index.z, 1, unit, shift);
+		vec2 z_mat2 = get_uv(bone_index.z, 2, unit, shift);
+		vec2 w_mat0 = get_uv(bone_index.w, 0, unit, shift);
+		vec2 w_mat1 = get_uv(bone_index.w, 1, unit, shift);
+		vec2 w_mat2 = get_uv(bone_index.w, 2, unit, shift);
+
+		mat4 x_mat = get_mat(x_mat0, x_mat1, x_mat2);
+		mat4 y_mat = get_mat(y_mat0, y_mat1, y_mat2);
+		mat4 z_mat = get_mat(z_mat0, z_mat1, z_mat2);
+		mat4 w_mat = get_mat(w_mat0, w_mat1, w_mat2);
+
+		mat4 deform_mat = x_mat * bone_weights.x
+						+ y_mat * bone_weights.y
+						+ z_mat * bone_weights.z
+						+ w_mat * bone_weights.w;
+
+		vec4 global_pos = global_matrix * deform_mat * vec4(a_position, 1.0);
+		vec4 pos = view_projection_matrix * global_pos;
+		vec4 n = global_matrix * vec4(normalize(a_normal), 0.0);
+		normal = vec3(n.x, n.y, n.z);
+		if (mat_flags.x > 0.5)
+		{
+			uv = a_uv;
+		}
+		pos.z = 2.0 * pos.z - pos.w;
+		light_direction = normalize(global_pos - light_position);
+		gl_PointSize = 4.0;
+		gl_Position = pos;
+	}
+</script>
+
 <script type="x-shader/x-fragment" id="fragment_shader">
 	#version 100
 	#ifdef GL_ES
