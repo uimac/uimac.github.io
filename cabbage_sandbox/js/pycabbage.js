@@ -270,7 +270,7 @@ $builtinmodule = function(name) {
 	var create_mesh = Sk.misceval.buildClass(mod, mesh, 'mesh', []);
 
 	mod.add_mesh = new Sk.builtin.func(function () {
-		var mesh = umscene.add_mesh(),
+		var mesh = umscene.add_mesh(0),
 			dst;
 
 		dst = Sk.misceval.callsim(create_mesh);
@@ -278,9 +278,9 @@ $builtinmodule = function(name) {
 		return dst;
 	});
 
-	mod.duplicate_mesh = new Sk.builtin.func(function (mesh_index, pos) {
+	mod.duplicate_mesh = new Sk.builtin.func(function (model_index, mesh_index, pos) {
 		if (pos !== undefined) {
-			var mesh = umscene.duplicate_mesh(mesh_index, pos.vec),
+			var mesh = umscene.duplicate_mesh(model_index, mesh_index, pos.vec),
 				dst;
 
 			dst = Sk.misceval.callsim(create_mesh);

@@ -19,7 +19,8 @@
 			point_list : [],
 			nurbs_list : [],
 			node_list : [],
-			cluster_list : []
+			cluster_list : [],
+			bone_texture : null
 		};
 	}
 
@@ -29,7 +30,7 @@
 		this.shader_list = [];
 		this.shader = null;
 		this.grid = null;
-		this.model_list = [];
+		this.model_list = [create_model_buffer()];
 		this.box_list = [];
 		this.update_func_list = [];
 		this.primitive_list = [];
@@ -473,7 +474,6 @@
 			this.model_list.push(model);
 
 			var root_nodes = [];
-			var arm = null;
 			var node;
 			for (var i = 0; i < model.node_list.length; i = i + 1) {
 				node = model.node_list[i];
@@ -483,15 +483,13 @@
 				this.node_map[node.name] = node;
 			}
 			
-			var maxrot = 2
-			var currot = 0;
-			var unit = 1;
-			this.update_func_list.push((function (self, arm, roots, result) {
+			this.update_func_list.push((function (self, roots, result) {
 					return function () {
 						var mesh;
 						var node;
 						var vtof;
 						var i, k, n, m;
+
 						for (i = 0; i < roots.length; i = i + 1) {
 							roots[i].update_transform();
 						}
@@ -541,7 +539,7 @@
 						}
 						console.timeEnd('ccc');
 					};
-				}(this, arm, root_nodes, result)));
+				}(this, root_nodes, result)));
 
 			endCallback();
 		}.bind(this));
@@ -593,16 +591,19 @@
 		return mesh;
 	};
 
-	UMScene.prototype.duplicate_mesh = function (mesh_index, pos) {
+	UMScene.prototype.duplicate_mesh = function (model_index, mesh_index, pos) {
 		var index = mesh_index.v,
+			mindex = model_index.v,
 			srcmat,
 			i;
-		if (index < this.mesh_list.length) {
-			var src = this.mesh_list[(index < 0) ? this.mesh_list.length - 1 : index],
+
+		var model = this.model_list[(mindex < 0) ? this.model_list.length - 1 : mindex];
+		if (index < model.mesh_list.length) {
+			var src = model.mesh_list[(index < 0) ? model.mesh_list.length - 1 : index],
 				mesh = new ummesh.UMMesh(this.gl, null, null, null, null),
 				meshmat;
 
-			console.log(mesh, src, pos)
+			console.log(mesh, src, index, pos)
 			for (i = 0; i < src.material_list.length; i = i + 1) {
 				srcmat = src.material_list[i];
 				meshmat = new ummaterial.UMMaterial(this.gl);
@@ -617,7 +618,7 @@
 				mesh.material_list.push(meshmat);
 			}
 			mesh.update(src.verts, src.normals, src.uvs, null);
-			this.mesh_list.push(mesh);
+			model.mesh_list.push(mesh);
 			return mesh;
 		}
 		return false;

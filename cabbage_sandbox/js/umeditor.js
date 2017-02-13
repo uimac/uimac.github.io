@@ -238,7 +238,7 @@ class DuplicatePen:
 	def start_stroke(self, v):
 		self.start_point = v
 		if v != None:
-			self.mesh = duplicate_mesh(-1, v)
+			self.mesh = duplicate_mesh(-1, -1, v)
 		print("start stroke", self.mesh)
 
 	def on_stroke(self, v):
@@ -247,7 +247,7 @@ class DuplicatePen:
 			self.start_point = None
 
 		if self.mesh:
-			self.mesh = duplicate_mesh(0)
+			self.mesh = duplicate_mesh(-1, 0)
 		self.pre_point = v
 
 	def end_stroke(self, v):
