@@ -84,7 +84,6 @@
 	varying vec3 normal;
 	varying vec2 uv;
 	varying vec4 light_direction;
-	varying vec4 weight_color;
 	uniform mat4 view_projection_matrix;
 	uniform mat4 global_matrix;
 	uniform vec4 mat_flags;
@@ -95,6 +94,15 @@
 	const float unit = 1.0 / bone_texture_size;
 	const float unit3 = 3.0 / bone_texture_size;
 	const float shift = 0.5 / bone_texture_size;
+
+	mat4 transpose(mat4 mm) {
+		return mat4(
+			mm[0][0], mm[1][0], mm[2][0], mm[3][0],
+			mm[0][1], mm[1][1], mm[2][1], mm[3][1],
+			mm[0][2], mm[1][2], mm[2][2], mm[3][2],
+			mm[0][3], mm[1][3], mm[2][3], mm[3][3]
+		);
+	}
 
 	vec2 get_uv(float index, float offset, float unit, float shift) {
 		return vec2(
@@ -114,7 +122,6 @@
 	void main()
 	{
 		// deform matrixをVTFで取得
-
 		vec2 x_mat0 = get_uv(bone_indices.x, 0.0, unit, shift);
 		vec2 x_mat1 = get_uv(bone_indices.x, 1.0, unit, shift);
 		vec2 x_mat2 = get_uv(bone_indices.x, 2.0, unit, shift);
@@ -133,17 +140,14 @@
 		mat4 z_mat = get_mat(z_mat0, z_mat1, z_mat2);
 		mat4 w_mat = get_mat(w_mat0, w_mat1, w_mat2);
 
-		mat4 deform_mat = x_mat * bone_weights.x
-						+ y_mat * bone_weights.y
-						+ z_mat * bone_weights.z
-						+ w_mat * bone_weights.w;
-
-
-		weight_color = bone_weights;
-
-		vec4 global_pos = global_matrix * vec4(a_position, 1.0) *deform_mat;
+		mat4 deform_mat = transpose(x_mat * bone_weights.x
+									+ y_mat * bone_weights.y
+									+ z_mat * bone_weights.z
+									+ w_mat * bone_weights.w);
+		
+		vec4 global_pos = global_matrix * deform_mat * vec4(a_position, 1.0);
 		vec4 pos = view_projection_matrix * global_pos;
-		vec4 n = global_matrix * vec4(normalize(a_normal), 0.0);
+		vec4 n = normalize(global_matrix * deform_mat * vec4(a_normal, 0.0));
 		normal = vec3(n.x, n.y, n.z);
 		if (mat_flags.x > 0.5)
 		{
@@ -165,7 +169,6 @@
 	varying vec3 normal;
 	varying vec2 uv;
 	varying vec4 light_direction;
-	varying vec4 weight_color;
 	uniform sampler2D s_texture;
 
 	uniform vec4 light_color;
