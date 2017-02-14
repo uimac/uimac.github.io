@@ -173,6 +173,7 @@
 								info.closest_distance = param.distance;
 								info.intersect_point = param.intersect_point;
 								info.uvw = param.uvw;
+								info.extra_info = param.extra_info;
 								result = true;
 							}
 						}

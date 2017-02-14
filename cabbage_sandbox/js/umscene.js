@@ -1,7 +1,6 @@
 /*jslint devel:true*/
 /*global Float32Array, Uint8Array */
-(function (ummath, umline, ummesh, umboxlist, umnode, ummaterial, umcamera, umshader,
-	umbvh, umloader) {
+(function (ummath, umline, ummesh, umboxlist, umnode, ummaterial, umcamera, umshader, umbvh, umloader) {
 	"use strict";
 	var UMScene,
 		now = window.performance && (
@@ -61,6 +60,7 @@
 		this.is_cw = false;
 		this.loader = new umloader.UMLoader(gl);
 		this.bvh = new umbvh.UMBvh();
+		this.bone_bvh = new umbvh.UMBvh();
 
 		this.node_map = {};
 			
@@ -545,15 +545,20 @@
 							// nodeの見た目を更新
 							node.update();
 							// bvh用primitiveデータを作成
-							Array.prototype.push.apply(self.node_primitive_list, node.mesh.create_primitive_list());
+							var prim = node.mesh.create_primitive_list();
+							for (k = 0; k < prim.length; k = k + 1) {
+								prim[k].set_extra_info({ node_number : node.number });
+							}
+							Array.prototype.push.apply(self.node_primitive_list, prim);
 						}
 						// bone_textureを更新
 						update_bone_texture(self.gl, 64, 64, model.bone_texture, bone_data);
 
 						console.time('bvh build');
-						self.bvh.build(self.node_primitive_list);
+						self.bone_bvh.build(self.node_primitive_list);
 						console.timeEnd('bvh build');
 						
+						console.time('update deform');
 						for (i = 0; i < model.mesh_list.length; i = i + 1) {
 							mesh = model.mesh_list[i];
 							if (!mesh.vertex_index_to_face_index_map) {
@@ -577,7 +582,7 @@
 							mesh = model.mesh_list[i];
 							mesh.update_bone_data_gpu();
 						}
-						console.timeEnd('aaa');
+						console.timeEnd('update deform');
 					};
 				}(this, root_nodes, model, bone_data)));
 

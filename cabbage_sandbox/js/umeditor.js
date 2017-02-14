@@ -10,7 +10,8 @@
 		py_keyup,
 		tool_camera,
 		tool_pen,
-		tool_raypen;
+		tool_raypen,
+		tool_bone_move;
 
 	tool_camera = `
 import cabbage
@@ -282,6 +283,83 @@ def mouseup(x, y, button):
 print("python pen tool loaded")
 	`;
 
+	tool_bone_move = `
+import cabbage
+from cabbage import *
+import math
+
+def direction(x, y):
+	return camera().ray_dir(x, camera().height() - y).normalized()
+
+def hit_test(x, y):
+	dir = direction(x, y)
+	org = camera().position()
+	result = bone_bvh().intersects(org, dir)
+	if result["hit"] == True:
+		pos = result["vec"]
+		result["dist"] = (pos - dir).vlength()
+	return result
+
+class BoneMovePen:
+	def __init__(self):
+		self.mesh = None
+		self.is_dragging = False
+		self.pre_point = None
+		self.start_point = None
+
+	def start_stroke(self, v):
+		self.start_point = v
+		print("start stroke")
+
+	def on_stroke(self, v):
+		if self.start_point:
+			self.pre_point = self.start_point
+			self.start_point = None
+
+		self.pre_point = v
+
+	def end_stroke(self, v):
+		print("end stroke")
+
+	def mousemove(self, x, y, button):
+		reset_node_color(1)
+		res = hit_test(x, y)
+		if res["hit"] == True:
+			print("Hogehoge")
+			change_node_color(1, res["node_number"], 1.0, 0.0, 0.0)
+
+		if self.is_dragging:
+			print("on stroke")
+			#self.on_stroke(pos(x, y))
+
+	def mousedown(self, x, y, button):
+		if button == 0:
+			res = hit_test(x, y)
+			if res["hit"] == True:
+				print("start_stroke")
+				self.is_dragging = True
+				#self.start_stroke(res["vec"])
+
+	def mouseup(self, x, y, button):
+		if self.is_dragging:
+			print("end_stroke")
+			#self.end_stroke()
+			self.is_dragging = False
+
+tool = BoneMovePen()
+
+def mousemove(x, y, button):
+	tool.mousemove(x, y, button)
+
+def mousedown(x, y, button):
+	tool.mousedown(x, y, button)
+
+def mouseup(x, y, button):
+	tool.mouseup(x, y, button)
+
+print("python pen tool loaded")
+	`;
+
 	function builtinOutput(text) {
 		var output = document.getElementById("output");
 		output.innerHTML = output.innerHTML + text;
@@ -362,6 +440,8 @@ print("python pen tool loaded")
 				editor.setValue(tool_pen, 1);
 			} else if (evt.tool.id === 'tool_raypen') {
 				editor.setValue(tool_raypen, 1);
+			} else if (evt.tool.id === 'tool_bone_move') {
+				editor.setValue(tool_bone_move, 1);
 			}
 			execute_script();
 		});

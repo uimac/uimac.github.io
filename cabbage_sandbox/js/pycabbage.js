@@ -10,7 +10,8 @@ $builtinmodule = function(name) {
 		mat44,
 		camera,
 		mesh,
-		bvh;
+		bvh,
+		bone_bvh;
 
 	vec3 = function ($gbl, $loc) {
 		$loc.__init__ = new Sk.builtin.func(function (self, x, y, z) {
@@ -290,6 +291,21 @@ $builtinmodule = function(name) {
 		return null;
 	});
 
+	mod.reset_node_color = new Sk.builtin.func(function (model_index) {
+		var nodes = umscene.model_list[model_index.v].node_list;
+		var i;
+		for (i = 0; i < nodes.length; ++i) {
+			if (nodes[i].mesh.material_list.length > 0) {
+				nodes[i].mesh.material_list[0].set_diffuse(0.7, 0.7, 0.7, 1.0);
+			}
+		}
+	});
+	
+	mod.change_node_color = new Sk.builtin.func(function (model_index, node_index, r, g, b) {
+		var mat = umscene.model_list[model_index.v].node_list[node_index.v].mesh.material_list[0];
+		mat.set_diffuse(r, g, b, 1.0);
+	});
+
 	// -----------------------------------------------------------------------
 	bvh = function ($gbl, $loc) {
 		$loc.__init__ = new Sk.builtin.func(function (self) {
@@ -316,6 +332,36 @@ $builtinmodule = function(name) {
 	};
 	mod.bvh = Sk.misceval.buildClass(mod, bvh, 'bvh', []);
 
+	// -----------------------------------------------------------------------
+	bone_bvh = function ($gbl, $loc) {
+		$loc.__init__ = new Sk.builtin.func(function (self) {
+		});
+		$loc.intersects = new Sk.builtin.func(function (self, origin, dir) {
+			var info = {
+				result : -1,
+				closest_distance : Infinity
+			};
+			console.log("dir", origin.vec.xyz, dir.vec.xyz, umscene.bone_bvh)
+			if (umscene.bone_bvh.intersects(umscene.bone_bvh.root, info, origin.vec, dir.vec)) {
+				console.log(info);
+				var ret = new Sk.builtin.dict([]);
+				var point = Sk.misceval.callsim(mod.vec3);
+				point.vec = new ummath.UMVec3d(
+					info.intersect_point[0],
+					info.intersect_point[1],
+					info.intersect_point[2]);
+				ret.mp$ass_subscript(new Sk.builtin.str("vec"), point);
+				ret.mp$ass_subscript(new Sk.builtin.str("hit"), Sk.builtin.bool.true$);
+				ret.mp$ass_subscript(new Sk.builtin.str("node_number"), Sk.builtin.int_(info.extra_info.node_number));
+				return ret;
+			} else {
+				var ret = new Sk.builtin.dict([]);
+				ret.mp$ass_subscript(new Sk.builtin.str("hit"), Sk.builtin.bool.false$);
+				return ret;
+			}
+		});
+	};
+	mod.bone_bvh = Sk.misceval.buildClass(mod, bone_bvh, 'bone_bvh', []);
 
 	return mod;
 };

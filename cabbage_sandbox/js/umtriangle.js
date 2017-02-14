@@ -10,6 +10,7 @@
 		this.box = new ummath.UMBox();
 		this.box.init();
 		this.update_box();
+		this.extra_info = null;
 	};
 
 	function cross(va, vb) {
@@ -123,7 +124,7 @@
 
 			info.distance = distance;
 			info.intersect_point = add(ray_org.xyz, scale(ray_dir_inv, -distance));
-			//info.face_normal = n.normalized();
+			info.extra_info = this.extra_info;
 			return true;
 		}
 		return false;
@@ -198,6 +199,10 @@
 		for (i = 0; i < 3; i = i + 1) {
 			this.box.extend(this.mesh_.get_vert(this.face_index_, i));
 		}
+	};
+
+	UMTriangle.prototype.set_extra_info = function (info) {
+		this.extra_info = info;
 	};
 
 	window.umtriangle = {};
