@@ -22,6 +22,7 @@
 		this.is_visible_bone = true;
 		this.is_visible_axis = true;
 		this.id = "";
+		// modelのnode_listでのindex
 		this.number = 0;
 
 		if (!linemat_x) {

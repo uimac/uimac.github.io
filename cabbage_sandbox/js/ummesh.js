@@ -341,6 +341,7 @@
 				this.bone_indices[i] = 0;	
 				this.bone_weights[i] = 0;	
 			}
+			this.reset_shader_location();
 		}
 
 		for (i = 0; i < cluster.indices.length; i = i + 1) {

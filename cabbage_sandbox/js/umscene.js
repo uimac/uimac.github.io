@@ -339,9 +339,17 @@
 				if (buffer.mesh_list[i].material_list.length > 0 && 
 					buffer.mesh_list[i].material_list[0].diffuse_texture) 
 				{
-					buffer.mesh_list[i].draw(this.shader_list[0], this.camera);
+					if (buffer.mesh_list[i].bone_indices.length > 0) {
+						buffer.mesh_list[i].draw(this.shader_list[0], this.camera);
+					} else {
+						buffer.mesh_list[i].draw(this.shader_list[6], this.camera);
+					}
 				} else {
-					buffer.mesh_list[i].draw(this.shader_list[4], this.camera);
+					if (buffer.mesh_list[i].bone_indices.length > 0) {
+						buffer.mesh_list[i].draw(this.shader_list[5], this.camera);
+					} else {
+						buffer.mesh_list[i].draw(this.shader_list[4], this.camera);
+					}
 				}
 			}
 			for (i = 0; i < buffer.line_list.length; i = i + 1) {
@@ -355,7 +363,7 @@
 				buffer.nurbs_list[i].draw(this.shader_list[2], this.camera);
 			}
 			for (i = 0; i < buffer.node_list.length; i = i + 1) {
-				buffer.node_list[i].draw(this.shader_list[0], this.camera);
+				buffer.node_list[i].draw(this.shader_list[6], this.camera);
 			}
 			for (i = 0; i < buffer.cluster_list.length; i = i + 1) {
 				buffer.cluster_list[i].draw(this.shader_list[0], this.camera);
@@ -373,13 +381,13 @@
 
 	UMScene.prototype.init = function () {
 		var gl = this.gl,
-			initial_shader,
+			deform_shader,
 			shader;
 		this.camera = new umcamera.UMCamera(gl, this.width, this.height);
-		initial_shader = new umshader.UMShader(gl);
-		initial_shader.create_shader_from_id('vertex_shader_vtf', 'fragment_shader');
-		this.shader_list.push(initial_shader);
-		this.current_shader = initial_shader;
+
+		shader = new umshader.UMShader(gl);
+		shader.create_shader_from_id('vertex_shader_vtf', 'fragment_shader');
+		this.shader_list.push(shader);
 
 		shader = new umshader.UMShader(gl);
 		shader.create_shader_from_id('edge_vertex_shader', 'edge_fragment_shader');
@@ -396,6 +404,15 @@
 		shader = new umshader.UMShader(gl);
 		shader.create_shader_from_id('vertex_shader', 'fragment_shader_notex');
 		this.shader_list.push(shader);
+
+		shader = new umshader.UMShader(gl);
+		shader.create_shader_from_id('vertex_shader_vtf', 'fragment_shader_notex');
+		this.shader_list.push(shader);
+
+		shader = new umshader.UMShader(gl);
+		shader.create_shader_from_id('vertex_shader', 'fragment_shader');
+		this.shader_list.push(shader);
+		this.current_shader = shader;
 
 		this.grid = create_grid(gl);
 
@@ -537,15 +554,8 @@
 						self.bvh.build(self.node_primitive_list);
 						console.timeEnd('bvh build');
 						
-						console.time('aaa');
 						for (i = 0; i < model.mesh_list.length; i = i + 1) {
 							mesh = model.mesh_list[i];
-							/*
-							for (k = 0; k < mesh.deform_verts.length; ++k) {
-								mesh.deform_verts[k] = 0;
-								mesh.deform_normals[k] = 0;
-							}
-							*/
 							if (!mesh.vertex_index_to_face_index_map) {
 								mesh.vertex_index_to_face_index_map = {};
 								for (k = 0; k < mesh.indices.length; k = k + 1) {
@@ -568,23 +578,6 @@
 							mesh.update_bone_data_gpu();
 						}
 						console.timeEnd('aaa');
-						/*
-						console.time('bbb');
-						for (i = 0; i < model.cluster_list.length; i = i + 1) {
-							model.cluster_list[i].update_geometry();
-						}
-						console.timeEnd('bbb');
-						console.time('ccc');
-						for (i = 0; i < model.mesh_list.length; i = i + 1) {
-							mesh = model.mesh_list[i];
-							mesh.update(
-								model.mesh_list[i].deform_verts, 
-								model.mesh_list[i].deform_normals, 
-								null, 
-								model.mesh_list[i].indices);
-						}
-						console.timeEnd('ccc');
-						*/
 					};
 				}(this, root_nodes, model, bone_data)));
 
