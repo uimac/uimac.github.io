@@ -284,6 +284,7 @@ print("python pen tool loaded")
 	`;
 
 	tool_bone_move = `
+
 import cabbage
 from cabbage import *
 import math
@@ -306,31 +307,31 @@ class BoneMovePen:
 		self.is_dragging = False
 		self.pre_point = None
 		self.start_point = None
+		self.dragging_node = None
 
 	def start_stroke(self, v):
 		self.start_point = v
 		print("start stroke")
 
-	def on_stroke(self, v):
+	def on_stroke(self, v, node_num):
 		if self.start_point:
 			self.pre_point = self.start_point
 			self.start_point = None
 
 		self.pre_point = v
 
-	def end_stroke(self, v):
-		print("end stroke")
-
 	def mousemove(self, x, y, button):
 		reset_node_color(1)
 		res = hit_test(x, y)
 		if res["hit"] == True:
-			print("Hogehoge")
 			change_node_color(1, res["node_number"], 1.0, 0.0, 0.0)
 
 		if self.is_dragging:
 			print("on stroke")
-			#self.on_stroke(pos(x, y))
+			change_node_color(1, self.dragging_node, 0.0, 1.0, 0.0)
+			pos = vec3(x, y, 0)
+			diff = pos - self.start_pos
+			print(diff[0], diff[1])
 
 	def mousedown(self, x, y, button):
 		if button == 0:
@@ -338,13 +339,14 @@ class BoneMovePen:
 			if res["hit"] == True:
 				print("start_stroke")
 				self.is_dragging = True
-				#self.start_stroke(res["vec"])
-
+				self.dragging_node = res["node_number"]
+				self.start_pos = vec3(x, y, 0)
+				
 	def mouseup(self, x, y, button):
 		if self.is_dragging:
-			print("end_stroke")
-			#self.end_stroke()
+			print("drag stroke")
 			self.is_dragging = False
+			self.dragging_node = None
 
 tool = BoneMovePen()
 
@@ -358,6 +360,7 @@ def mouseup(x, y, button):
 	tool.mouseup(x, y, button)
 
 print("python pen tool loaded")
+	
 	`;
 
 	function builtinOutput(text) {

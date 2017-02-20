@@ -303,7 +303,7 @@ $builtinmodule = function(name) {
 	
 	mod.change_node_color = new Sk.builtin.func(function (model_index, node_index, r, g, b) {
 		var mat = umscene.model_list[model_index.v].node_list[node_index.v].mesh.material_list[0];
-		mat.set_diffuse(r, g, b, 1.0);
+		mat.set_diffuse(r.v, g.v, b.v, 1.0);
 	});
 
 	// -----------------------------------------------------------------------
