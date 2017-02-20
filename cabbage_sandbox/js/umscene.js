@@ -160,7 +160,7 @@
 
 	UMScene.prototype.connect_ws = function () {
 		connect_ws_forever(function (e) {
-			if (this.node_list.length > 0) {
+			if (this.model_list.length > 1) {
 				var fileReader = new FileReader();
 				fileReader.onload = function() {
 					var arrayBuffer = fileReader.result;
