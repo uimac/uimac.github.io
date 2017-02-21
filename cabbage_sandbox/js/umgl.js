@@ -512,7 +512,23 @@
 		init_open_tool();
 		init_shader_tools();
 		init_other_tools();
-
+		
+		var ua = navigator.userAgent;
+		if (ua.indexOf('iPhone') < 0 &&
+			ua.indexOf('iPod') < 0 &&
+			ua.indexOf('Android') < 0 &&
+			ua.indexOf('iPad') < 0)
+		{
+			// きっとPC
+			var scriptview = document.getElementById('scriptview');
+			var editor = document.getElementById('editor');
+			scriptview.style.height = "100%";
+			scriptview.style.width = "500px";
+			scriptview.style.marginTop = "43px"
+			editor.style.width = "100%";
+			editor.style.height = "70%";
+		}
+			
 		drawonce();
 	}
 

@@ -456,7 +456,7 @@ print("python pen tool loaded")
 			getPos,
 			getTouchPos;
 
-		document.getElementById('editor').style.height = "100%";
+		//document.getElementById('editor').style.height = "100%";
 		editor.getSession().setMode("ace/mode/python");
 		editor.setTheme("ace/theme/chrome");
 
