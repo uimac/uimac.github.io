@@ -357,18 +357,19 @@
 			resize();
 		}
 
-/*
 		(function () {
-			stats = new Stats();
-			stats.setMode( 1 ); // 0: fps, 1: ms, 2: mb
+			if (window.Stats) {
+				stats = new Stats();
+				stats.setMode( 1 ); // 0: fps, 1: ms, 2: mb
 
-			// align top-left
-			stats.domElement.style.position = 'absolute';
-			stats.domElement.style.left = '0px';
-			stats.domElement.style.top = '0px';
-			document.body.appendChild( stats.domElement );
+				// align top-left
+				stats.domElement.style.position = 'absolute';
+				stats.domElement.style.left = '';
+				stats.domElement.style.right = '0px';
+				stats.domElement.style.top = '0px';
+				document.body.appendChild( stats.domElement );
+			}
 		}());
-*/
 
 		canvas.addEventListener('touchstart', function (evt) {
 			/*
