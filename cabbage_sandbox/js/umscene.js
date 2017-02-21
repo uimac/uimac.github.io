@@ -71,6 +71,37 @@
 		}
 	};
 
+	function strToArrayBuffer(move_data, s) {
+		var escstr = encodeURIComponent(s + "\n");
+		var binstr = escstr.replace(/%([0-9A-F]{2})/g, function(match, p1) {
+			return String.fromCharCode('0x' + p1);
+		});
+		var aa = new Uint32Array(move_data, 0, 1);
+		aa[0] = binstr.length;
+		var ua = new Uint8Array(move_data, 4, binstr.length);
+		Array.prototype.forEach.call(binstr, function (ch, i) {
+			ua[i] = ch.charCodeAt(0);
+		});
+		return ua;
+	}
+
+	UMScene.prototype.send_move_data = function (node_name, pos) {
+		if (window && window.process && window.process.type) {
+			if (!this.umiomap) {
+				this.umiomap = require('umiomap');
+			}
+			if (!this.move_data) {
+				this.move_data = new ArrayBuffer(4 + 8 * 128 + 4 * 3);
+			}
+			strToArrayBuffer(this.move_data, node_name);
+			var move = new Float32Array(this.move_data, 4 + 8 * 128, 3);
+			move[0] = pos.x;
+			move[1] = pos.y;
+			move[2] = pos.z;
+			this.umiomap.save("move_data", this.move_data);
+		}
+	};
+
 	UMScene.prototype.assing_bos_nodes = function (bos) {
 		//console.log("assing_bos_nodes")
 		var id;
@@ -83,7 +114,7 @@
 				if (!dst.parent) continue;
 				dst.local_transform = new ummath.UMMat44d(src.local_transform);
 			} else {
-				console.log(src.name)
+				//console.log(src.name)
 			}
 			/*
 			else {

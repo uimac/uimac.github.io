@@ -330,8 +330,10 @@ class BoneMovePen:
 			print("on stroke")
 			change_node_color(1, self.dragging_node, 0.0, 1.0, 0.0)
 			pos = vec3(x, y, 0)
-			diff = pos - self.start_pos
+			diff = pos - self.pre_pos
 			print(diff[0], diff[1])
+			trans_node(1, self.dragging_node, diff[0], diff[1], 0)
+			self.pre_pos = pos
 
 	def mousedown(self, x, y, button):
 		if button == 0:
@@ -341,6 +343,7 @@ class BoneMovePen:
 				self.is_dragging = True
 				self.dragging_node = res["node_number"]
 				self.start_pos = vec3(x, y, 0)
+				self.pre_pos  = vec3(x, y, 0)
 				
 	def mouseup(self, x, y, button):
 		if self.is_dragging:

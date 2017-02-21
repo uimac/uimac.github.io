@@ -306,6 +306,14 @@ $builtinmodule = function(name) {
 		mat.set_diffuse(r.v, g.v, b.v, 1.0);
 	});
 
+	mod.trans_node = new Sk.builtin.func(function (model_index, node_index, x, y, z) {
+		var node = umscene.model_list[model_index.v].node_list[node_index.v];
+		var px = node.local_transform.m[3][0] + x.v;
+		var py = node.local_transform.m[3][1] + y.v;
+		var pz = node.local_transform.m[3][2] + z.v;
+		umscene.send_move_data(node.name, { x : px, y : py, z : pz});
+	});
+
 	// -----------------------------------------------------------------------
 	bvh = function ($gbl, $loc) {
 		$loc.__init__ = new Sk.builtin.func(function (self) {
