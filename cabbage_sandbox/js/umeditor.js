@@ -295,10 +295,11 @@ def direction(x, y):
 def hit_test(x, y):
 	dir = direction(x, y)
 	org = camera().position()
-	result = bone_bvh().intersects(org, dir)
+	result = bone_bvh(-1).intersects(org, dir)
 	if result["hit"] == True:
 		pos = result["vec"]
-		result["dist"] = (pos - dir).vlength()
+		result["dist"] = (pos - org).vlength()
+		result["dir"] = dir
 	return result
 
 class BoneMovePen:
@@ -321,18 +322,20 @@ class BoneMovePen:
 		self.pre_point = v
 
 	def mousemove(self, x, y, button):
-		reset_node_color(1)
+		reset_node_color(-1)
 		res = hit_test(x, y)
 		if res["hit"] == True:
-			change_node_color(1, res["node_number"], 1.0, 0.0, 0.0)
+			change_node_color(-1, res["node_number"], 1.0, 0.0, 0.0)
 
 		if self.is_dragging:
 			print("on stroke")
-			change_node_color(1, self.dragging_node, 0.0, 1.0, 0.0)
+			change_node_color(-1, self.dragging_node, 0.0, 1.0, 0.0)
 			pos = vec3(x, y, 0)
 			diff = pos - self.pre_pos
 			print(diff[0], diff[1])
-			trans_node(1, self.dragging_node, diff[0], diff[1], 0)
+			dir = self.down_hit_res["dist"]
+			dist = self.down_hit_res["dist"]
+			trans_node(-1, self.dragging_node, diff[0], diff[1], 0, dir, dist)
 			self.pre_pos = pos
 
 	def mousedown(self, x, y, button):
@@ -342,7 +345,7 @@ class BoneMovePen:
 				print("start_stroke")
 				self.is_dragging = True
 				self.dragging_node = res["node_number"]
-				self.start_pos = vec3(x, y, 0)
+				self.down_hit_res = res
 				self.pre_pos  = vec3(x, y, 0)
 				
 	def mouseup(self, x, y, button):

@@ -19,6 +19,7 @@
 			nurbs_list : [],
 			node_list : [],
 			cluster_list : [],
+			bone_bvh : new umbvh.UMBvh(),
 			bone_texture : null
 		};
 	}
@@ -60,7 +61,6 @@
 		this.is_cw = false;
 		this.loader = new umloader.UMLoader(gl);
 		this.bvh = new umbvh.UMBvh();
-		this.bone_bvh = new umbvh.UMBvh();
 
 		this.node_map = {};
 			
@@ -523,10 +523,12 @@
 		this.loader.load_obj(name, obj_text, function (result) {
 			var model = create_model_buffer();
 			Array.prototype.push.apply(model.mesh_list, result.mesh_list);
+			/*
 			var i;
 			for (i = 0; i < result.mesh_list.length; i = i + 1) {
 				this.add_mesh_to_primitive_list(result.mesh_list[i], true);
 			}
+			*/
 			this.model_list.push(model);
 		}.bind(this));
 	};
@@ -563,7 +565,7 @@
 						for (i = 0; i < roots.length; i = i + 1) {
 							roots[i].update_transform();
 						}
-						self.node_primitive_list = [];
+						model.node_primitive_list = [];
 						for (i = 0; i < model.node_list.length; i = i + 1) {
 							node = model.node_list[i];
 							var vertex_deform_mat = node.vertex_deform_matrix();
@@ -580,14 +582,16 @@
 							for (k = 0; k < prim.length; k = k + 1) {
 								prim[k].set_extra_info({ node_number : node.number });
 							}
-							Array.prototype.push.apply(self.node_primitive_list, prim);
+							Array.prototype.push.apply(model.node_primitive_list, prim);
 						}
 						// bone_textureを更新
 						update_bone_texture(self.gl, 64, 64, model.bone_texture, bone_data);
 
-						console.time('bvh build');
-						self.bone_bvh.build(self.node_primitive_list);
-						console.timeEnd('bvh build');
+						if (model.node_primitive_list.length > 0) {
+							console.time('bvh build');
+							model.bone_bvh.build(model.node_primitive_list);
+							console.timeEnd('bvh build');
+						}
 						
 						console.time('update deform');
 						for (i = 0; i < model.mesh_list.length; i = i + 1) {

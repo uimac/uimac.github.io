@@ -215,6 +215,11 @@ $builtinmodule = function(name) {
 		$loc.__setitem__ = new Sk.builtin.func(function (self, key, value) {
 			self.mat.m[key.v] = value.v;
 		});
+		$loc.inverted = new Sk.builtin.func(function (self) {
+			var dst = Sk.misceval.callsim(mod.mat44);
+			dst.mat = self.mat.inverted();
+			return dst;
+		});
 
 	};
 	mod.mat44 = Sk.misceval.buildClass(mod, mat44, 'mat44', []);
@@ -251,6 +256,11 @@ $builtinmodule = function(name) {
 		$loc.height = new Sk.builtin.func(function (self) {
 			return Sk.builtin.float_(umscene.camera.height);
 		});
+		$loc.view_projection_matrix = new Sk.builtin.func(function (self) {
+			var dst = Sk.misceval.callsim(mod.mat44);
+			dst.mat = new ummath.UMMat44d(umscene.camera.view_projection_matrix());
+			return  dst;
+		});
 	};
 	mod.camera = Sk.misceval.buildClass(mod, camera, 'camera', []);
 
@@ -268,6 +278,15 @@ $builtinmodule = function(name) {
 			umscene.box_list[0].add(self.mesh.box);
 		});
 	};
+
+	function get_model(index) {
+		if (index < 0) {
+			return umscene.model_list[umscene.model_list.length + index];
+		} else {
+			return umscene.model_list[index];
+		}
+	}
+
 	var create_mesh = Sk.misceval.buildClass(mod, mesh, 'mesh', []);
 
 	mod.add_mesh = new Sk.builtin.func(function () {
@@ -292,7 +311,8 @@ $builtinmodule = function(name) {
 	});
 
 	mod.reset_node_color = new Sk.builtin.func(function (model_index) {
-		var nodes = umscene.model_list[model_index.v].node_list;
+		var model = get_model(model_index.v);
+		var nodes = model.node_list;
 		var i;
 		for (i = 0; i < nodes.length; ++i) {
 			if (nodes[i].mesh.material_list.length > 0) {
@@ -302,16 +322,19 @@ $builtinmodule = function(name) {
 	});
 	
 	mod.change_node_color = new Sk.builtin.func(function (model_index, node_index, r, g, b) {
-		var mat = umscene.model_list[model_index.v].node_list[node_index.v].mesh.material_list[0];
+		var model = get_model(model_index.v);
+		var mat = model.node_list[node_index.v].mesh.material_list[0];
 		mat.set_diffuse(r.v, g.v, b.v, 1.0);
 	});
 
-	mod.trans_node = new Sk.builtin.func(function (model_index, node_index, x, y, z) {
-		var node = umscene.model_list[model_index.v].node_list[node_index.v];
-		var px = node.local_transform.m[3][0] + x.v;
-		var py = node.local_transform.m[3][1] + y.v;
-		var pz = node.local_transform.m[3][2] + z.v;
-		umscene.send_move_data(node.name, { x : px, y : py, z : pz});
+	mod.trans_node = new Sk.builtin.func(function (model_index, node_index, x, y, z, dir, dist) {
+		var model = get_model(model_index.v);
+		var node = model.node_list[node_index.v];
+		var vp = umscene.camera.view_projection_matrix();
+		var mv = new ummath.UMMat44d(node.global_transform);
+		var vv = new ummath.UMVec4d(x.v / dist.v * dist.v / 10, -y.v / dist.v * dist.v / 10, 0.0, 0.0);
+		var p =  mv.inverted().multiply(vp.inverted().multiply(vv));
+		umscene.send_move_data(node.name, { x : p.xyzw[0], y : p.xyzw[1], z : p.xyzw[2]});
 	});
 
 	// -----------------------------------------------------------------------
@@ -342,15 +365,16 @@ $builtinmodule = function(name) {
 
 	// -----------------------------------------------------------------------
 	bone_bvh = function ($gbl, $loc) {
-		$loc.__init__ = new Sk.builtin.func(function (self) {
+		$loc.__init__ = new Sk.builtin.func(function (self, model_index) {
+			self.model_index = model_index.v;
 		});
 		$loc.intersects = new Sk.builtin.func(function (self, origin, dir) {
 			var info = {
 				result : -1,
 				closest_distance : Infinity
 			};
-			console.log("dir", origin.vec.xyz, dir.vec.xyz, umscene.bone_bvh)
-			if (umscene.bone_bvh.intersects(umscene.bone_bvh.root, info, origin.vec, dir.vec)) {
+			var model = get_model(self.model_index);
+			if (model.bone_bvh.intersects(model.bone_bvh.root, info, origin.vec, dir.vec)) {
 				console.log(info);
 				var ret = new Sk.builtin.dict([]);
 				var point = Sk.misceval.callsim(mod.vec3);
