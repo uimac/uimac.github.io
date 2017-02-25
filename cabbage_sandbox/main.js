@@ -5,18 +5,31 @@ const fs = require("fs");
 const spawn = require("child_process").spawn;
 const exec = require("child_process").exec;
 
-const blender = spawn('./blender-2.76b-bepuik_tools-0.6.0-win64/blender.exe', ["-b", "reiko_bone.blend", "--python-text", "mmap"]);
-blender.stdout.on('data', (data) => {
-  console.log(`stdout: ${data}`);
-});
+function isExistFile(file) {
+	try {
+		fs.statSync(file);
+		return true
+	} catch(err) {
+	}
+	return false
+}
 
-blender.stderr.on('data', (data) => {
-  console.log(`stderr: ${data}`);
-});
+const blenderPath = './blender-2.76b-bepuik_tools-0.6.0-win64/blender.exe'
+let blender = null;
+if (isExistFile(blenderPath)) {
+	blender = spawn(blenderPath, ["-b", "reiko_bone.blend", "--python-text", "mmap"]);
+	blender.stdout.on('data', (data) => {
+	console.log(`stdout: ${data}`);
+	});
 
-blender.on('close', (code) => {
-  console.log(`child process exited with code ${code}`);
-});
+	blender.stderr.on('data', (data) => {
+	console.log(`stderr: ${data}`);
+	});
+
+	blender.on('close', (code) => {
+	console.log(`child process exited with code ${code}`);
+	});
+}
 
 // Report crashes to our server.
 // electron.crashReporter.start();
@@ -48,8 +61,10 @@ app.on('ready', function() {
 	mainWindow.loadURL('file://' + __dirname + '/index.html');
 
 	mainWindow.on('close', function () {
-		blender.kill();
-		exec("taskkill /F /T /IM blender-app.exe");
+		if (blender) {
+			blender.kill();
+			exec("taskkill /F /T /IM blender-app.exe");
+		}
 	}); 
 
 	mainWindow.on('closed', function() {
