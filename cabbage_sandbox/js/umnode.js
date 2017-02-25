@@ -10,6 +10,7 @@
 	UMNode = function (gl) {
 		this.gl = gl;
 		this.mesh = new ummesh.UMMesh(gl);
+		this.sphere = new ummesh.UMMesh(gl);
 		this.local_transform = new ummath.UMMat44d();
 		this.global_transform = new ummath.UMMat44d();
 		this.initial_local_transform = new ummath.UMMat44d();
@@ -21,6 +22,7 @@
 		this.normal_deform_mat = new ummath.UMMat44d();
 		this.is_visible_bone = true;
 		this.is_visible_axis = true;
+		this.is_visible_bone_sphere = true;
 		this.id = "";
 		// modelのnode_listでのindex
 		this.number = 0;
@@ -195,6 +197,76 @@
 		this.line.global_matrix = parent_global;
 		this.line.reset_shader_location();
 		this.line.update(lines);
+
+		// sphere 
+		if (this.name.indexOf("target") < 0 || this.name.indexOf('end') < 0) { 
+			if (this.name.indexOf('hand target.') < 0) return;
+		}
+		var radius = 1.0;
+		var rings = 4;
+		var sectors = 4;
+		var sphere_verts_vec = [];
+		var sphere_verts = [];
+		var sphere_indices = [];
+		var sphere_normals = [];
+		function add_sphere_index(sphere_indices, sectors, r, s) {
+			var row = r * sectors;
+			var next = (r+1) * sectors;
+			var nextS = (s+1) % sectors;
+			var index = [
+				row + s,
+				next + s,
+				next + nextS,
+				row + s,
+				next + nextS,
+				row + nextS
+			];
+			Array.prototype.push.apply(sphere_indices, index);
+		}
+		var R = 1.0/(rings-1);
+		var S = 1.0/(sectors-1);
+		for(var r = 0; r < rings; ++r) {
+			for(var s = 0; s < sectors; ++s) {
+				var y = Math.sin( -Math.PI / 2 + Math.PI * r * R );
+				var x = Math.cos(2*Math.PI * s * S) * Math.sin( Math.PI * r * R );
+				var z = Math.sin(2*Math.PI * s * S) * Math.sin( Math.PI * r * R );
+				var xyz = new ummath.UMVec3d(x * radius, y * radius, z * radius);
+				var pos;
+				if (this.name.indexOf('hand target.') >= 0) {
+					pos = base_end.add(xyz);
+				} else {
+					pos = base_start.add(xyz);
+				}
+				Array.prototype.push.apply(sphere_verts, pos.xyz);
+				sphere_verts_vec.push(pos);
+				if(r < rings-1)
+					add_sphere_index(sphere_indices, sectors, r, s);
+			}
+		}
+		for (i = 0; i < sphere_indices.length / 3; i = i + 1) {
+			v0 = sphere_verts_vec[sphere_indices[i * 3]];
+			v1 = sphere_verts_vec[sphere_indices[i * 3 + 1]];
+			v2 = sphere_verts_vec[sphere_indices[i * 3 + 2]];
+			n = v2.sub(v1).cross( v0.sub(v1) ).normalized();
+			if (n.x() === 0 && n.y() === 0 && n.z() === 0) {
+				n = v2.sub(v1).scale(10000).cross( v0.sub(v1).scale(10000) ).normalized();
+			}
+			Array.prototype.push.apply(sphere_normals, n.value());
+			Array.prototype.push.apply(sphere_normals, n.value());
+			Array.prototype.push.apply(sphere_normals, n.value());
+		}
+		this.sphere.update(sphere_verts, sphere_normals, null, sphere_indices, null);
+		this.sphere.global_matrix = parent_global;
+		this.sphere.reset_shader_location();
+		this.sphere.update_box();
+		if (this.sphere.material_list.length === 0) {
+			var spheremat = new ummaterial.UMMaterial(this.gl);
+			spheremat.set_polygon_count(sphere_indices.length / 3);
+			spheremat.set_diffuse(0.7, 0.7, 0.7, 1.0);
+			this.sphere.material_list.push(spheremat);
+		} else {
+			this.sphere.material_list[0].set_polygon_count(sphere_indices.length / 3 / 3);
+		}
 	};
 
 	UMNode.prototype.update = function () {
@@ -203,9 +275,11 @@
 		} else {
 			if (this.parent) {
 				this.mesh.global_matrix = this.parent.global_transform;
+				this.sphere.global_matrix = this.parent.global_transform;
 				this.line.global_matrix = this.parent.global_transform;
 			} else {
 				this.mesh.global_matrix = this.global_transform;
+				this.sphere.global_matrix = this.parent.global_transform;
 				this.line.global_matrix = this.global_transform;
 			}
 		}
@@ -249,15 +323,20 @@
 
 	UMNode.prototype.reset_shader_location = function () {
 		this.mesh.reset_shader_location();
+		this.sphere.reset_shader_location();
 	};
 
 	UMNode.prototype.set_visible_bone = function (visible) {
 		this.is_visible_bone = visible;
-	}
+	};
 
 	UMNode.prototype.set_visible_axis = function (visible) {
 		this.is_visible_axis = visible;
-	}
+	};
+
+	UMNode.prototype.set_visible_bone_sphere = function (visible) {
+		this.is_visible_bone_sphere = visible;
+	};
 
 	UMNode.prototype.draw = function (shader, camera) {
 		if (this.mesh || this.line) {
@@ -269,13 +348,12 @@
 			if (this.is_visible_axis && this.line) {
 				this.line.draw(shader, camera);
 			}
+			if (this.is_visible_bone_sphere && this.sphere && this.sphere.verts.length > 0) {
+				this.sphere.draw(shader, camera);
+			}
 			//this.gl.enable(this.gl.CULL_FACE);
 			this.gl.enable(this.gl.DEPTH_TEST);
 		}
-	};
-
-	UMNode.prototype.reset_shader_location = function () {
-		this.mesh.reset_shader_location();
 	};
 
 	window.umnode = {};

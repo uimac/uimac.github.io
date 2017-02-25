@@ -483,6 +483,13 @@
 					buffer.node_list[i].set_visible_bone(visible);
 				}
 			}
+		} else if (id === "visible_bone_sphere") {
+			for (k = 0; k < this.model_list.length; k = k + 1) {
+				buffer = this.model_list[k];
+				for (i = 0; i < buffer.node_list.length; i = i + 1) {
+					buffer.node_list[i].set_visible_bone_sphere(visible);
+				}
+			}
 		} else if (id === "visible_axis") {
 			for (k = 0; k < this.model_list.length; k = k + 1) {
 				buffer = this.model_list[k];
@@ -579,6 +586,11 @@
 							node.update();
 							// bvh用primitiveデータを作成
 							var prim = node.mesh.create_primitive_list();
+							for (k = 0; k < prim.length; k = k + 1) {
+								prim[k].set_extra_info({ node_number : node.number });
+							}
+							Array.prototype.push.apply(model.node_primitive_list, prim);
+							prim = node.sphere.create_primitive_list();
 							for (k = 0; k < prim.length; k = k + 1) {
 								prim[k].set_extra_info({ node_number : node.number });
 							}

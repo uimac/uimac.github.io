@@ -318,18 +318,31 @@ $builtinmodule = function(name) {
 			if (nodes[i].mesh.material_list.length > 0) {
 				nodes[i].mesh.material_list[0].set_diffuse(0.7, 0.7, 0.7, 1.0);
 			}
+			if (nodes[i].sphere.material_list.length > 0) {
+				nodes[i].sphere.material_list[0].set_diffuse(0.7, 0.7, 0.7, 1.0);
+			}
 		}
 	});
 	
 	mod.change_node_color = new Sk.builtin.func(function (model_index, node_index, r, g, b) {
 		var model = get_model(model_index.v);
-		var mat = model.node_list[node_index.v].mesh.material_list[0];
-		mat.set_diffuse(r.v, g.v, b.v, 1.0);
+		var node = model.node_list[node_index.v];
+		if (node.mesh.material_list.length > 0) {
+			var mat = node.mesh.material_list[0];
+			mat.set_diffuse(r.v, g.v, b.v, 1.0);
+		}
+		if (node.sphere.material_list.length > 0) {
+			var mat = node.sphere.material_list[0];
+			mat.set_diffuse(r.v, g.v, b.v, 1.0);
+		}
 	});
 
 	mod.trans_node = new Sk.builtin.func(function (model_index, node_index, x, y, z, dir, dist) {
 		var model = get_model(model_index.v);
 		var node = model.node_list[node_index.v];
+		if (node.name.indexOf('hand target.') < 0 && node.name.indexOf('end')) {
+			node = node.parent;
+		}
 		var vp = umscene.camera.view_projection_matrix();
 		var mv = new ummath.UMMat44d(node.global_transform);
 		var vv = new ummath.UMVec4d(x.v / dist.v * dist.v / 10, -y.v / dist.v * dist.v / 10, 0.0, 0.0);
