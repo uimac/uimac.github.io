@@ -530,12 +530,11 @@
 		this.loader.load_obj(name, obj_text, function (result) {
 			var model = create_model_buffer();
 			Array.prototype.push.apply(model.mesh_list, result.mesh_list);
-			/*
+
 			var i;
 			for (i = 0; i < result.mesh_list.length; i = i + 1) {
 				this.add_mesh_to_primitive_list(result.mesh_list[i], true);
 			}
-			*/
 			this.model_list.push(model);
 		}.bind(this));
 	};

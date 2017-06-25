@@ -36,7 +36,7 @@
 				});
 				mat_index_count = 0;
 			} else if (vals[0] === "v") {
-				vertices.push([Number(vals[1]), Number(vals[2]), Number(vals[3])]);
+				vertices.push([Number(vals[1]) * 20, Number(vals[2]) * 20, Number(vals[3]) * 20]);
 			} else if (vals[0] === "vn") {
 				normals.push([Number(vals[1]), Number(vals[2]), Number(vals[3])]);
 			} else if (vals[0] === "vt") {

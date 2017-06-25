@@ -227,6 +227,20 @@
 			};
 			oReq.send(null);
 		};
+		document.getElementById('tool_open_torus').onclick = function (evt) {
+			var oReq = new XMLHttpRequest();
+			oReq.open("GET", "model/torus/torus.obj", true);
+			oReq.responseType = "text";
+			oReq.onload = function (oEvent) {
+				var text = oReq.response; // Note: not oReq.responseText
+				if (text) {
+					scene.load_obj("torus", text, [], function () {
+						drawonce();
+					});
+				}
+			};
+			oReq.send(null);
+		};
 	}
 
 	function init_tools() {
