@@ -1,0 +1,103 @@
+{
+  "_args": [
+    [
+      {
+        "raw": "litegraph.js",
+        "scope": null,
+        "escapedName": "litegraph.js",
+        "name": "litegraph.js",
+        "rawSpec": "",
+        "spec": "latest",
+        "type": "tag"
+      },
+      "D:\\source\\uimac.github.io\\cabbage_sandbox"
+    ]
+  ],
+  "_from": "litegraph.js@latest",
+  "_id": "litegraph.js@0.3.0",
+  "_inCache": true,
+  "_location": "/litegraph.js",
+  "_nodeVersion": "8.9.3",
+  "_npmOperationalInternal": {
+    "host": "s3://npm-registry-packages",
+    "tmp": "tmp/litegraph.js-0.3.0.tgz_1514815187985_0.09475114149972796"
+  },
+  "_npmUser": {
+    "name": "kriffe",
+    "email": "info@skymaker.se"
+  },
+  "_npmVersion": "5.6.0",
+  "_phantomChildren": {},
+  "_requested": {
+    "raw": "litegraph.js",
+    "scope": null,
+    "escapedName": "litegraph.js",
+    "name": "litegraph.js",
+    "rawSpec": "",
+    "spec": "latest",
+    "type": "tag"
+  },
+  "_requiredBy": [
+    "#USER"
+  ],
+  "_resolved": "https://registry.npmjs.org/litegraph.js/-/litegraph.js-0.3.0.tgz",
+  "_shasum": "c61da4db0fec6809ed149a2b9d48d6c99bd83b53",
+  "_shrinkwrap": null,
+  "_spec": "litegraph.js",
+  "_where": "D:\\source\\uimac.github.io\\cabbage_sandbox",
+  "author": {
+    "name": "jagenjo"
+  },
+  "bugs": {
+    "url": "https://github.com/jagenjo/litegraph.js/issues"
+  },
+  "dependencies": {},
+  "description": "A graph node editor similar to PD or UDK Blueprints, it works in a HTML5 Canvas and allow to exported graphs to be included in applications.",
+  "devDependencies": {
+    "express": "^4.16.2",
+    "google-closure-compiler": "^20171112.0.0",
+    "grunt": "^1.0.1",
+    "grunt-closure-tools": "^1.0.0",
+    "grunt-contrib-clean": "^1.1.0",
+    "grunt-contrib-concat": "^1.0.1",
+    "grunt-contrib-copy": "^1.0.0",
+    "nodemon": "^1.14.7"
+  },
+  "directories": {
+    "doc": "doc"
+  },
+  "dist": {
+    "integrity": "sha512-byx+YFBC6YwHSXNrzZGLRVr5BUKCLoLnkAm3Pbpf88dgylsfSgzUgkn232lf1M/MMkieEwhIq+dcBBFlGshi/A==",
+    "shasum": "c61da4db0fec6809ed149a2b9d48d6c99bd83b53",
+    "tarball": "https://registry.npmjs.org/litegraph.js/-/litegraph.js-0.3.0.tgz"
+  },
+  "files": [
+    "build",
+    "css/litegraph.css"
+  ],
+  "gitHead": "766dfe2b83c3f29c29e8d3601c9c5bdd6715e05b",
+  "homepage": "https://github.com/kriffe/litegraph.js#readme",
+  "license": "MIT",
+  "main": "build/litegraph.js",
+  "maintainers": [
+    {
+      "name": "kriffe",
+      "email": "info@skymaker.se"
+    }
+  ],
+  "name": "litegraph.js",
+  "optionalDependencies": {},
+  "private": false,
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jagenjo/litegraph.js.git"
+  },
+  "scripts": {
+    "build": "grunt build",
+    "prebuild": "grunt clean:build",
+    "start": "npx nodemon utils/server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "version": "0.3.0"
+}

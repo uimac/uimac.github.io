@@ -238,7 +238,7 @@
 				},
 				{
 					id : 'layout2',
-					size : "-43px",
+					size : "-246px",
 					direction : 'vertical',
 					contents : [
 						{
@@ -275,17 +275,16 @@
 							minSize : "42px"
 						}
 					]
-				}
-				/*,
+				},
 				{
 					size : "3px",
 					splitter : "3px"
 				},
 				{
-					id : 'timeline',
+					id : 'nodeview',
 					size : "200px",
 					minSize : "50px"
-				}*/]
+				}]
 
 			};
 
