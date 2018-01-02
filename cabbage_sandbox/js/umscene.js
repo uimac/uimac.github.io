@@ -64,11 +64,13 @@
 
 		this.node_map = {};
 			
+		/*
 		if (window && window.process && window.process.type) {
 			this.connect_mmap();
 		} else {
 			this.connect_ws();
 		}
+		*/
 	};
 
 	function strToArrayBuffer(move_data, s) {
