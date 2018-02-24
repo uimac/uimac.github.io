@@ -63,13 +63,13 @@ class CameraTool:
 
 tool = CameraTool()
 
-def mousemove(x, y, button):
+def mousemove(x, y, button, pressure):
 	tool.mousemove(x, y, button)
 
-def mousedown(x, y, button):
+def mousedown(x, y, button, pressure):
 	tool.mousedown(x, y, button)
 
-def mouseup(x, y, button):
+def mouseup(x, y, button, pressure):
 	tool.mouseup(x, y, button)
 
 def keydown(shiftdown, ctrldown):
@@ -119,7 +119,7 @@ class SimplePen:
 		self.pre_points = (v10, v11, v12)
 		return (v10, v11, v12)
 
-	def circle_points(self, p0, p1):
+	def circle_points(self, p0, p1, rad):
 		dir = (p1 - p0).normalized()
 		dp = dir.dot(p1)
 		if not self.pre_dir:
@@ -139,9 +139,9 @@ class SimplePen:
 		v00 = self.pre_points[0]
 		v01 = self.pre_points[1]
 		v02 = self.pre_points[2]
-		v10 = (p1 + dir11 * 0.5)
-		v11 = (p1 + dir12 * 0.5)
-		v12 = (p1 + dir13 * 0.5)
+		v10 = (p1 + dir11 * rad)
+		v11 = (p1 + dir12 * rad)
+		v12 = (p1 + dir13 * rad)
 		self.pre_dir = dir
 		self.pre_points = (v10, v11, v12)
 		return [(v00, v10, v01), (v01, v10, v11),\
@@ -153,7 +153,7 @@ class SimplePen:
 		self.count = self.count + 1
 		print("start stroke")
 
-	def on_stroke(self, v):
+	def on_stroke(self, v, pressure):
 		if self.start_point:
 			p = self.circle_point(self.start_point, v)
 			self.mesh = add_mesh()
@@ -161,9 +161,11 @@ class SimplePen:
 			self.start_point = None
 
 		if self.mesh:
+			if pressure == 0:
+				pressure = 0.001
 			p0 = self.pre_point
 			p1 = v
-			ps = self.circle_points(p0, p1)
+			ps = self.circle_points(p0, p1, pressure)
 			for p in ps:
 				self.mesh.add_triangle(p[2], p[1], p[0])
 		self.pre_point = v
@@ -172,30 +174,30 @@ class SimplePen:
 		self.mesh = None
 		print("end stroke")
 
-	def mousemove(self, x, y, button):
+	def mousemove(self, x, y, button, pressure):
 		if self.is_dragging:
-			self.on_stroke(pos(x, y))
+			self.on_stroke(pos(x, y), pressure)
 
-	def mousedown(self, x, y, button):
+	def mousedown(self, x, y, button, pressure):
 		if button == 0:
 			self.is_dragging = True
 			self.start_stroke(pos(x, y))
 
-	def mouseup(self, x, y, button):
+	def mouseup(self, x, y, button, pressure):
 		if self.is_dragging:
 			self.end_stroke(pos(x,y))
 			self.is_dragging = False
 
 tool = SimplePen()
 
-def mousemove(x, y, button):
-	tool.mousemove(x, y, button)
+def mousemove(x, y, button, pressure):
+	tool.mousemove(x, y, button, pressure)
 
-def mousedown(x, y, button):
-	tool.mousedown(x, y, button)
+def mousedown(x, y, button, pressure):
+	tool.mousedown(x, y, button, pressure)
 
-def mouseup(x, y, button):
-	tool.mouseup(x, y, button)
+def mouseup(x, y, button, pressure):
+	tool.mouseup(x, y, button, pressure)
 
 print("python pen tool loaded")
 	`;
@@ -271,13 +273,13 @@ class DuplicatePen:
 
 tool = DuplicatePen()
 
-def mousemove(x, y, button):
+def mousemove(x, y, button, pressure):
 	tool.mousemove(x, y, button)
 
-def mousedown(x, y, button):
+def mousedown(x, y, button, pressure):
 	tool.mousedown(x, y, button)
 
-def mouseup(x, y, button):
+def mouseup(x, y, button, pressure):
 	tool.mouseup(x, y, button)
 
 print("python pen tool loaded")
@@ -386,21 +388,21 @@ print("python pen tool loaded")
 		return Sk.builtinFiles.files[x];
 	}
 
-	function mousemove(x, y, button) {
+	function mousemove(x, y, button, pressure) {
 		if (py_mousemove) {
-			Sk.misceval.callsim(py_mousemove, Sk.builtin.float_(x), Sk.builtin.float_(y), Sk.builtin.int_(button));
+			Sk.misceval.callsim(py_mousemove, Sk.builtin.float_(x), Sk.builtin.float_(y), Sk.builtin.int_(button), Sk.builtin.float_(pressure));
 		}
 	}
 
-	function mousedown(x, y, button) {
+	function mousedown(x, y, button, pressure) {
 		if (py_mousedown) {
-			Sk.misceval.callsim(py_mousedown, Sk.builtin.float_(x), Sk.builtin.float_(y), Sk.builtin.int_(button));
+			Sk.misceval.callsim(py_mousedown, Sk.builtin.float_(x), Sk.builtin.float_(y), Sk.builtin.int_(button), Sk.builtin.float_(pressure));
 		}
 	}
 
-	function mouseup(x, y, button) {
+	function mouseup(x, y, button, pressure) {
 		if (py_mouseup) {
-			Sk.misceval.callsim(py_mouseup, Sk.builtin.float_(x), Sk.builtin.float_(y), Sk.builtin.int_(button));
+			Sk.misceval.callsim(py_mouseup, Sk.builtin.float_(x), Sk.builtin.float_(y), Sk.builtin.int_(button), Sk.builtin.float_(pressure));
 		}
 	}
 
@@ -488,6 +490,7 @@ print("python pen tool loaded")
 					evt.changedTouches[0].clientY - rect.top - canvas.clientTop]
 		};
 
+		/*
 		canvas.addEventListener('mousedown', function (evt) {
 			var pos = getPos(evt);
 			mousedown(pos[0], pos[1], evt.button);
@@ -500,11 +503,25 @@ print("python pen tool loaded")
 			var pos = getPos(evt);
 			mousemove(pos[0], pos[1], evt.button);
 		});
+		*/
 		window.addEventListener('keydown', function (evt) {
 			keydown(evt.shiftKey, evt.ctrlKey);
 		});
 		window.addEventListener('keyup', function (evt) {
 			keyup();
+		});
+
+		canvas.addEventListener('pointerdown', (evt) => {
+			var pos = getPos(evt);
+			mousedown(pos[0], pos[1], evt.button, evt.pressure, evt.pointerType);
+		});
+		canvas.addEventListener('pointermove', (evt) => {
+			var pos = getPos(evt);
+			mousemove(pos[0], pos[1], evt.button, evt.pressure, evt.pointerType);
+		});
+		canvas.addEventListener('pointerup', (evt) => {
+			var pos = getPos(evt);
+			mouseup(pos[0], pos[1], evt.button, evt.pressure, evt.pointerType);
 		});
 
 		var gesturePos = null;

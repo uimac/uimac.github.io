@@ -1,1 +1,1 @@
-"..\electron-v1.7.10-win32-x64\\electron" "."
+"..\electron-v1.8.2-win32-x64\\electron" "."

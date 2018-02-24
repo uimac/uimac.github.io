@@ -420,29 +420,18 @@
 			is_drawing = false;
 		});
 
-		window.addEventListener('mousedown', function (evt) {
-			/*
-			is_dragging = true;
-			is_middle_down = (evt.button === 1);
-			is_right_down = (evt.button === 2);
-			pre_x = evt.pageX;
-			pre_y = evt.pageY;
-			*/
+		window.addEventListener('pointerdown', (evt) => {
 			if (!scene.is_playing) {
 				mainloop_handle = requestAnimationFrame(main_loop);
 			}
 		});
-		window.addEventListener('mouseup', function (evt) {
-			/*
-			is_dragging = false;
-			is_middle_down = false;
-			is_right_down = false;
-			*/
+		window.addEventListener('pointerup', (evt) => {
 			if (!scene.is_playing) {
 				cancelAnimationFrame(mainloop_handle);
 			}
 			is_drawing = false;
 		});
+
 			/*
 		window.addEventListener('mousemove', function (evt) {
 			var mx = evt.pageX - pre_x,
@@ -526,7 +515,7 @@
 		init_open_tool();
 		init_shader_tools();
 		init_other_tools();
-		
+
 		var ua = navigator.userAgent;
 		if (ua.indexOf('iPhone') < 0 &&
 			ua.indexOf('iPod') < 0 &&
