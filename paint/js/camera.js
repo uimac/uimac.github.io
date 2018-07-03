@@ -16,18 +16,25 @@
 		this.pcentity.addComponent("script", { enabled: true }); // scriptを追加できるようにする.
 		pc.app.loader.load("lib/playcanvas/orbit-camera.js", "script", function (err, script) {
 			pc.app.loader.load("lib/playcanvas/orbit-camera-input-mouse.js", "script", function (err, script) {
-				this.pcentity.script.create("orbitCamera", {
-					attributes: {
-						maxElevation: 89,
-					}
-				});
-				this.pcentity.script.create("orbitCameraInputMouse", {
-					attributes: {
-						orbitSensitivity : 0.3
-					}
-				});
-				// 初期化完了
-				this.emit(window.upaint.Camera.EVENT_LOADED, null);
+				pc.app.loader.load("lib/playcanvas/orbit-camera-input-touch.js", "script", function (err, script) {
+					this.pcentity.script.create("orbitCamera", {
+						attributes: {
+							maxElevation: 89,
+						}
+					});
+					this.pcentity.script.create("orbitCameraInputMouse", {
+						attributes: {
+							orbitSensitivity : 0.3
+						}
+					});
+					this.pcentity.script.create("orbitCameraInputTouch", {
+						attributes: {
+							orbitSensitivity : 0.3
+						}
+					});
+					// 初期化完了
+					this.emit(window.upaint.Camera.EVENT_LOADED, null);
+				}.bind(this));
 			}.bind(this));
 		}.bind(this));
 	};
