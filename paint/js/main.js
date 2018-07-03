@@ -9,6 +9,7 @@
 		let gltfIO = new upaint.ModelIO.GLTF();
 		gltfIO.on('loaded', function (err, model) {
 			scene.addModel(model);
+			scene.addAnimation(new upaint.ModelAnimation(model));
 		});
 		gltfIO.load("data/CesiumMan.glb");
 

@@ -1,5 +1,6 @@
 (function () {
 	"use strict";
+
 	/**
 	 * コンストラクタ
 	 * @param {*} pcscene playcanvasシーン
@@ -13,6 +14,7 @@
 
 		this.cameraList = []; //upaint.Cameraのリスト
 		this.modelList = []; //upaint.Modelのリスト
+		this.animationList = []; //upaint.*Animationのリスト
 
 		// デフォルトカメラの追加
 		this.addCamera(new upaint.Camera());
@@ -35,6 +37,14 @@
 		this.pcentity.addChild(model.pcentity);
 	};
 	
+	/**
+	 * アニメーションの追加
+	 * @param {*} model 
+	 */
+	Scene.prototype.addAnimation = function (animation) {
+		this.animationList.push(animation);
+	};
+
 	/**
 	 * カメラの追加
 	 * @param {*} camera 
