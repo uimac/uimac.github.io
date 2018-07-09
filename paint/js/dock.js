@@ -6,23 +6,24 @@
 			showMaximiseIcon : false
 		},
 		content: [{
-			type: 'column',
+			type: 'row',
 			content: [{
-				id: 'dock_view',
-				title: "View",
-				type: 'component',
-				isClosable : false,
-				height: 800,
-				componentName: 'main',
-				showPopoutIcon: false,
-				componentState: {  }
-			}, {
-				id: 'dock_timeline',
-				title: "Timeline",
-				type: 'component',
-				height: 300,
-				componentName: 'main',
-				componentState: { label: 'C' }
+				type: 'column',
+				content: [{
+					id: 'dock_view',
+					title: "View",
+					type: 'component',
+					isClosable : false,
+					height: 800,
+					componentName: 'main'
+				}, {
+					id: 'dock_timeline',
+					title: "Timeline",
+					type: 'component',
+					isClosable : false,
+					height: 300,
+					componentName: 'main'
+				}]
 			}]
 		}]
 	};
@@ -38,20 +39,38 @@
 		this.layout_.registerComponent('main', function (container, componentState) {
 			//container.getElement().html('<h2>' + componentState.label + '</h2>');
 		});
-		this.layout_.init();
+		this.layout_.on("initialised", function (err) {
+			this.emit("initialize", null);
+			console.log(this.layout.toConfig());
+		}.bind(this));
 
-		// this.layout_.on('stateChanged', function () {
-		// 	let state = JSON.stringify(this.layout.toConfig());
-		// 	localStorage.setItem('upaint.layout', state);
-		// }.bind(this));
+		this.layout_.on('windowOpened', function (win) {
+			let config = win.toConfig();
+			console.log(this.layout.toConfig());
+		}.bind(this));
+
+		this.layout_.on('windowClosed', function (win) {
+			//console.log(this.layout.toConfig());
+			//let state = JSON.stringify(this.layout.toConfig());
+			let config = win.toConfig();
+			if (config.content[0]) {
+				this.emit("reset", null, config.content[0].id);
+			}
+			//localStorage.setItem('upaint.layout', state);
+		}.bind(this));
 	};
 	Dock.prototype = Object.create(EventEmitter.prototype);
 
+	Dock.prototype.init = function () {
+		this.layout_.init();
+	};
+	
 	Object.defineProperty(Dock.prototype, 'layout', {
 		get: function () {
 			return this.layout_;
 		}
 	});
 
+	Dock.EVENT_INITIALIZE = "initialize";
 	window.upaint.Dock = Dock;
 }());

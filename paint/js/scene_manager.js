@@ -5,7 +5,6 @@
 	 * @param {} gui 
 	 */
 	let SceneManager = function (gui) {
-		
 		// init application
 		let app = new pc.Application(gui.canvas, {
 			mouse: new pc.Mouse(gui.canvas),
@@ -18,15 +17,12 @@
 		app.start();
 		// ensure canvas is resized when window changes size
 
-		this.onReize = function () {
+		gui.on(upaint.GUI.EVENT_RESIZE, function () {
 			app.resizeCanvas();
-		};
-		this.onOrientationChange = function () {
+		});
+		gui.on(upaint.GUI.EVENT_ORIENTATION_CHANGE, function () {
 			app.resizeCanvas();
-		};
-		window.addEventListener('resize', this.onReize);
-		window.addEventListener('orientationchange', this.onOrientationChange);
-
+		});
 		this.sceneList_ = []; // upaint.Sceneのリスト
 	};
 
@@ -38,8 +34,6 @@
 			this.deleteScene(this.sceneList[i]);
 		}
 		this.currentScene = null;
-		window.removeEventListener('resize', this.onReize);
-		window.removeEventListener('orientationchange', this.onOrientationChange);
 	};
 
 	/**
