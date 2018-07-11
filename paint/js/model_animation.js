@@ -36,6 +36,9 @@
 		for (let i = 0; i < pcmodel.skinInstances.length; ++i) {
 			this.skin = pcmodel.skinInstances[i];
 		}
+
+		model.updateSkeleton();
+		console.log(this.skin)
 	};
 	ModelAnimation.prototype = Object.create(EventEmitter.prototype);
 

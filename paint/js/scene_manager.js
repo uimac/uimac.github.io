@@ -24,6 +24,11 @@
 			app.resizeCanvas();
 		});
 		this.sceneList_ = []; // upaint.Sceneのリスト
+
+        // app.on('update', function (deltaTime) {var points = [new pc.Vec3(0,0,0), new pc.Vec3(1,0,0), new pc.Vec3(1,1,0), new pc.Vec3(1,1,1)];
+		// 	var colors = [new pc.Color(1,0,0), new pc.Color(1,1,0), new pc.Color(0,1,1), new pc.Color(0,0,1)];
+		// 	app.renderLines(points, colors);
+		// });
 	};
 
 	/**

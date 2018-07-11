@@ -45,6 +45,10 @@
 			}
 		}.bind(this));
 
+		this.onTouchMove = function (e) {
+			e.preventDefault();
+		};
+		document.addEventListener("touchmove", this.onTouchMove, { passive: false });
 		window.addEventListener('resize', this.onReize);
 		window.addEventListener('orientationchange', this.onOrientationChange);
 	};
@@ -55,6 +59,7 @@
 	};
 
 	GUI.prototype.destroy = function () {
+		document.removeEventListener("touchmove", this.onTouchMove);
 		window.removeEventListener('resize', this.onReize);
 		window.removeEventListener('orientationchange', this.onOrientationChange);
 	};
