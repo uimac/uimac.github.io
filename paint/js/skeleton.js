@@ -37,8 +37,8 @@
 	}
 
 	Skeleton.prototype.initSpheres = function () {
-		let mesh = pc.createSphere(pc.app.graphicsDevice);
-		createFromMesh(mesh);
+		// let mesh = pc.createSphere(pc.app.graphicsDevice);
+		// createFromMesh(mesh);
 	}
 
 	/**
