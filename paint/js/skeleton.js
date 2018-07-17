@@ -1,24 +1,7 @@
 (function () {
 	"use strict";
 
-	/**
-	 * 
-	 */
-	function createFromMesh (pcmesh, pcmat = null) {
-		let node = new pc.GraphNode();
-		let mat;
-		if (pcmat) {
-			mat = pcmat;
-		} else {
-			mat = new pc.BasicMaterial();
-		}
-		let instance = new pc.MeshInstance(node, pcmesh, mat);
-		let pcmodel = new pc.Model();
-		pcmodel.graph = node;
-		pcmodel.meshInstances = [ instance ];
-		pc.app.scene.addModel(pcmodel);
-		return pcmodel;
-	};
+	let PivotSize = 0.1;
 
 	/**
 	 * スケルトン操作＆描画用クラス
@@ -26,20 +9,44 @@
 	 */
 	let Skeleton = function (rootEntity) {
 		EventEmitter.call(this);
-		this.pcentity_ = rootEntity;
+		// スケルトン描画用entity
+		this.pcentity_ = new pc.Entity('Skeleton');
+		// スケルトンのルート
+		this.root = rootEntity;
+
+		this.gizmo_ = new pc.Entity('Gizmo')
+
+		this.mat = new pc.BasicMaterial();
+		this.mat.color.set(0, 0.5, 0);
+		this.mat.depthTest = false;
+		this.mat.update();
 	};
 
 	Skeleton.prototype.update = function () {
-		let pcmodel = this.initSpheres();
-		let entity = new pc.Entity('Skeleton')
-		entity.addComponent('model');
-		this.pcentity_.addChild(entity);
-	}
+		this.addSphere(this.root);
+	};
 
-	Skeleton.prototype.initSpheres = function () {
-		// let mesh = pc.createSphere(pc.app.graphicsDevice);
-		// createFromMesh(mesh);
-	}
+	Skeleton.prototype.addSphere = function (root) {
+		if (!root) return;
+		let mesh = pc.createSphere(pc.app.graphicsDevice);
+		let model = upaint.Model.createModelFromMesh(mesh, this.mat.clone());
+
+		for (let i = 0; i < root.children.length; ++i) {
+			this.addSphere(root.children[i]);
+		}
+		let layer = pc.app.scene.layers.getLayerById(pc.LAYERID_IMMEDIATE);
+		if (layer) {
+			layer.addMeshInstances(model.pcmodel.meshInstances);
+		}
+		model.pcentity.setLocalScale(PivotSize, PivotSize, PivotSize)
+		root.addChild(model.pcentity);
+	};
+
+	Object.defineProperty(Skeleton.prototype, 'gizmo', {
+		get: function () {
+			return this.gizmo_;
+		}
+	});
 
 	/**
 	 * playcanvas entity

@@ -65,4 +65,24 @@
 
 	window.upaint.Model = Model;
 
+	/**
+	 * pcmeshからModelを作成して返す
+	 */
+	window.upaint.Model.createModelFromMesh = function (pcmesh, pcmat = null) {
+		let node = new pc.GraphNode();
+		let mat;
+		if (pcmat) {
+			mat = pcmat;
+		} else {
+			mat = new pc.BasicMaterial();
+		}
+		let instance = new pc.MeshInstance(node, pcmesh, mat);
+		let pcmodel = new pc.Model();
+		pcmodel.graph = node;
+		pcmodel.meshInstances = [ instance ];
+		let model = new Model();
+		model.pcentity.addComponent('model')
+		model.pcentity.model.model = pcmodel;
+		return model;
+	};
 }());

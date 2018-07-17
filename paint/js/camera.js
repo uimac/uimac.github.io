@@ -40,6 +40,31 @@
 	};
 	Camera.prototype = Object.create(EventEmitter.prototype);
 
+	function findCameraComponent(root) {
+		if (root.camera) {
+			return root.camera.camera;
+		}
+		for (let i = 0; i < root.children.length; ++i) {
+			let cameraComponent = findCameraComponent(root.children[i]);
+			if (cameraComponent) {
+				return cameraComponent;
+			}
+		}
+		return null;
+	}
+	
+	/**
+	 * playcanvas cameracomponent
+	 */
+	Object.defineProperty(Camera.prototype, 'pccamera', {
+		get: function () {
+			if (!this.pccamera_) {
+				this.pccamera_ = findCameraComponent(this.pcentity);
+			}
+			return this.pccamera_;
+		}
+	});
+
 	/**
 	 * playcanvas entity
 	 */

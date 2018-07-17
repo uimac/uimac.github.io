@@ -17,12 +17,16 @@
 		app.start();
 		// ensure canvas is resized when window changes size
 
+		this.pick = new upaint.Pick(gui);
+
 		gui.on(upaint.GUI.EVENT_RESIZE, function () {
 			app.resizeCanvas();
-		});
+			this.pick.update(gui);
+		}.bind(this));
 		gui.on(upaint.GUI.EVENT_ORIENTATION_CHANGE, function () {
 			app.resizeCanvas();
-		});
+			this.pick.update(gui);
+		}.bind(this));
 		this.sceneList_ = []; // upaint.Sceneのリスト
 
         // app.on('update', function (deltaTime) {var points = [new pc.Vec3(0,0,0), new pc.Vec3(1,0,0), new pc.Vec3(1,1,0), new pc.Vec3(1,1,1)];
@@ -35,6 +39,9 @@
 	 * 終了処理
 	 */
 	SceneManager.prototype.destroy = function () {
+		if (this.pick) {
+			this.pick.destroy();
+		}
 		for (let i = 0; i < this.sceneList.length; ++i) {
 			this.deleteScene(this.sceneList[i]);
 		}
@@ -78,8 +85,11 @@
 				pc.app.scene = scene.pcscene;
 				pc.app.scene.layers = pc.app.defaultLayerComposition;
 				pc.app.root.addChild(scene.pcentity);
+				this.currentScene_ = scene;
+				this.pick.init(scene.cameraList[0].pccamera, scene.pcscene);
 			} else {
 				pc.app.scene = null;
+				this.currentScene_ = null;
 			}
 		}
 	});

@@ -25,8 +25,8 @@
 		if (this.anim) {
 			for (let clipName in this.anim.animClips) {
 				let clip = this.anim.animClips[clipName];
-				clip.stop();
-				clip.loop = false;
+				//clip.stop();
+				//clip.loop = false;
 				this.targets = clip.getAnimTargets();
 			}
 		}
@@ -38,7 +38,7 @@
 		}
 
 		model.updateSkeleton();
-		console.log(this.skin)
+		this.pcentity_.addChild(model.skeleton.pcentity);
 	};
 	ModelAnimation.prototype = Object.create(EventEmitter.prototype);
 

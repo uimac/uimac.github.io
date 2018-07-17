@@ -12,9 +12,9 @@
 		this.pcscene.gammaCorrection = pc.GAMMA_SRGB;
 		this.pcscene.toneMapping = pc.TONEMAP_LINEAR;
 
-		this.cameraList = []; //upaint.Cameraのリスト
-		this.modelList = []; //upaint.Modelのリスト
-		this.animationList = []; //upaint.*Animationのリスト
+		this.cameraList_ = []; //upaint.Cameraのリスト
+		this.modelList_ = []; //upaint.Modelのリスト
+		this.animationList_ = []; //upaint.*Animationのリスト
 
 		// デフォルトカメラの追加
 		this.addCamera(new upaint.Camera());
@@ -33,8 +33,13 @@
 	 * @param {*} model 
 	 */
 	Scene.prototype.addModel = function (model) {
-		this.modelList.push(model);
+		this.modelList_.push(model);
 		this.pcentity.addChild(model.pcentity);
+		if (model.pcmodel) {
+			if (!this.pcscene.containsModel(model.pcmodel)) {
+				this.pcscene.addModel(model.pcmodel);
+			}
+		}
 	};
 	
 	/**
@@ -42,7 +47,8 @@
 	 * @param {*} model 
 	 */
 	Scene.prototype.addAnimation = function (animation) {
-		this.animationList.push(animation);
+		this.animationList_.push(animation);
+		this.pcentity.addChild(animation.pcentity);
 	};
 
 	/**
@@ -50,9 +56,27 @@
 	 * @param {*} camera 
 	 */
 	Scene.prototype.addCamera = function (camera) {
-		this.cameraList.push(camera);
+		this.cameraList_.push(camera);
 		this.pcentity.addChild(camera.pcentity);
 	};
+
+	/**
+	 * カメラリストを返す
+	 */
+	Object.defineProperty(Scene.prototype, 'cameraList', {
+		get : function () {
+			return this.cameraList_;
+		}
+	});
+
+	/**
+	 * アニメーションリストを返す
+	 */
+	Object.defineProperty(Scene.prototype, 'animationList', {
+		get : function () {
+			return this.animationList_;
+		}
+	});
 
 	/**
 	 * playcanvas entity
