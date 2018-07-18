@@ -22,9 +22,22 @@
 
 		this.handleList = [];
 		this.addSphere(this.root);
+
+		this.manip = new upaint.Manipulator();
+		this.showManipulator(this.root);
+	};
+	Skeleton.prototype = Object.create(EventEmitter.prototype);
+
+	/**
+	 * 終了処理
+	 */
+	Skeleton.prototype.destroy = function () {
+		this.deleteHandleList();
+		this.pcentity.destroy();
+		this.mat.destroy();
 	};
 
-	Skeleton.prototype.destroy = function () {
+	Skeleton.prototype.deleteHandleList = function () {
 		let layer = pc.app.scene.layers.getLayerById(pc.LAYERID_IMMEDIATE);
 		for (let i = 0; i < this.handleList.length; ++i) {
 			let model = this.handleList[i];
@@ -34,8 +47,10 @@
 			model.destroy();
 		}
 		this.handleList = [];
-		this.pcentity.destroy();
-		this.mat.destroy();
+	};
+
+	Skeleton.prototype.showManipulator = function (pcentity) {
+		this.manip.target = pcentity;
 	};
 
 	Skeleton.prototype.addSphere = function (root) {
@@ -45,7 +60,9 @@
 		}
 		let mesh = pc.createSphere(pc.app.graphicsDevice);
 		let model = upaint.Model.createModelFromMesh(mesh, this.mat.clone());
-		model.pcentity.name = "Sphere"
+		mesh.name = "Sphere";
+		mesh.skeleton = this;
+		mesh.entity = root;
 		let layer = pc.app.scene.layers.getLayerById(pc.LAYERID_IMMEDIATE);
 		if (layer) {
 			layer.addMeshInstances(model.pcmodel.meshInstances);

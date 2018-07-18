@@ -29,6 +29,9 @@
 		pc.app.on("update", this.updateFunc);
 	};
 
+	/**
+	 * 終了処理
+	 */
 	Pick.prototype.destroy = function () {
 		if (this.updateFunc) {
 			pc.app.off("update", this.updateFunc);
@@ -43,7 +46,14 @@
 
 	Pick.prototype.onMouseDown = function (event) {
 		if (!this.initialized) return;
+		// MeshInstance
 		let hits = this.picker.getSelection(event.x, event.y);
+		if (hits.length > 0) {
+			if (hits[0].mesh.name === "Sphere") {
+				let skeleton = hits[0].mesh.skeleton;
+				skeleton.showManipulator(hits[0].mesh.entity);
+			}
+		}
 	};
 
 	Pick.prototype.onMouseMove = function (event) {
@@ -56,8 +66,10 @@
 
 		let hits = this.picker.getSelection(event.x, event.y);
 		if (hits.length > 0) {
-			hits[0].material.color.set(1, 0, 0);
-			this.hoverList.push(hits[0]);
+			if (hits[0].mesh.name === "Sphere") {
+				hits[0].material.color.set(1, 0, 0);
+				this.hoverList.push(hits[0]);
+			}
 		}
 	};
 

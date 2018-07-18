@@ -14,7 +14,7 @@
 	Model.prototype = Object.create(EventEmitter.prototype);
 
 	/**
-	 * destruct
+	 * 終了処理
 	 */
 	Model.prototype.destroy = function () {
 		this.pcentity.destroy();		
