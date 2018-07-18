@@ -60,7 +60,7 @@
 		if (!this.initialized) return;
 		
 		for (let i = 0; i < this.hoverList.length; ++i) {
-			this.hoverList[i].material.color.set(0, 0.5, 0);
+			this.hoverList[i].material.color.fromString(upaint.Constants.HandleColor)
 		}
 		this.hoverList = [];
 

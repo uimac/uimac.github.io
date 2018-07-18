@@ -16,7 +16,8 @@
 
 		// ハンドル用マテリアル
 		this.mat = new pc.BasicMaterial();
-		this.mat.color.set(0, 0.5, 0);
+		this.mat.blendType = pc.BLEND_NORMAL;
+		this.mat.color.fromString(upaint.Constants.HandleColor)
 		this.mat.depthTest = false;
 		this.mat.update();
 
