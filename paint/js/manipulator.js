@@ -1,6 +1,6 @@
 (function () {
 	"use strict";
-	let PivotSize = 0.1;
+	let PivotSize = 0.2;
 
 	let Manipulator = function () {
 		this.manipEntity_ = new pc.Entity('Manip');
@@ -8,10 +8,11 @@
 
 		// ハンドル用マテリアル
 		this.mat = new pc.BasicMaterial();
-		this.mat.color.set(1, 0.5, 0);
+		this.mat.color.set(1, 0.5, 0, 0.5);
 		this.mat.depthTest = false;
+		this.mat.blendType = pc.BLEND_NORMAL;
 		this.mat.update();
-		let mesh = pc.createBox(pc.app.graphicsDevice);
+		let mesh = pc.createSphere(pc.app.graphicsDevice);
 		this.manipModel_ = upaint.Model.createModelFromMesh(mesh, this.mat.clone());
 		let layer = pc.app.scene.layers.getLayerById(pc.LAYERID_IMMEDIATE);
 		if (layer) {
