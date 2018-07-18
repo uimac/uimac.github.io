@@ -13,6 +13,13 @@
 	};
 	Model.prototype = Object.create(EventEmitter.prototype);
 
+	/**
+	 * destruct
+	 */
+	Model.prototype.destroy = function () {
+		this.pcentity.destroy();		
+	};
+
 	function findModelComponent(root) {
 		if (root.model) {
 			return root.model.model;
@@ -25,13 +32,6 @@
 		}
 		return null;
 	}
-	
-	Model.prototype.updateSkeleton = function () {
-		if (!this.skeleton_) {
-			this.skeleton_ = new upaint.Skeleton(this.pcentity);
-		}
-		this.skeleton.update();
-	};
 
 	/**
 	 * skeleton
@@ -39,6 +39,9 @@
 	Object.defineProperty(Model.prototype, 'skeleton', {
 		get: function () {
 			return this.skeleton_;
+		},
+		set : function (skeleton) {
+			this.skeleton_ = skeleton;
 		}
 	});
 

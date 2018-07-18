@@ -9,44 +9,51 @@
 	 */
 	let Skeleton = function (rootEntity) {
 		EventEmitter.call(this);
-		// スケルトン描画用entity
+		// スケルトン用entity
 		this.pcentity_ = new pc.Entity('Skeleton');
 		// スケルトンのルート
 		this.root = rootEntity;
 
-		this.gizmo_ = new pc.Entity('Gizmo')
-
+		// ハンドル用マテリアル
 		this.mat = new pc.BasicMaterial();
 		this.mat.color.set(0, 0.5, 0);
 		this.mat.depthTest = false;
 		this.mat.update();
+
+		this.handleList = [];
+		this.addSphere(this.root);
 	};
 
-	Skeleton.prototype.update = function () {
-		this.addSphere(this.root);
+	Skeleton.prototype.destroy = function () {
+		let layer = pc.app.scene.layers.getLayerById(pc.LAYERID_IMMEDIATE);
+		for (let i = 0; i < this.handleList.length; ++i) {
+			let model = this.handleList[i];
+			if (layer) {
+				layer.removeMeshInstances(model.pcmodel.meshInstances)
+			}
+			model.destroy();
+		}
+		this.handleList = [];
+		this.pcentity.destroy();
+		this.mat.destroy();
 	};
 
 	Skeleton.prototype.addSphere = function (root) {
 		if (!root) return;
-		let mesh = pc.createSphere(pc.app.graphicsDevice);
-		let model = upaint.Model.createModelFromMesh(mesh, this.mat.clone());
-
 		for (let i = 0; i < root.children.length; ++i) {
 			this.addSphere(root.children[i]);
 		}
+		let mesh = pc.createSphere(pc.app.graphicsDevice);
+		let model = upaint.Model.createModelFromMesh(mesh, this.mat.clone());
+		model.pcentity.name = "Sphere"
 		let layer = pc.app.scene.layers.getLayerById(pc.LAYERID_IMMEDIATE);
 		if (layer) {
 			layer.addMeshInstances(model.pcmodel.meshInstances);
 		}
 		model.pcentity.setLocalScale(PivotSize, PivotSize, PivotSize)
 		root.addChild(model.pcentity);
+		this.handleList.push(model);
 	};
-
-	Object.defineProperty(Skeleton.prototype, 'gizmo', {
-		get: function () {
-			return this.gizmo_;
-		}
-	});
 
 	/**
 	 * playcanvas entity

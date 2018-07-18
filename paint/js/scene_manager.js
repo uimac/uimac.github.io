@@ -13,9 +13,9 @@
 		});
 		app.setCanvasResolution(pc.RESOLUTION_AUTO);
 		app.setCanvasFillMode(pc.FILLMODE_NONE);
-		app.graphicsDevice.maxPixelRatio = window.devicePixelRatio;
+		// これを行うと解像度変更したときにpickがずれる
+		//app.graphicsDevice.maxPixelRatio = window.devicePixelRatio;
 		app.start();
-		// ensure canvas is resized when window changes size
 
 		this.pick = new upaint.Pick(gui);
 
@@ -27,12 +27,8 @@
 			app.resizeCanvas();
 			this.pick.update(gui);
 		}.bind(this));
-		this.sceneList_ = []; // upaint.Sceneのリスト
 
-        // app.on('update', function (deltaTime) {var points = [new pc.Vec3(0,0,0), new pc.Vec3(1,0,0), new pc.Vec3(1,1,0), new pc.Vec3(1,1,1)];
-		// 	var colors = [new pc.Color(1,0,0), new pc.Color(1,1,0), new pc.Color(0,1,1), new pc.Color(0,0,1)];
-		// 	app.renderLines(points, colors);
-		// });
+		this.sceneList_ = []; // upaint.Sceneのリスト
 	};
 
 	/**
@@ -45,6 +41,7 @@
 		for (let i = 0; i < this.sceneList.length; ++i) {
 			this.deleteScene(this.sceneList[i]);
 		}
+		this.sceneList_ = [];
 		this.currentScene = null;
 	};
 

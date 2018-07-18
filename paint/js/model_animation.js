@@ -36,11 +36,18 @@
 		for (let i = 0; i < pcmodel.skinInstances.length; ++i) {
 			this.skin = pcmodel.skinInstances[i];
 		}
-
-		model.updateSkeleton();
-		this.pcentity_.addChild(model.skeleton.pcentity);
+	
+		model.skeleton = new upaint.Skeleton(model.pcentity);
 	};
 	ModelAnimation.prototype = Object.create(EventEmitter.prototype);
+
+	/**
+	 * destruct
+	 */
+	ModelAnimation.prototype.destroy = function () {
+		this.pcentity.destroy();
+		this.refarence_model_.skeleton.destroy();
+	};
 
 	/**
 	 * アニメーション対象のモデル
