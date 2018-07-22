@@ -8,18 +8,47 @@
 
 		// ハンドル用マテリアル
 		this.mat = new pc.BasicMaterial();
-		this.mat.color.set(1, 0.5, 0, 0.5);
+		this.mat.cull = pc.CULLFACE_NONE;
 		this.mat.depthTest = false;
 		this.mat.blendType = pc.BLEND_NORMAL;
 		this.mat.update();
-		let mesh = pc.createSphere(pc.app.graphicsDevice);
-		this.manipModel_ = upaint.Model.createModelFromMesh(mesh, this.mat.clone());
-		let layer = pc.app.scene.layers.getLayerById(pc.LAYERID_IMMEDIATE);
-		if (layer) {
-			layer.addMeshInstances(this.manipModel_.pcmodel.meshInstances);
-		}
-		this.manipModel_.pcentity.setLocalScale(PivotSize, PivotSize, PivotSize);
-		this.manipEntity_.addChild(this.manipModel_.pcentity);
+
+		// ハンドルMesh
+		let createHandle = function (mat) {
+			let mesh = upaint.Util.createCylinderNoCap(pc.app.graphicsDevice, {
+				heightSegments  : 1,
+				capSegments  : 32
+			});
+			let model = upaint.Model.createModelFromMesh(mesh,  mat);
+			let layer = pc.app.scene.layers.getLayerById(pc.LAYERID_IMMEDIATE);
+			if (layer) {
+				layer.addMeshInstances(model.pcmodel.meshInstances);
+			}
+			model.pcentity.setLocalScale(PivotSize, PivotSize / 20, PivotSize);
+			return model;
+		};
+
+		let xmat = this.mat.clone();
+		xmat.color.set(1, 0, 0, 1);
+		this.xaxis_ = createHandle(xmat);
+
+		let ymat = this.mat.clone();
+		ymat.color.set(0, 1, 0, 1);
+		this.yaxis_ = createHandle(ymat);
+		let a = new pc.Quat();
+		let b = new pc.Quat();
+		a.setFromAxisAngle(new pc.Vec3(0, 0, 1), 90);
+		b.setFromAxisAngle(new pc.Vec3(1, 0, 0), 90);
+		this.yaxis_.pcentity.setLocalRotation(a.mul(b));
+		
+		let zmat = this.mat.clone();
+		zmat.color.set(0, 0, 1, 1);
+		this.zaxis_ = createHandle(zmat);
+		this.zaxis_.pcentity.setLocalEulerAngles(0, 0, 90);
+
+		this.manipEntity_.addChild(this.xaxis_.pcentity);
+		this.manipEntity_.addChild(this.yaxis_.pcentity);
+		this.manipEntity_.addChild(this.zaxis_.pcentity);
 	};
 
 	/**

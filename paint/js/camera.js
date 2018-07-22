@@ -11,7 +11,7 @@
 			clearColor: new pc.Color(0.8, 0.5, 0.5),
 			fov : 55
 		});
-		this.pcentity.setPosition(0, 0, 50);	
+		this.pcentity.setPosition(0, 0, 50);
 		this.emit(window.upaint.Camera.EVENT_LOADED, null);
 		this.pcentity.addComponent("script", { enabled: true }); // scriptを追加できるようにする.
 		pc.app.loader.load("lib/playcanvas/orbit-camera.js", "script", function (err, script) {

@@ -46,6 +46,23 @@
 	});
 
 	/**
+	 * pcmaterial
+	 */
+	Object.defineProperty(Model.prototype, 'pcmaterial', {
+		get: function (index = 0) {
+			if (this.pcmodel_ && this.pcmodel_.meshInstances.length > index) {
+				return this.pcmodel_.meshInstances[index].material;
+			}
+			return null;
+		},
+		set : function (mat, index = 0) {
+			if (this.pcmodel_ && this.pcmodel_.meshInstances.length > index) {
+				return this.pcmodel_.meshInstances[index].material = mat;
+			}
+		}
+	});
+
+	/**
 	 * playcanvas modelcomponent
 	 */
 	Object.defineProperty(Model.prototype, 'pcmodel', {
