@@ -61,7 +61,7 @@
 		}
 		let mesh = pc.createSphere(pc.app.graphicsDevice);
 		let model = upaint.Model.createModelFromMesh(mesh, this.mat.clone());
-		mesh.name = "Sphere";
+		mesh.name = Skeleton.HANDLE_NAME ;
 		mesh.skeleton = this;
 		mesh.entity = root;
 		let layer = pc.app.scene.layers.getLayerById(pc.LAYERID_IMMEDIATE);
@@ -82,6 +82,15 @@
 		}
 	});
 
+	Skeleton.HANDLE_NAME = "skeleton_handle"
+	Skeleton.IsSkeleton = function (meshInstance) {
+		let name = meshInstance.mesh.name;
+		return (name === Skeleton.HANDLE_NAME);
+	};
+	Skeleton.ShowManipulator = function (meshInstnace) {
+		let skeleton = meshInstnace.mesh.skeleton;
+		skeleton.showManipulator(meshInstnace.mesh.entity);
+	}
 	upaint.Skeleton = Skeleton;
 
 }());

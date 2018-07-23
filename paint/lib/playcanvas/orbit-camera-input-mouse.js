@@ -81,11 +81,12 @@ OrbitCameraInputMouse.prototype.pan = function (screenPoint) {
 OrbitCameraInputMouse.prototype.onMouseDown = function (event) {
     switch (event.button) {
         case pc.MOUSEBUTTON_LEFT:
-            this.lookButtonDown = true;
             break;
         case pc.MOUSEBUTTON_MIDDLE:
+        this.panButtonDown = true;
+        break;
         case pc.MOUSEBUTTON_RIGHT:
-            this.panButtonDown = true;
+        this.lookButtonDown = true;
             break;
     }
 };
@@ -94,11 +95,12 @@ OrbitCameraInputMouse.prototype.onMouseDown = function (event) {
 OrbitCameraInputMouse.prototype.onMouseUp = function (event) {
     switch (event.button) {
         case pc.MOUSEBUTTON_LEFT:
-            this.lookButtonDown = false;
             break;
         case pc.MOUSEBUTTON_MIDDLE:
-        case pc.MOUSEBUTTON_RIGHT:
             this.panButtonDown = false;
+            break;
+        case pc.MOUSEBUTTON_RIGHT:
+            this.lookButtonDown = false;
             break;
     }
 };

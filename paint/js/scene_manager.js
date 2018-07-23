@@ -83,7 +83,7 @@
 				pc.app.scene.layers = pc.app.defaultLayerComposition;
 				pc.app.root.addChild(scene.pcentity);
 				this.currentScene_ = scene;
-				this.pick.init(scene.cameraList[0].pccamera, scene.pcscene);
+				this.pick.init(scene.cameraList[0], scene);
 			} else {
 				pc.app.scene = null;
 				this.currentScene_ = null;

@@ -13,7 +13,7 @@
 					scene.addModel(model);
 					scene.addAnimation(new upaint.ModelAnimation(model));
 				});
-				gltfIO.load("data/CesiumMan.glb");
+				gltfIO.load("data/AliciaSolid.vrm");
 
 				window.onunload = function () {
 					gui.destroy();
