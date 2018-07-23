@@ -1,4 +1,5 @@
 (function () {
+	"use strict";
 	
 	let Util = {};
 
@@ -98,6 +99,16 @@
 		}
 		return pc.createMesh(device, options.positions, options);
 	}
+
+	Util.createImeddiateModel = function (mesh, mat) {
+		let model = upaint.Model.createModelFromMesh(mesh,  mat);
+		let layer = pc.app.scene.layers.getLayerById(pc.LAYERID_IMMEDIATE);
+		if (layer) {
+			layer.addMeshInstances(model.pcmodel.meshInstances);
+		}
+		return model;
+	}
+
 
 	upaint.Util = Util;
 }());

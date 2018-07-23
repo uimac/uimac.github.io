@@ -3,6 +3,7 @@
 	let PivotSize = 0.2;
 
 	let Manipulator = function () {
+		// xyz軸ハンドルの親
 		this.manipEntity_ = new pc.Entity('Manip');
 		this.target_ = null;
 
@@ -19,11 +20,7 @@
 				heightSegments  : 1,
 				capSegments  : 32
 			});
-			let model = upaint.Model.createModelFromMesh(mesh,  mat);
-			let layer = pc.app.scene.layers.getLayerById(pc.LAYERID_IMMEDIATE);
-			if (layer) {
-				layer.addMeshInstances(model.pcmodel.meshInstances);
-			}
+			let model = upaint.Util.createImeddiateModel(mesh,  mat);
 			model.pcentity.setLocalScale(PivotSize, PivotSize / 20, PivotSize);
 			return model;
 		};
@@ -31,20 +28,20 @@
 		let xmat = this.mat.clone();
 		xmat.color.set(1, 0, 0, 1);
 		this.xaxis_ = createHandle(xmat);
+		this.xaxis_.pcentity.setLocalEulerAngles(0, 0, 90);
 
 		let ymat = this.mat.clone();
 		ymat.color.set(0, 1, 0, 1);
 		this.yaxis_ = createHandle(ymat);
-		let a = new pc.Quat();
-		let b = new pc.Quat();
-		a.setFromAxisAngle(new pc.Vec3(0, 0, 1), 90);
-		b.setFromAxisAngle(new pc.Vec3(1, 0, 0), 90);
-		this.yaxis_.pcentity.setLocalRotation(a.mul(b));
 		
 		let zmat = this.mat.clone();
 		zmat.color.set(0, 0, 1, 1);
 		this.zaxis_ = createHandle(zmat);
-		this.zaxis_.pcentity.setLocalEulerAngles(0, 0, 90);
+		let a = new pc.Quat();
+		let b = new pc.Quat();
+		a.setFromAxisAngle(new pc.Vec3(0, 0, 1), 90);
+		b.setFromAxisAngle(new pc.Vec3(1, 0, 0), 90);
+		this.zaxis_.pcentity.setLocalRotation(a.mul(b));
 
 		this.manipEntity_.addChild(this.xaxis_.pcentity);
 		this.manipEntity_.addChild(this.yaxis_.pcentity);

@@ -19,6 +19,9 @@
 		// デフォルトカメラの追加
 		this.addCamera(new upaint.Camera());
 		pc.app.scene.ambientLight = new pc.Color(1, 1, 1);
+		
+		// グリッド
+		let grid = new upaint.Grid();
 	};
 
 	/**
