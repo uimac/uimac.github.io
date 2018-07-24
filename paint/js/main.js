@@ -2,10 +2,11 @@
 	"use strict";
 
 	function init() {
-		let gui = new upaint.GUI();
+		let store = new upaint.Store();
+		let gui = new upaint.GUI(store);
 		gui.on(upaint.GUI.EVENT_INITIALIZE, function () {
 			if (gui.canvas) {
-				let sceneManager = new upaint.SceneManager(gui);
+				let sceneManager = new upaint.SceneManager(store, gui);
 				let scene = sceneManager.newScene();
 
 				let gltfIO = new upaint.ModelIO.GLTF();

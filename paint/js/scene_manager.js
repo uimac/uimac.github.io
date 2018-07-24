@@ -4,7 +4,7 @@
 	 * コンストラクタ
 	 * @param {} gui 
 	 */
-	let SceneManager = function (gui) {
+	let SceneManager = function (store, gui) {
 		// init application
 		let app = new pc.Application(gui.canvas, {
 			mouse: new pc.Mouse(gui.canvas),
@@ -26,6 +26,14 @@
 		gui.on(upaint.GUI.EVENT_ORIENTATION_CHANGE, function () {
 			app.resizeCanvas();
 			this.pick.update(gui);
+		}.bind(this));
+
+		this.pick.on(upaint.Pick.EVENT_MANIP_ROTATE, function (err, type, manip) {
+			this.captureImage(150, 100, function (err, data) {
+				store.addKeyFrame({
+					image : data
+				});
+			})
 		}.bind(this));
 
 		this.sceneList_ = []; // upaint.Sceneのリスト
@@ -68,6 +76,29 @@
 		if (isCurrentScene && this.sceneList.length > 1) {
 			this.currentScene = this.sceneList[0];
 		}
+	};
+
+	/**
+	 * 現在のシーンをキャプチャして返す
+	 */
+	SceneManager.prototype.captureImage = function (width, height, callback) {
+		let canvas = pc.app.graphicsDevice.canvas;
+		let preW = canvas.width;
+		let preH = canvas.height;
+		pc.app.setCanvasResolution(pc.RESOLUTION_AUTO, width, height);
+		let captureFunc =  function() {
+			pc.app.off('frameend', captureFunc);
+			let dataURL = canvas.toDataURL();
+			pc.app.setCanvasResolution(pc.RESOLUTION_AUTO, preW, preH);
+			let image = new Image();
+			image.onload = function () {
+				if (callback) {
+					callback(null, image)
+				}
+			};
+			image.src = dataURL;
+		}
+		pc.app.on('frameend', captureFunc);
 	};
 
 	/**

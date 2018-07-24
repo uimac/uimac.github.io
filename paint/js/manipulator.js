@@ -94,6 +94,9 @@
 			name === Manipulator.MANIP_NAME_ROTY ||
 			name === Manipulator.MANIP_NAME_ROTZ);
 	};
+	Manipulator.GetManipulatorType = function (meshInstance) {
+		return meshInstance.mesh.name;
+	};
 	Manipulator.GetEntity = function (meshInstance) {
 		return meshInstance.mesh.entity;
 	};

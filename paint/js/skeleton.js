@@ -1,7 +1,7 @@
 (function () {
 	"use strict";
 
-	let PivotSize = 0.1;
+	let PivotSize = 0.05;
 
 	/**
 	 * スケルトン操作＆描画用クラス
@@ -61,7 +61,7 @@
 		}
 		let mesh = pc.createSphere(pc.app.graphicsDevice);
 		let model = upaint.Model.createModelFromMesh(mesh, this.mat.clone());
-		mesh.name = Skeleton.HANDLE_NAME ;
+		mesh.name = Skeleton.HANDLE_NAME;
 		mesh.skeleton = this;
 		mesh.entity = root;
 		let layer = pc.app.scene.layers.getLayerById(pc.LAYERID_IMMEDIATE);

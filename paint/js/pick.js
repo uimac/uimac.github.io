@@ -7,6 +7,7 @@
 	 * @param {*} gui 
 	 */
 	let Pick = function (gui) {
+		EventEmitter.call(this);
 		this.initialized = false;
 		this.picker = new pc.Picker(pc.app, gui.canvas.width, gui.canvas.height);
 
@@ -27,6 +28,7 @@
 		this.px = null;
 		this.py = null;
 	};
+	Pick.prototype = Object.create(EventEmitter.prototype);
 
 	/// カメラとシーンにより初期化する
 	Pick.prototype.init = function (camera, scene) {
@@ -130,9 +132,14 @@
 	
 	Pick.prototype.onMouseUp = function (event) {
 		if (!this.initialized) return;
+		if (this.manip) {
+			let type = upaint.Manipulator.GetManipulatorType(this.manip);
+			this.emit(Pick.EVENT_MANIP_ROTATE, null, type, this.manip);
+		}
 		this.pos = null;
 	};
 
+	Pick.EVENT_MANIP_ROTATE = "rotate"
 	upaint.Pick = Pick;
 
 }());

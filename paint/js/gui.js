@@ -1,7 +1,7 @@
 (function () {
 	"use strict";
 	
-	let GUI = function () {
+	let GUI = function (store) {
 		EventEmitter.call(this);
 
 		this.onReize = function () {
@@ -24,9 +24,8 @@
 			
 			let dockTimeline = this.dock_.layout.root.getItemsById('dock_timeline')[0];
 			if (dockTimeline && !this.timeline_) {
-				this.timeline_ = document.createElement('div');
-				this.timeline_.innerText = "timeline"
-				dockTimeline.element.children().append(this.timeline_);
+				this.timeline_ = new upaint.GUITimeline(store);
+				dockTimeline.element.children().append(this.timeline_.rootElement);
 			}
 			
 			this.emit("initialize", null);
@@ -40,7 +39,7 @@
 					item.container.on("resize", this.onReize);
 					this.onReize();
 				} else if (id === "dock_timeline") {
-					item.element.children().append(this.timeline_);
+					item.element.children().append(this.timeline_.rootElement);
 				}
 			}
 		}.bind(this));
