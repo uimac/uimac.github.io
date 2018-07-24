@@ -17,11 +17,11 @@
 		// ハンドルMesh
 		let createHandle = function (mat, name) {
 			let mesh = upaint.Util.createCylinderNoCap(pc.app.graphicsDevice, {
-				heightSegments  : 1,
-				capSegments  : 32
+				heightSegments: 1,
+				capSegments: 32
 			});
 			mesh.name = name;
-			let model = upaint.Util.createImeddiateModel(mesh,  mat);
+			let model = upaint.Util.createImeddiateModel(mesh, mat);
 			model.pcentity.setLocalScale(PivotSize, PivotSize / 20, PivotSize);
 			mesh.entity = this.manipEntity_;
 			return model;
@@ -35,7 +35,7 @@
 		let ymat = this.mat.clone();
 		ymat.color.set(0, 1, 0, 1);
 		this.yaxis_ = createHandle(ymat, Manipulator.MANIP_NAME_ROTY);
-		
+
 		let zmat = this.mat.clone();
 		zmat.color.set(0, 0, 1, 1);
 		this.zaxis_ = createHandle(zmat, Manipulator.MANIP_NAME_ROTZ);
@@ -54,7 +54,7 @@
 	 * 終了処理
 	 */
 	Manipulator.prototype.destroy = function () {
-		this.pcentity.destroy();		
+		this.pcentity.destroy();
 	};
 
 	/**
@@ -79,90 +79,70 @@
 	Manipulator.MANIP_NAME_ROTY = "mainp_roty";
 	Manipulator.MANIP_NAME_ROTZ = "mainp_rotz";
 	const AXISNUM = {
-		"mainp_rotx" : 0,
-		"mainp_roty" : 1,
-		"mainp_rotz" : 2
+		"mainp_rotx": 0,
+		"mainp_roty": 1,
+		"mainp_rotz": 2
 	};
 	const AXISVEC = {
-		"mainp_rotx" : new pc.Vec3(1, 0, 0),
-		"mainp_roty" : new pc.Vec3(0, 1, 0),
-		"mainp_rotz" : new pc.Vec3(0, 0, 1)
+		"mainp_rotx": new pc.Vec3(1, 0, 0),
+		"mainp_roty": new pc.Vec3(0, 1, 0),
+		"mainp_rotz": new pc.Vec3(0, 0, 1)
 	};
 	Manipulator.IsManipulator = function (meshInstance) {
 		let name = meshInstance.mesh.name;
 		return (name === Manipulator.MANIP_NAME_ROTX ||
-				name === Manipulator.MANIP_NAME_ROTY ||
-				name === Manipulator.MANIP_NAME_ROTZ);
+			name === Manipulator.MANIP_NAME_ROTY ||
+			name === Manipulator.MANIP_NAME_ROTZ);
 	};
 	Manipulator.GetEntity = function (meshInstance) {
 		return meshInstance.mesh.entity;
 	};
-	let screenFactor = 2.0;
+	
+	// 移動
 	Manipulator.Trans = function (meshInstance, downpos, curpos) {
 		let name = meshInstance.mesh.name;
 		if (meshInstance.mesh.entity) {
 			let entity = meshInstance.mesh.entity.parent;
 			let pos = entity.getPosition();
-			
+
 			let diff = curpos.sub(downpos);
 			let prePos = entity.getPosition();
 			prePos.data[AXISNUM[name]] += diff.data[AXISNUM[name]]
 			entity.setPosition(prePos);
-
-			// let ray = new pc.Ray(camera.pcentity.getPosition(), camera.pcentity.forward);
-			// let plane = new pc.Plane(pos, AXISVEC[name]);
-			// let point = new pc.Vec3();
-			// let isHit = plane.intersectsRay(ray, point);
-			// if (isHit) {
-			// 	let hitScreenPos = camera.pccamera.worldToScreen(point, width, height);
-			// 	console.log(Object.values(AXISVEC))
-			// 	let planeX = Object.values(AXISVEC)[(AXISNUM[name] + 1) % 3];
-			// 	let planeY = Object.values(AXISVEC)[(AXISNUM[name] + 2) % 3];
-			// 	let worldMat = entity.getWorldTransform();
-			// 	planeX = worldMat.transformVector(planeX);
-			// 	planeY = worldMat.transformVector(planeY);
-			// 	let dx = planeX.dot(point.clone().sub(pos)) / screenFactor;
-			// 	let dy = planeY.dot(point.clone().sub(pos)) / screenFactor;
-			// 	console.log(dx, dy);
-			// }
 		}
 	};
 
-	//初期
-	// x - y
-	// y - x
-	// z - 
-	Manipulator.Rot = function (meshInstance, camera, ray) {
+	// ローカル回転
+	Manipulator.Rot = function (meshInstance,  startRay, endRay) {
 		let name = meshInstance.mesh.name;
 		if (meshInstance.mesh.entity) {
 			let entity = meshInstance.mesh.entity.parent;
 			let pos = entity.getPosition();
 
-			// // 平面上の角度の計算
-			// //let len = 
-			
-			
 			let normals = [entity.right, entity.up, entity.forward];
 			let plane = new pc.Plane(pos, normals[AXISNUM[name]]);
-			let point = new pc.Vec3();
-			let isHit = plane.intersectsRay(ray, point);
-			if (isHit) {
-				let diff = point.sub(pos);
-				diff.normalize();
+			let startPos = new pc.Vec3();
+			let endPos = new pc.Vec3();
+			let isHitStart = plane.intersectsRay(startRay, startPos);
+			let isHitEnd = plane.intersectsRay(endRay, endPos);
+			if (isHitStart && isHitEnd) {
+				let diffStart = startPos.sub(pos);
+				diffStart.normalize();
+				let diffEnd = endPos.sub(pos);
+				diffEnd.normalize();
+				let side = new pc.Vec3().cross(AXISVEC[name], diffStart);
 
+				let y = upaint.Util.clamp(diffEnd.dot(diffStart), -1.0, 1.0);
+				let x = upaint.Util.clamp(diffEnd.dot(side), -1.0, 1.0);
+				let rot = Math.atan2(x, y);
+				
+				let quat = new pc.Quat();
+				quat.setFromAxisAngle(AXISVEC[name], rot * pc.math.RAD_TO_DEG);
+				let preRot = entity.getRotation();
+				entity.setRotation(preRot.mul(quat));
 			}
-
-			// let worldMatInv = entity.getWorldTransform().invert();
-			// let rotationAxis = worldMatInv.transformVector(plane).normalize();
-
-
-			// let quat = new pc.Quat();
-			
-			// quat.setFromAxisAngle(AXISVEC[name], diff.length() * 10 * sign);
-			// let preRot = entity.getRotation();
-			// entity.setRotation(preRot.mul(quat));
 		}
 	};
 	upaint.Manipulator = Manipulator;
-	
+
 }());

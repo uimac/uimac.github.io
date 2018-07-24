@@ -114,17 +114,13 @@
 					event.x, event.y, dist, 
 					this.picker.width, this.picker.height);
 	
-				let wpos = this.camera.pccamera.screenToWorld(
-					event.x, event.y, this.camera.pccamera.farClip,
-					this.picker.width, this.picker.height);
-				
 				let cameraPos = this.camera.pcentity.getPosition();
-				let dir = wpos.sub(cameraPos);
-				dir.normalize();
-				let ray = new pc.Ray(cameraPos, dir);
-				
+
+				let startRay = new pc.Ray(cameraPos, downpos.sub(cameraPos).normalize());
+				let endRay = new pc.Ray(cameraPos, curpos.sub(cameraPos).normalize());
+	
 				//upaint.Manipulator.Trans(this.manip, downpos, curpos);
-				upaint.Manipulator.Trans(this.manip, downpos, curpos);
+				upaint.Manipulator.Rot(this.manip, startRay, endRay);
 			}
 			this.pos.x = event.x;
 			this.pos.y = event.y;

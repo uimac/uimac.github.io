@@ -119,5 +119,8 @@
 		return x > 0 ? 1 : -1;
 	}
 
+	
+	Util.clamp = function (a, b, c) { return Math.max(b, Math.min(c, a)); }
+
 	upaint.Util = Util;
 }());
