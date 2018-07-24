@@ -8,12 +8,12 @@
 		this.root_ = document.createElement('div');
 		this.canvas_ = document.createElement('canvas');
 		this.menu_ =  document.createElement('div');
-		this.menu_.style.width = "200px";
+		this.menu_.style.width = "150px";
 		this.menu_.style.height = "200px";
 		this.root_.appendChild(this.menu_);
 		this.root_.appendChild(this.canvas_);
 		this.canvas_.style.position = "absolute";
-		this.canvas_.style.left = "200px";
+		this.canvas_.style.left = "150px";
 		this.canvas_.style.top = "0px";
 		this.canvas_.style.width = "100%";
 		this.canvas_.style.height = "100%";

@@ -14,6 +14,11 @@
 		pc.app.mouse.on(pc.EVENT_MOUSEDOWN, this.onMouseDown, this);
 		pc.app.mouse.on(pc.EVENT_MOUSEMOVE, this.onMouseMove, this);
 		pc.app.mouse.on(pc.EVENT_MOUSEUP, this.onMouseUp, this);
+		if (pc.app.touch) {
+			pc.app.touch.on(pc.EVENT_TOUCHSTART, this.onMouseDown, this);
+			pc.app.touch.on(pc.EVENT_TOUCHMOVE, this.onMouseMove, this);
+			pc.app.touch.on(pc.EVENT_TOUCHEND, this.onMouseUp, this);
+		}
 
 		// ホバー中のEntityリスト
 		this.hoverList = [];
@@ -66,9 +71,15 @@
 			x : event.x,
 			y : event.y
 		};
+		if (event.touches && event.touches.length === 1) {
+			this.pos = {
+				x :event.touches[0].x,
+				y :event.touches[0].y
+			}
+		}
 
 		// MeshInstanceのlist
-		let hits = this.picker.getSelection(event.x, event.y);
+		let hits = this.picker.getSelection(this.pos.x, this.pos.y);
 		if (hits.length > 0) {
 			// 選択Entity切り替え
 			if (upaint.Skeleton.IsSkeleton(hits[0])) {
@@ -91,8 +102,17 @@
 		}
 		this.hoverList = [];
 
+		let px = event.x;
+		let py = event.y;
+		
+		if (event.touches && event.touches.length === 1) {
+			px = event.touches[0].x;
+			py = event.touches[0].y;
+		}
+
+
 		// MeshInstanceのlist
-		let hits = this.picker.getSelection(event.x, event.y);
+		let hits = this.picker.getSelection(px, py);
 		if (hits.length > 0) {
 			if (upaint.Skeleton.IsSkeleton(hits[0])) {
 				hits[0].material.color.set(1, 0, 0);
@@ -102,8 +122,8 @@
 
 		if (this.pos) {
 			if (this.manip && this.camera) {
-				let mx = event.x - this.pos.x;
-				let my = event.y - this.pos.y;
+				let mx = px - this.pos.x;
+				let my = py - this.pos.y;
 				let entity = upaint.Manipulator.GetEntity(this.manip);
 
 				let dist = entity.getPosition().sub(this.camera.pcentity.getPosition()).length();
@@ -113,7 +133,7 @@
 					this.picker.width, this.picker.height);
 
 				let curpos = this.camera.pccamera.screenToWorld(
-					event.x, event.y, dist, 
+					px, py, dist, 
 					this.picker.width, this.picker.height);
 	
 				let cameraPos = this.camera.pcentity.getPosition();
@@ -124,8 +144,8 @@
 				//upaint.Manipulator.Trans(this.manip, downpos, curpos);
 				upaint.Manipulator.Rot(this.manip, startRay, endRay);
 			}
-			this.pos.x = event.x;
-			this.pos.y = event.y;
+			this.pos.x = px;
+			this.pos.y = py;
 		}
 
 	};

@@ -64,7 +64,7 @@ OrbitCameraInputTouch.prototype.onTouchStartEndCancel = function (event) {
     // We only care about the first touch for camera rotation. As the user touches the screen,
     // we stored the current touch position
     var touches = event.touches;
-    if (touches.length == 1) {
+    if (touches.length == 3) {
         this.lastTouchPoint.set(touches[0].x, touches[0].y);
 
     } else if (touches.length == 2) {
@@ -107,7 +107,7 @@ OrbitCameraInputTouch.prototype.onTouchMove = function (event) {
     // We only care about the first touch for camera rotation. Work out the difference moved since the last event
     // and use that to update the camera target position
     var touches = event.touches;
-    if (touches.length == 1) {
+    if (touches.length == 3) {
         var touch = touches[0];
 
         this.orbitCamera.pitch -= (touch.y - this.lastTouchPoint.y) * this.orbitSensitivity;

@@ -14,14 +14,14 @@
 					title: "View",
 					type: 'component',
 					isClosable : false,
-					height: 800,
+					height: 900,
 					componentName: 'main'
 				}, {
 					id: 'dock_timeline',
 					title: "Timeline",
 					type: 'component',
 					isClosable : false,
-					height: 300,
+					height: 150,
 					componentName: 'main'
 				}]
 			}]

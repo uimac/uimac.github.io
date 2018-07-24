@@ -175,6 +175,15 @@
 	};
 
 	/**
+	 * モデルリストを返す
+	 */
+	Object.defineProperty(Scene.prototype, 'modelList', {
+		get : function () {
+			return this.modelList_;
+		}
+	});
+
+	/**
 	 * カメラリストを返す
 	 */
 	Object.defineProperty(Scene.prototype, 'cameraList', {
