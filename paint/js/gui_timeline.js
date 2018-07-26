@@ -60,9 +60,11 @@
 		};
 		this.initMouse();
 		
+		this.setData(this.store.timelineData);
 		this.draw();
 
 		this.store.on(upaint.Store.EVENT_KEYFRAME_ADD, function (err, frame, prop) {
+			this.setData(this.store.timelineData);
 			this.draw();
 		}.bind(this));
 	};

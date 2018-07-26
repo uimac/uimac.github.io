@@ -10,6 +10,7 @@
 			content: [{
 				type: 'column',
 				content: [{
+					header : { popout : false },
 					id: 'dock_view',
 					title: "View",
 					type: 'component',
@@ -17,6 +18,7 @@
 					height: 900,
 					componentName: 'main'
 				}, {
+					header : { popout : false },
 					id: 'dock_timeline',
 					title: "Timeline",
 					type: 'component',
