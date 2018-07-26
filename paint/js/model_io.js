@@ -21,7 +21,7 @@
 		req.onload = function (oEvent) {
 			let arrayBuffer = req.response;
 			if (arrayBuffer) {
-				loadGlb(arrayBuffer, pc.app.graphicsDevice, function (roots, json) {
+				loadGlb(arrayBuffer, pc.app.graphicsDevice, function (roots, json, resources) {
 					let model = new upaint.Model();
 					roots.forEach(function (root) {
 						for (let i = 0; i < root.children.length; ++i) {
@@ -39,7 +39,7 @@
 						model : model,
 						animation : new upaint.ModelAnimation(model)
 					};
-					this.emit(ModelIO.EVENT_LOADED, null, data, json);
+					this.emit(ModelIO.EVENT_LOADED, null, data, json, resources);
 				}.bind(this));
 			}
 		}.bind(this);
@@ -59,12 +59,28 @@
 
 	ModelIO.VRM.prototype.load = function (url) {
 		let gltfIO = new upaint.ModelIO.GLTF();
-		gltfIO.on('loaded', function (err, data, json) {
+		gltfIO.on('loaded', function (err, data, json, resources) {
 			if (json.hasOwnProperty('extensions')) {
 				let VRM = json.extensions.VRM;
-				console.log(VRM);
+
+				// humanoidボーンのみ可視とする
+				if (VRM.hasOwnProperty('humanoid')) {
+					let humanoid = VRM.humanoid;
+					if (humanoid.hasOwnProperty('humanBones')) {
+						for (let i = 0; i < resources.nodes.length; ++i) {
+							let entity = resources.nodes[i];
+							data.model.skeleton.setVisible(entity, false);
+						}
+						for (let i = 0; i < humanoid.humanBones.length; ++i) {
+							let humanEntity = resources.nodes[humanoid.humanBones[i].node];
+							data.model.skeleton.setVisible(humanEntity, true);
+						}
+					}
+				}
+
+				this.emit(ModelIO.EVENT_LOADED, null, data, json);
 			}
-		});
+		}.bind(this));
 		gltfIO.load(url);
 	};
 

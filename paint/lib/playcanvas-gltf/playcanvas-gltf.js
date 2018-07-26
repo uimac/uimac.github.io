@@ -1217,7 +1217,7 @@
                 buildHierarchy(resources);
                 createModels(resources);
 
-                success(getRoots(resources));
+                success(getRoots(resources), resources);
 
                 if (gltf.hasOwnProperty('extensionsUsed')) {
                     var extensionsUsed = gltf.extensionsUsed;
@@ -1269,8 +1269,8 @@
         var decoder = new TextDecoder('utf-8');
         var json = decoder.decode(jsonData);
         json = JSON.parse(json);
-        loadGltf(json, device, function (rootNodes) {
-            success(rootNodes, json);
+        loadGltf(json, device, function (rootNodes, resources) {
+            success(rootNodes, json, resources);
         }, {
             buffers: buffers
         });

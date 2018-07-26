@@ -20,9 +20,34 @@
 		this.pcentity.destroy();		
 	};
 
-	function findModelComponent(root) {
+	/**
+	 * visibleの設定
+	 * @param {*} visible 
+	 */
+	Model.prototype.setVisible = function (visible) {
+		if (visible) {
+			this.pcmodelcomp.show();
+		} else {
+			this.pcmodelcomp.hide();
+		}
+	};
+
+	function findModel(root) {
 		if (root.model) {
 			return root.model.model;
+		}
+		for (let i = 0; i < root.children.length; ++i) {
+			let modelComponent = findModel(root.children[i]);
+			if (modelComponent) {
+				return modelComponent;
+			}
+		}
+		return null;
+	}
+
+	function findModelComponent(root) {
+		if (root.model) {
+			return root.model;
 		}
 		for (let i = 0; i < root.children.length; ++i) {
 			let modelComponent = findModelComponent(root.children[i]);
@@ -46,7 +71,7 @@
 	});
 
 	/**
-	 * pcmaterial
+	 * playcanvas material
 	 */
 	Object.defineProperty(Model.prototype, 'pcmaterial', {
 		get: function (index = 0) {
@@ -63,14 +88,26 @@
 	});
 
 	/**
-	 * playcanvas modelcomponent
+	 * playcanvas model
 	 */
 	Object.defineProperty(Model.prototype, 'pcmodel', {
 		get: function () {
 			if (!this.pcmodel_) {
-				this.pcmodel_ = findModelComponent(this.pcentity);
+				this.pcmodel_ = findModel(this.pcentity);
 			}
 			return this.pcmodel_;
+		}
+	});
+
+	/**
+	 * playcanvas modelcomponent
+	 */
+	Object.defineProperty(Model.prototype, 'pcmodelcomp', {
+		get: function () {
+			if (!this.pcmodelcomp_) {
+				this.pcmodelcomp_ = findModelComponent(this.pcentity);
+			}
+			return this.pcmodelcomp_;
 		}
 	});
 

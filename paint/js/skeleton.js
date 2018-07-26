@@ -70,6 +70,16 @@
 		this.handleList.push(model);
 	};
 
+	Skeleton.prototype.setVisible = function (entity, visible) {
+		for (let i = 0; i < this.handleList.length; ++i) {
+			let model = this.handleList[i];
+			let skeletonHandleEntity = model.pcmodel.meshInstances[0].mesh.entity;
+			if (skeletonHandleEntity === entity) {
+				model.setVisible(visible);
+			}
+		}
+	};
+
 	/**
 	 * playcanvas entity
 	 */

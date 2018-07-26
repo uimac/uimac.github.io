@@ -9,7 +9,7 @@
 				let sceneManager = new upaint.SceneManager(store, gui);
 				let scene = sceneManager.newScene();
 
-				let io = new upaint.ModelIO.GLTF();
+				let io = new upaint.ModelIO.VRM();
 				io.on('loaded', function (err, data) {
 					scene.addModel(data.model);
 					scene.addAnimation(data.animation);
