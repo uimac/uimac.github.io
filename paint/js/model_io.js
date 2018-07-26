@@ -5,9 +5,9 @@
 	
 	/**
 	 * usage:
-	 * let gltfIO = new upaint.ModelIO.GLTF();
-	 * gltfIO.on('loaded', function (err, model) {} );
-	 * gltfIO.load(url);
+	 * let io = new upaint.ModelIO.GLTF();
+	 * io.on('loaded', function (err, model) {} );
+	 * io.load(url);
 	 */
 	ModelIO.GLTF = function () {
 		EventEmitter.call(this);
@@ -21,7 +21,7 @@
 		req.onload = function (oEvent) {
 			let arrayBuffer = req.response;
 			if (arrayBuffer) {
-				loadGlb(arrayBuffer, pc.app.graphicsDevice, function (roots) {
+				loadGlb(arrayBuffer, pc.app.graphicsDevice, function (roots, json) {
 					let model = new upaint.Model();
 					roots.forEach(function (root) {
 						for (let i = 0; i < root.children.length; ++i) {
@@ -34,13 +34,41 @@
 						}
 						model.pcentity.addChild(root);
 					}.bind(this));
-					this.emit(ModelIO.GLTF.EVENT_LOADED, null, model);
+					model.skeleton = new upaint.Skeleton(model.pcentity);
+					let data = {
+						model : model,
+						animation : new upaint.ModelAnimation(model)
+					};
+					this.emit(ModelIO.EVENT_LOADED, null, data, json);
 				}.bind(this));
 			}
 		}.bind(this);
 		req.send(null);
 	};
-	ModelIO.GLTF.EVENT_LOADED = "loaded"
 
+	/**
+	 * usage:
+	 * let io = new upaint.ModelIO.VRM();
+	 * io.on('loaded', function (err, model) {} );
+	 * io.load(url);
+	 */
+	ModelIO.VRM = function () {
+		EventEmitter.call(this);
+	};
+	ModelIO.VRM.prototype = Object.create(EventEmitter.prototype);
+
+	ModelIO.VRM.prototype.load = function (url) {
+		let gltfIO = new upaint.ModelIO.GLTF();
+		gltfIO.on('loaded', function (err, data, json) {
+			if (json.hasOwnProperty('extensions')) {
+				let VRM = json.extensions.VRM;
+				console.log(VRM);
+			}
+		});
+		gltfIO.load(url);
+	};
+
+
+	ModelIO.EVENT_LOADED = "loaded"
 	window.upaint.ModelIO = ModelIO;
 }());

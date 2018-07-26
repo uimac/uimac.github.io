@@ -36,8 +36,6 @@
 		for (let i = 0; i < pcmodel.skinInstances.length; ++i) {
 			this.skin = pcmodel.skinInstances[i];
 		}
-	
-		model.skeleton = new upaint.Skeleton(model.pcentity);
 	};
 	ModelAnimation.prototype = Object.create(EventEmitter.prototype);
 

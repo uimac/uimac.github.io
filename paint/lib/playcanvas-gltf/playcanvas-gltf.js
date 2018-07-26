@@ -1269,9 +1269,8 @@
         var decoder = new TextDecoder('utf-8');
         var json = decoder.decode(jsonData);
         json = JSON.parse(json);
-
         loadGltf(json, device, function (rootNodes) {
-            success(rootNodes);
+            success(rootNodes, json);
         }, {
             buffers: buffers
         });

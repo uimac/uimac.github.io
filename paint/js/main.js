@@ -9,12 +9,12 @@
 				let sceneManager = new upaint.SceneManager(store, gui);
 				let scene = sceneManager.newScene();
 
-				let gltfIO = new upaint.ModelIO.GLTF();
-				gltfIO.on('loaded', function (err, model) {
-					scene.addModel(model);
-					scene.addAnimation(new upaint.ModelAnimation(model));
+				let io = new upaint.ModelIO.GLTF();
+				io.on('loaded', function (err, data) {
+					scene.addModel(data.model);
+					scene.addAnimation(data.animation);
 				});
-				gltfIO.load("data/AliciaSolid.vrm");
+				io.load("data/AliciaSolid.vrm");
 
 				window.onunload = function () {
 					gui.destroy();
