@@ -100,9 +100,12 @@
 		return pc.createMesh(device, options.positions, options);
 	}
 
-	Util.createImeddiateModel = function (mesh, mat) {
+	Util.createImeddiateModel = function (mesh, mat, isTransparent = false) {
 		let model = upaint.Model.createModelFromMesh(mesh, mat);
 		let layer = pc.app.scene.layers.getLayerById(pc.LAYERID_IMMEDIATE);
+		if (isTransparent) {
+			layer = pc.app.scene.layers[pc.app.scene.layers.getTransparentIndex(layer)];
+		}
 		if (layer) {
 			layer.addMeshInstances(model.pcmodel.meshInstances);
 		}

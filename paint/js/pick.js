@@ -76,6 +76,9 @@
 				x :event.touches[0].x,
 				y :event.touches[0].y
 			}
+		} else {
+			// マウス
+			if (event.button !== 0) return; // 左ボタンのみ
 		}
 
 		// MeshInstanceのlist

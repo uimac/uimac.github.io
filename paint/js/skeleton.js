@@ -60,15 +60,12 @@
 			this.addSphere(root.children[i]);
 		}
 		let mesh = pc.createSphere(pc.app.graphicsDevice);
-		let model = upaint.Model.createModelFromMesh(mesh, this.mat.clone());
 		mesh.name = Skeleton.HANDLE_NAME;
 		mesh.skeleton = this;
 		mesh.entity = root;
-		let layer = pc.app.scene.layers.getLayerById(pc.LAYERID_IMMEDIATE);
-		if (layer) {
-			layer.addMeshInstances(model.pcmodel.meshInstances);
-		}
-		model.pcentity.setLocalScale(PivotSize, PivotSize, PivotSize)
+		
+		let model = upaint.Util.createImeddiateModel(mesh, this.mat.clone());
+		model.pcentity.setLocalScale(PivotSize, PivotSize, PivotSize);
 		root.addChild(model.pcentity);
 		this.handleList.push(model);
 	};

@@ -9,20 +9,20 @@
 
 		// ハンドル用マテリアル
 		this.mat = new pc.BasicMaterial();
-		this.mat.cull = pc.CULLFACE_NONE;
+		//this.mat.cull = pc.CULLFACE_NONE;
 		this.mat.depthTest = false;
-		this.mat.blendType = pc.BLEND_NORMAL;
+		//this.mat.blendType = pc.BLEND_NORMAL;
 		this.mat.update();
 
 		// ハンドルMesh
 		let createHandle = function (mat, name) {
-			let mesh = upaint.Util.createCylinderNoCap(pc.app.graphicsDevice, {
-				heightSegments: 1,
-				capSegments: 32
+			let mesh = pc.createTorus(pc.app.graphicsDevice, {
+				tubeRadius : 0.02, 
+				ringRadius : 0.8
 			});
 			mesh.name = name;
 			let model = upaint.Util.createImeddiateModel(mesh, mat);
-			model.pcentity.setLocalScale(PivotSize, PivotSize / 20, PivotSize);
+			model.pcentity.setLocalScale(PivotSize, PivotSize, PivotSize);
 			mesh.entity = this.manipEntity_;
 			return model;
 		}.bind(this);

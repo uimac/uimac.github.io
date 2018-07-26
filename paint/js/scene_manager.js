@@ -82,21 +82,30 @@
 	 * 現在のシーンをキャプチャして返す
 	 */
 	SceneManager.prototype.captureImage = function (width, height, callback) {
+		let dummyCanvas = document.createElement("canvas");
 		let canvas = pc.app.graphicsDevice.canvas;
 		let preW = canvas.width;
 		let preH = canvas.height;
-		pc.app.setCanvasResolution(pc.RESOLUTION_AUTO, width, height);
+		dummyCanvas.width = width;
+		dummyCanvas.height = height;
 		let captureFunc =  function() {
 			pc.app.off('frameend', captureFunc);
-			let dataURL = canvas.toDataURL();
-			pc.app.setCanvasResolution(pc.RESOLUTION_AUTO, preW, preH);
-			let image = new Image();
-			image.onload = function () {
-				if (callback) {
-					callback(null, image)
-				}
+			let bigData = canvas.toDataURL();
+			let bigImage = new Image();
+			bigImage.onload = function () {
+				let ctx = dummyCanvas.getContext('2d');
+				ctx.drawImage(bigImage, 0, 0, width, height);
+				let smallData = dummyCanvas.toDataURL();
+				let smallImage = new Image();
+				smallImage.onload = function () {
+					if (callback) {
+						callback(null, smallImage)
+					}
+				};
+				smallImage.src = smallData;
+				bigImage = null;
 			};
-			image.src = dataURL;
+			bigImage.src = bigData;
 		}
 		pc.app.on('frameend', captureFunc);
 	};
