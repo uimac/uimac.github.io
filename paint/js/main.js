@@ -14,7 +14,7 @@
 					scene.addModel(data.model);
 					scene.addAnimation(data.animation);
 				});
-				io.load("data/AliciaSolid.vrm");
+				io.load("data/nakasis_naka.vrm");
 
 				window.onunload = function () {
 					gui.destroy();
