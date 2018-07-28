@@ -56,7 +56,7 @@
 
 		// Collisionで移動
 		nextTail = this.collision(colliders, nextTail);
-
+		
 		this.prevTail_ = currentTail;
 		if (center) {
 			let invCenter = center.getWorldTransform().clone();
@@ -201,13 +201,13 @@
 	}
 	VRMSpringBone.prototype.recursiveSetup = function (center, parent) {
 		if (parent.children.length === 0) {
-			let scale = parent.getLocalScale().clone();
-			let delta = parent.getLocalPosition().clone().normalize().scale(-0.7);
+			let localScale = parent.getLocalScale().clone();
+			let delta = parent.getLocalPosition().clone().normalize().scale(0.07);
 			this.verlets.push(
 				new VRMSpringBoneLogic(
 					center, 
 					parent, 
-					parent.getLocalPosition().clone().add(delta)));
+					parent.getLocalPosition().clone().scale(localScale).add(delta)));
 		} else {
 			let firstChild = parent.children[0];
 			let localPosition = firstChild.getLocalPosition().clone();

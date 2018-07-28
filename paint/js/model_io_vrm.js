@@ -47,7 +47,6 @@
 				dragForce : boneGroup.dragForce,
 				hitRadius : boneGroup.hitRadius
 			};
-			console.log(attributes)
 			if (boneGroup.center !== -1) {
 				attributes.center = boneGroup.center;
 			}
