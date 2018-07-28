@@ -32,19 +32,21 @@
 		}
 	};
 
+	/// pc.Modelを再帰的に探して返す
 	function findModel(root) {
 		if (root.model) {
 			return root.model.model;
 		}
 		for (let i = 0; i < root.children.length; ++i) {
-			let modelComponent = findModel(root.children[i]);
-			if (modelComponent) {
-				return modelComponent;
+			let model = findModel(root.children[i]);
+			if (model) {
+				return model;
 			}
 		}
 		return null;
 	}
 
+	/// pc.ModelComponentを再帰的に探して返す
 	function findModelComponent(root) {
 		if (root.model) {
 			return root.model;
@@ -120,12 +122,10 @@
 		}
 	});
 
-	window.upaint.Model = Model;
-
 	/**
 	 * pcmeshからModelを作成して返す
 	 */
-	window.upaint.Model.createModelFromMesh = function (pcmesh, pcmat = null) {
+	Model.createModelFromMesh = function (pcmesh, pcmat = null) {
 		let node = new pc.GraphNode();
 		let mat;
 		if (pcmat) {
@@ -142,4 +142,6 @@
 		model.pcentity.model.model = pcmodel;
 		return model;
 	};
+
+	window.upaint.Model = Model;
 }());

@@ -122,6 +122,38 @@
 		return x > 0 ? 1 : -1;
 	}
 
+	function orthogonal(v) {
+		let x = Math.abs(v.x)
+		let y = Math.abs(v.y)
+		let z = Math.abs(v.z)
+		let other = x < y
+			? ( x < z
+				? pc.Vec3.RIGHT
+				: pc.Vec3.FORWARD )
+			: ( y < z
+				? pc.Vec3.UP
+				: pc.Vec3.FORWARD );
+		return new pc.Vec3().cross(v, other)
+	}
+	
+	pc.Quat.prototype.fromToRotation = function(from, to) {
+		let fromDotTo = from.dot(to);
+		if (fromDotTo <= -0.999) {
+			this.w = 0;
+			let v = orthogonal(from).normalize();
+			this.x = v.x;
+			this.y = v.y;
+			this.z = v.z;
+			return this;
+		}
+		let half = from.clone().add(to).scale(0.5);
+		this.w = from.dot(half);
+		let cross = new pc.Vec3().cross(from, half);
+		this.x = cross.x;
+		this.y = cross.y;
+		this.z = cross.z;
+		return this.normalize();
+	}
 	
 	Util.clamp = function (a, b, c) { return Math.max(b, Math.min(c, a)); }
 

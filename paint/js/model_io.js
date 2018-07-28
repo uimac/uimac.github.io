@@ -46,45 +46,6 @@
 		req.send(null);
 	};
 
-	/**
-	 * usage:
-	 * let io = new upaint.ModelIO.VRM();
-	 * io.on('loaded', function (err, model) {} );
-	 * io.load(url);
-	 */
-	ModelIO.VRM = function () {
-		EventEmitter.call(this);
-	};
-	ModelIO.VRM.prototype = Object.create(EventEmitter.prototype);
-
-	ModelIO.VRM.prototype.load = function (url) {
-		let gltfIO = new upaint.ModelIO.GLTF();
-		gltfIO.on('loaded', function (err, data, json, resources) {
-			if (json.hasOwnProperty('extensions')) {
-				let VRM = json.extensions.VRM;
-
-				// humanoidボーンのみ可視とする
-				if (VRM.hasOwnProperty('humanoid')) {
-					let humanoid = VRM.humanoid;
-					if (humanoid.hasOwnProperty('humanBones')) {
-						for (let i = 0; i < resources.nodes.length; ++i) {
-							let entity = resources.nodes[i];
-							data.model.skeleton.setVisible(entity, false);
-						}
-						for (let i = 0; i < humanoid.humanBones.length; ++i) {
-							let humanEntity = resources.nodes[humanoid.humanBones[i].node];
-							data.model.skeleton.setVisible(humanEntity, true);
-						}
-					}
-				}
-
-				this.emit(ModelIO.EVENT_LOADED, null, data, json);
-			}
-		}.bind(this));
-		gltfIO.load(url);
-	};
-
-
 	ModelIO.EVENT_LOADED = "loaded"
 	window.upaint.ModelIO = ModelIO;
 }());

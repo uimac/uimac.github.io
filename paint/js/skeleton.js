@@ -9,8 +9,6 @@
 	 */
 	let Skeleton = function (rootEntity) {
 		EventEmitter.call(this);
-		// スケルトン用entity
-		this.pcentity_ = new pc.Entity('Skeleton');
 		// スケルトンのルート
 		this.root = rootEntity;
 
@@ -79,15 +77,6 @@
 			}
 		}
 	};
-
-	/**
-	 * playcanvas entity
-	 */
-	Object.defineProperty(Skeleton.prototype, 'pcentity', {
-		get: function () {
-			return this.pcentity_;
-		}
-	});
 
 	Skeleton.HANDLE_NAME = "skeleton_handle"
 	Skeleton.IsSkeleton = function (meshInstance) {
