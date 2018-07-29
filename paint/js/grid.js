@@ -31,7 +31,8 @@
 
 		// グリッド
 		let gridMat = mat.clone();
-		gridMat.color.set(0.5, 0.5, 0.5);
+		gridMat.color = upaint.Constants.GridColor;
+		gridMat.update()
 		// z
 		for (let i = 0, count = gridSize/span; i <= count; ++i) {
 			let posX = -halfSize + i * span;

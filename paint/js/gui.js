@@ -18,6 +18,7 @@
 				this.canvas_ = document.createElement('canvas');
 				this.canvas_.style.width = "100%";
 				this.canvas_.style.height = "100%";
+				this.canvas_.style.background = "linear-gradient(white, rgb(100, 110, 140))"
 				dockView.element.children().append(this.canvas_);
 				dockView.container.on("resize", this.onReize);
 			}

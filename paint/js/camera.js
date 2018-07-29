@@ -32,6 +32,8 @@
 						}
 					});
 					this.setTarget(0, 0.8, 0);
+					// this.pccamera.nearClip = 0.01;
+					// this.pccamera.farClip = 10000;
 					// 初期化完了
 					this.emit(window.upaint.Camera.EVENT_LOADED, null);
 				}.bind(this));
