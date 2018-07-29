@@ -23,11 +23,13 @@
 					});
 					this.pcentity.script.create("orbitCameraInputMouse", {
 						attributes: {
+							distanceSensitivity : 1,
 							orbitSensitivity : 0.3
 						}
 					});
 					this.pcentity.script.create("orbitCameraInputTouch", {
 						attributes: {
+							distanceSensitivity : 0.3,
 							orbitSensitivity : 0.3
 						}
 					});

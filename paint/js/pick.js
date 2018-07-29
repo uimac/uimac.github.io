@@ -141,11 +141,10 @@
 	
 				let cameraPos = this.camera.pcentity.getPosition();
 
-				let startRay = new pc.Ray(cameraPos, downpos.sub(cameraPos).normalize());
-				let endRay = new pc.Ray(cameraPos, curpos.sub(cameraPos).normalize());
+				let startRay = new pc.Ray(cameraPos, downpos.clone().sub(cameraPos).normalize());
+				let endRay = new pc.Ray(cameraPos, curpos.clone().sub(cameraPos).normalize());
 	
-				//upaint.Manipulator.Trans(this.manip, downpos, curpos);
-				upaint.Manipulator.Rot(this.manip, startRay, endRay);
+				upaint.Manipulator.Manipulate(this.manip, startRay, endRay, downpos, curpos);
 			}
 			this.pos.x = px;
 			this.pos.y = py;
