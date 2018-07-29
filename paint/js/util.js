@@ -157,6 +157,33 @@
 		return this.normalize();
 	}
 	
+	Util.showFPS = function () {
+		let Fps = pc.createScript('fps');
+		Fps.prototype.initialize = function () {
+			this.isShow = true;
+			this.stats = new Stats();
+			this.stats.showPanel(0);
+			this.stats.domElement.style.position = "fixed";
+			this.stats.domElement.style.left = "auto";
+			this.stats.domElement.style.width = "80px"
+			this.stats.domElement.style.right = "0px";
+			this.stats.domElement.style.top = "20px";
+			document.body.appendChild( this.stats.dom );
+		};
+		Fps.prototype.update = function (dt) {
+			this.stats.update();
+		};
+		Fps.prototype.show = function (isShow) {
+			if (isShow) {
+				this.stats.dom.style.display = "block";
+			} else {
+				this.stats.dom.style.display = "none";
+			}
+			this.isShow = isShow;
+		};
+		pc.app.root.script.create("fps", {});
+	};
+
 	Util.clamp = function (a, b, c) { return Math.max(b, Math.min(c, a)); }
 
 	upaint.Util = Util;

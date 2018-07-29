@@ -16,6 +16,7 @@
 		// これを行うと解像度変更したときにpickがずれる
 		//app.graphicsDevice.maxPixelRatio = window.devicePixelRatio;
 		app.start();
+		pc.app.root.addComponent("script", { enabled: true });
 
 		this.pick = new upaint.Pick(gui);
 
@@ -109,6 +110,13 @@
 		}
 		pc.app.on('frameend', captureFunc);
 	};
+	
+	/**
+	 * FPSを表示
+	 */
+	SceneManager.prototype.showFPS = function () {
+		upaint.Util.showFPS();
+	}
 
 	/**
 	 * カレントシーン
