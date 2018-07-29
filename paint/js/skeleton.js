@@ -71,9 +71,11 @@
 	Skeleton.prototype.setVisible = function (entity, visible) {
 		for (let i = 0; i < this.handleList.length; ++i) {
 			let model = this.handleList[i];
-			let skeletonHandleEntity = model.pcmodel.meshInstances[0].mesh.entity;
-			if (skeletonHandleEntity === entity) {
-				model.setVisible(visible);
+			for (let k = 0; k < model.pcmodels.length; ++k) {
+				let skeletonHandleEntity = model.pcmodels[k].meshInstances[0].mesh.entity;
+				if (skeletonHandleEntity === entity) {
+					model.setVisible(visible);
+				}
 			}
 		}
 	};

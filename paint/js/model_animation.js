@@ -32,9 +32,11 @@
 		}
 
 		// スキン
-		let pcmodel = model.pcmodel;
-		for (let i = 0; i < pcmodel.skinInstances.length; ++i) {
-			this.skin = pcmodel.skinInstances[i];
+		let pcmodels = model.pcmodels;
+		for (let i = 0; i < pcmodels.length; ++i) {
+			for (let k = 0; k < pcmodels[i].skinInstances.length; ++k) {
+				this.skin = pcmodels[i].skinInstances[k];
+			}
 		}
 	};
 	ModelAnimation.prototype = Object.create(EventEmitter.prototype);

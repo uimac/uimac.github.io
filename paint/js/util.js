@@ -107,7 +107,9 @@
 			layer = pc.app.scene.layers[pc.app.scene.layers.getTransparentIndex(layer)];
 		}
 		if (layer) {
-			layer.addMeshInstances(model.pcmodel.meshInstances);
+			for (let i = 0; i < model.pcmodels.length; ++i) {
+				layer.addMeshInstances(model.pcmodels[i].meshInstances);
+			}
 		}
 		return model;
 	}

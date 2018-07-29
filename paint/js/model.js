@@ -9,7 +9,8 @@
 		}
 
 		this.skeleton_ = null;
-		this.pcmodel_ = null; // pc.ModelComponent
+		this.pcmodels_ = null; // list of pc.Model
+		this.pcmodelcomps_ = null; // list of pc.ModelComponent
 	};
 	Model.prototype = Object.create(EventEmitter.prototype);
 
@@ -26,19 +27,24 @@
 	 */
 	Model.prototype.setVisible = function (visible) {
 		if (visible) {
-			this.pcmodelcomp.show();
+			for (let i = 0; i < this.pcmodelcomps.length; ++i) {
+				this.pcmodelcomps[i].show();
+			}
 		} else {
-			this.pcmodelcomp.hide();
+			for (let i = 0; i < this.pcmodelcomps.length; ++i) {
+				this.pcmodelcomps[i].hide();
+			}
 		}
 	};
 
 	/// pc.Modelを再帰的に探して返す
-	function findModel(root) {
+	function findModels(dstModelList, root) {
 		if (root.model) {
+			dstModelList.push(root.model.model)
 			return root.model.model;
 		}
 		for (let i = 0; i < root.children.length; ++i) {
-			let model = findModel(root.children[i]);
+			let model = findModels(dstModelList, root.children[i]);
 			if (model) {
 				return model;
 			}
@@ -47,12 +53,13 @@
 	}
 
 	/// pc.ModelComponentを再帰的に探して返す
-	function findModelComponent(root) {
+	function findModelComponents(dstModelCompList, root) {
 		if (root.model) {
+			dstModelCompList.push(root.model)
 			return root.model;
 		}
 		for (let i = 0; i < root.children.length; ++i) {
-			let modelComponent = findModelComponent(root.children[i]);
+			let modelComponent = findModelComponents(dstModelCompList, root.children[i]);
 			if (modelComponent) {
 				return modelComponent;
 			}
@@ -90,26 +97,28 @@
 	});
 
 	/**
-	 * playcanvas model
+	 * list of playcanvas model
 	 */
-	Object.defineProperty(Model.prototype, 'pcmodel', {
+	Object.defineProperty(Model.prototype, 'pcmodels', {
 		get: function () {
-			if (!this.pcmodel_) {
-				this.pcmodel_ = findModel(this.pcentity);
+			if (!this.pcmodels_) {
+				this.pcmodels_= [];
+				findModels(this.pcmodels_, this.pcentity);
 			}
-			return this.pcmodel_;
+			return this.pcmodels_;
 		}
 	});
 
 	/**
-	 * playcanvas modelcomponent
+	 * list of playcanvas modelcomponent
 	 */
-	Object.defineProperty(Model.prototype, 'pcmodelcomp', {
+	Object.defineProperty(Model.prototype, 'pcmodelcomps', {
 		get: function () {
-			if (!this.pcmodelcomp_) {
-				this.pcmodelcomp_ = findModelComponent(this.pcentity);
+			if (!this.pcmodelcomps_) {
+				this.pcmodelcomps_= [];
+				findModelComponents(this.pcmodelcomps_, this.pcentity);
 			}
-			return this.pcmodelcomp_;
+			return this.pcmodelcomps_;
 		}
 	});
 

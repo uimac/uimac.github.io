@@ -51,7 +51,7 @@
 
 		// 長さをboneLengthに強制
 		nextTail = this.transform_.getPosition().clone().add(
-			nextTail.sub(this.transform_.getPosition().clone()).normalize().scale(this.length_)
+			nextTail.sub(this.transform_.getPosition()).normalize().scale(this.length_)
 		);
 
 		// Collisionで移動
@@ -78,7 +78,7 @@
 	{
 		let rotation = this.parentRotation.mul(this.localRotation_);
 		let from = rotation.transformVector(this.boneAxis_);
-		let to = nextTail.clone().sub(this.transform_.getPosition().clone());
+		let to = nextTail.clone().sub(this.transform_.getPosition());
 				
 		return  new pc.Quat().fromToRotation(from, to).mul(rotation);
 	}
@@ -96,7 +96,7 @@
 					normal.scale(r)
 				);
 				// 長さをboneLengthに強制
-				let posToCollider = posFromCollider.sub(this.transform_.getPosition().clone());
+				let posToCollider = posFromCollider.sub(this.transform_.getPosition());
 				posToCollider.normalize();
 				result = this.transform_.getPisition().clone().add(
 					 posToCollider.scale(this.length_)
@@ -201,7 +201,7 @@
 	}
 	VRMSpringBone.prototype.recursiveSetup = function (center, parent) {
 		if (parent.children.length === 0) {
-			let localScale = parent.getLocalScale().clone();
+			let localScale = parent.getLocalScale();
 			let delta = parent.getLocalPosition().clone().normalize().scale(0.07);
 			this.verlets.push(
 				new VRMSpringBoneLogic(
@@ -210,8 +210,8 @@
 					parent.getLocalPosition().clone().scale(localScale).add(delta)));
 		} else {
 			let firstChild = parent.children[0];
-			let localPosition = firstChild.getLocalPosition().clone();
-			let localScale = firstChild.getLocalScale().clone();
+			let localPosition = firstChild.getLocalPosition();
+			let localScale = firstChild.getLocalScale();
 			
 			this.verlets.push(
 				new VRMSpringBoneLogic(
