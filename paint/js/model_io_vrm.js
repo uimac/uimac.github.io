@@ -53,7 +53,6 @@
 			entity.script.create('VRMSpringBone', { 
 				attributes : attributes
 			});
-			let spring = entity.script.VRMSpringBone;
 		}
 	};
 
@@ -87,6 +86,5 @@
 		}.bind(this));
 		gltfIO.load(url);
 	};
-
 
 }());

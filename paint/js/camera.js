@@ -8,14 +8,14 @@
 		this.pcentity_ = new pc.Entity('Camera');
 		this.pcentity_.setPosition(0, 10, -50);
 		this.pcentity.addComponent('camera', {
-			clearColor: new pc.Color(0.8, 0.5, 0.5),
+			clearColor: upaint.Constants.ClearColor,
 			fov : 55
 		});
 		this.emit(window.upaint.Camera.EVENT_LOADED, null);
 		this.pcentity.addComponent("script", { enabled: true }); // scriptを追加できるようにする.
-		pc.app.loader.load("lib/playcanvas/orbit-camera.js", "script",  function (err, script) {
-			pc.app.loader.load("lib/playcanvas/orbit-camera-input-mouse.js", "script", function (err, script) {
-				pc.app.loader.load("lib/playcanvas/orbit-camera-input-touch.js", "script", function (err, script) {
+		pc.app.loader.load("lib/playcanvas/extras/camera/orbit-camera.js", "script",  function (err, script) {
+			pc.app.loader.load("lib/playcanvas/extras/camera/orbit-camera-input-mouse.js", "script", function (err, script) {
+				pc.app.loader.load("lib/playcanvas/extras/camera/orbit-camera-input-touch.js", "script", function (err, script) {
 					this.pcentity.script.create("orbitCamera", {
 						attributes: {
 							maxElevation: 89
