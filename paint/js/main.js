@@ -7,8 +7,9 @@
 		gui.on(upaint.GUI.EVENT_INITIALIZE, function () {
 			if (gui.canvas) {
 				let sceneManager = new upaint.SceneManager(store, gui);
-				sceneManager.showFPS();
 				let scene = sceneManager.newScene();
+				sceneManager.showFPS(true);
+				sceneManager.showManipulator(true);
 
 				let io = new upaint.ModelIO.VRM();
 				io.on('loaded', function (err, data) {

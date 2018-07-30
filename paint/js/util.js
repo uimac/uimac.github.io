@@ -76,6 +76,66 @@
 		};
 	};
 
+	Util.createTorus = function (device, opts) {
+		// Check the supplied options and provide defaults for unspecified ones
+		var rc = opts && opts.tubeRadius !== undefined ? opts.tubeRadius : 0.2;
+		var rt = opts && opts.ringRadius !== undefined ? opts.ringRadius : 0.3;
+		var segments = opts && opts.segments !== undefined ? opts.segments : 30;
+		var sides = opts && opts.sides !== undefined ? opts.sides : 20;
+		var radius = opts && opts.radius !== undefined ? opts.radius : 2.0 * Math.PI;
+		var calculateTangents = opts && opts.calculateTangents !== undefined ? opts.calculateTangents : false;
+	
+		// Variable declarations
+		var i, j;
+		var x, y, z, nx, ny, nz, u, v;
+		var positions = [];
+		var normals = [];
+		var uvs = [];
+		var indices = [];
+	
+		for (i = 0; i <= sides; i++) {
+			for (j = 0; j <= segments; j++) {
+				x  = Math.cos(radius * j / segments) * (rt + rc * Math.cos(2.0 * Math.PI * i / sides));
+				y  = Math.sin(2.0 * Math.PI * i / sides) * rc;
+				z  = Math.sin(radius * j / segments) * (rt + rc * Math.cos(2.0 * Math.PI * i / sides));
+	
+				nx = Math.cos(radius * j / segments) * Math.cos(2.0 * Math.PI * i / sides);
+				ny = Math.sin(2.0 * Math.PI * i / sides);
+				nz = Math.sin(radius * j / segments) * Math.cos(2.0 * Math.PI * i / sides);
+	
+				u = i / sides;
+				v = 1.0 - j / segments;
+	
+				positions.push(x, y, z);
+				normals.push(nx, ny, nz);
+				uvs.push(u, v);
+	
+				if ((i < sides) && (j < segments)) {
+					var first, second, third, fourth;
+					first   = ((i))     * (segments + 1) + ((j));
+					second  = ((i + 1)) * (segments + 1) + ((j));
+					third   = ((i))     * (segments + 1) + ((j + 1));
+					fourth  = ((i + 1)) * (segments + 1) + ((j + 1));
+	
+					indices.push(first, second, third);
+					indices.push(second, fourth, third);
+				}
+			}
+		}
+	
+		var options = {
+			normals: normals,
+			uvs: uvs,
+			indices: indices
+		};
+	
+		if (calculateTangents) {
+			options.tangents = pc.calculateTangents(positions, normals, uvs, indices);
+		}
+	
+		return pc.createMesh(device, positions, options);
+	};
+
 	// from playcanvas/engine/blob/master/src/scene/procedural.js
 	Util.createCylinderNoCap = function (device, opts) {
 		// #ifdef DEBUG

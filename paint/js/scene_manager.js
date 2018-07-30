@@ -36,6 +36,32 @@
 				});
 			})
 		}.bind(this));
+		
+		// function createMenu() {
+		// 	let menu = new pc.Entity();
+		// 	menu.name = "Menu";
+		// 	menu.addComponent("screen", {resolution: new pc.Vec2(640,480), screenSpace: true});
+		// 	menu.screen.scaleMode = "blend";
+		// 	menu.screen.referenceResolution = new pc.Vec2(1280,720);
+		// 	let container = new pc.Entity();
+		// 	container.name = "Container";
+		// 	container.addComponent("element", {
+		// 		type: "image",
+		// 		anchor: new pc.Vec4(0.5, 0.5, 0.5, 0.5),
+		// 		pivot: new pc.Vec2(0.5, 0.5),
+		// 		width: 900,
+		// 		height: 400,
+		// 		opacity: 1,
+		// 		color: new pc.Color(0.1, 0.7, 1.0),
+		// 		mask: false
+		// 	});
+		// 	container.drawOrder = -1000;
+		// 	app.root.addChild(menu);
+		// 	menu.addChild(container);
+		// 	menu.screen.syncDrawOrder();
+		// 	return container;
+		// };
+		// createMenu();
 
 		this.sceneList_ = []; // upaint.Sceneのリスト
 	};
@@ -116,7 +142,16 @@
 	 */
 	SceneManager.prototype.showFPS = function () {
 		upaint.Util.showFPS();
-	}
+	};
+
+	/**
+	 * Manipulatorを表示
+	 */
+	SceneManager.prototype.showManipulator = function (visible) {
+		if (this.pick) {
+			this.pick.showManipulator(visible);
+		}
+	};
 
 	/**
 	 * カレントシーン

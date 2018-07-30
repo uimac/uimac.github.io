@@ -1,12 +1,13 @@
 (function () {
 	"use strict";
 
-	let config = {
-		settings: {
-			showMaximiseIcon : false
-		},
-		content: [{
-			type: 'row',
+	let config = {}
+
+	function initConfig() {
+		config = {
+			settings: {
+				showMaximiseIcon : false
+			},
 			content: [{
 				type: 'column',
 				content: [{
@@ -15,7 +16,7 @@
 					title: "View",
 					type: 'component',
 					isClosable : false,
-					height: 900,
+					height: document.body.clientHeight - 200,
 					componentName: 'main'
 				}, {
 					header : { popout : false },
@@ -27,11 +28,13 @@
 					componentName: 'main'
 				}]
 			}]
-		}]
-	};
+		};
+	}
 
 	let Dock = function () {
 		EventEmitter.call(this);
+
+		initConfig();
 
 		this.layout_ = new GoldenLayout(config);
 		// let savedState = localStorage.getItem('upaint.layout');

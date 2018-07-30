@@ -21,9 +21,6 @@
 
 		this.handleList = [];
 		this.addSphere(this.root);
-
-		this.manip = new upaint.Manipulator();
-		this.showManipulator(this.root);
 	};
 	Skeleton.prototype = Object.create(EventEmitter.prototype);
 
@@ -46,10 +43,6 @@
 			model.destroy();
 		}
 		this.handleList = [];
-	};
-
-	Skeleton.prototype.showManipulator = function (pcentity) {
-		this.manip.target = pcentity;
 	};
 
 	Skeleton.prototype.addSphere = function (root) {
@@ -80,14 +73,23 @@
 		}
 	};
 
+	/**
+	 * playcanvas entity
+	 */
+	Object.defineProperty(Skeleton.prototype, 'pcentity', {
+		get: function () {
+			return this.root;
+		}
+	});
+
 	Skeleton.HANDLE_NAME = "skeleton_handle"
 	Skeleton.IsSkeleton = function (meshInstance) {
 		let name = meshInstance.mesh.name;
 		return (name === Skeleton.HANDLE_NAME);
 	};
-	Skeleton.ShowManipulator = function (meshInstnace) {
+	Skeleton.GetEntity = function (meshInstnace) {
 		let skeleton = meshInstnace.mesh.skeleton;
-		skeleton.showManipulator(meshInstnace.mesh.entity);
+		return meshInstnace.mesh.entity;
 	}
 	upaint.Skeleton = Skeleton;
 

@@ -19,16 +19,28 @@
 
 		// 移動ハンドルMesh
 		this.initTranslationHandles();
+		
+		// ハンドルを非表示に
+		for (let i = 0; i < this.trans_x_.length; ++i) {
+			this.trans_x_[i].setVisible(false);
+			this.trans_y_[i].setVisible(false);
+			this.trans_z_[i].setVisible(false);
+		}
+		this.rot_x_.setVisible(false);
+		this.rot_y_.setVisible(false);
+		this.rot_z_.setVisible(false);
+		this.rot_w_.setVisible(false);
 	};
 
 	Manipulator.prototype.initRotationHandles = function () {
-		let createHandle = function (mat, name) {
-			let mesh = pc.createTorus(pc.app.graphicsDevice, {
+		let createHandle = function (mat, name, radius, trans = false) {
+			let mesh = upaint.Util.createTorus(pc.app.graphicsDevice, {
 				tubeRadius : 0.03, 
-				ringRadius : 0.8
+				ringRadius : 0.8,
+				radius : radius
 			});
 			mesh.name = name;
-			let model = upaint.Util.createImeddiateModel(mesh, mat);
+			let model = upaint.Util.createImeddiateModel(mesh, mat, trans);
 			model.pcentity.setLocalScale(PivotSize, PivotSize, PivotSize);
 			mesh.entity = this.manipEntity_;
 			return model;
@@ -36,25 +48,31 @@
 
 		let xmat = this.mat.clone();
 		xmat.color.set(1, 0, 0, 1);
-		this.rot_x_ = createHandle(xmat, Manipulator.MANIP_NAME_ROTX);
+		this.rot_x_ = createHandle(xmat, Manipulator.MANIP_NAME_ROTX, Math.PI);
 		this.rot_x_.pcentity.setLocalEulerAngles(0, 0, 90);
 
 		let ymat = this.mat.clone();
 		ymat.color.set(0, 1, 0, 1);
-		this.rot_y_ = createHandle(ymat, Manipulator.MANIP_NAME_ROTY);
+		this.rot_y_ = createHandle(ymat, Manipulator.MANIP_NAME_ROTY, Math.PI);
 
 		let zmat = this.mat.clone();
 		zmat.color.set(0, 0, 1, 1);
-		this.rot_z_ = createHandle(zmat, Manipulator.MANIP_NAME_ROTZ);
+		this.rot_z_ = createHandle(zmat, Manipulator.MANIP_NAME_ROTZ, Math.PI);
 		let a = new pc.Quat();
 		let b = new pc.Quat();
-		a.setFromAxisAngle(new pc.Vec3(0, 0, 1), 90);
-		b.setFromAxisAngle(new pc.Vec3(1, 0, 0), 90);
+		a.setFromAxisAngle(upaint.Constants.AxisZ, 90);
+		b.setFromAxisAngle(upaint.Constants.AxisX, 90);
 		this.rot_z_.pcentity.setLocalRotation(a.mul(b));
+
+		let wmat = this.mat.clone();
+		wmat.color.set(0.6, 0.6, 0.6, 0.2);
+		wmat.blendType = pc.BLEND_NORMAL;
+		this.rot_w_ = createHandle(wmat, Manipulator.MANIP_NAME_ROTW, Math.PI * 2, true);
 
 		this.manipEntity_.addChild(this.rot_x_.pcentity);
 		this.manipEntity_.addChild(this.rot_y_.pcentity);
 		this.manipEntity_.addChild(this.rot_z_.pcentity);
+		this.manipEntity_.addChild(this.rot_w_.pcentity);
 	};
 
 	Manipulator.prototype.initTranslationHandles = function () {
@@ -100,8 +118,8 @@
 		this.trans_z_ = createHandle(zmat, Manipulator.MANIP_NAME_TRANSZ);
 		let a = new pc.Quat();
 		let b = new pc.Quat();
-		a.setFromAxisAngle(new pc.Vec3(0, 0, 1), 90);
-		b.setFromAxisAngle(new pc.Vec3(1, 0, 0), 90);
+		a.setFromAxisAngle(upaint.Constants.AxisZ, 90);
+		b.setFromAxisAngle(upaint.Constants.AxisX, 90);
 		let c = a.mul(b);
 		for (let i = 0; i < this.trans_z_.length; ++i) {
 			this.trans_z_[i].pcentity.setLocalRotation(c);
@@ -125,6 +143,49 @@
 	};
 
 	/**
+	 * 更新
+	 */
+	Manipulator.prototype.update = (function () {
+		let qa = new pc.Quat();
+		let qb = new pc.Quat();
+		return function (camera) {
+			if (!this.target) return;
+			let rot = this.target.getRotation().clone().invert();
+			let cameraPos = camera.pcentity.getPosition();
+			let targetPos = this.target.getPosition().clone();
+			let eyeVec = targetPos.sub(cameraPos);
+			eyeVec.normalize();
+			eyeVec = rot.clone().transformVector(eyeVec);
+
+			qa.x = eyeVec.z;
+			qa.y = 0.0;
+			qa.z = -eyeVec.x;
+			qa.w = 1.0 + eyeVec.y;
+			qa.normalize();
+			this.rot_w_.pcentity.setLocalRotation(qa);
+
+			// rot_x
+			qa.setFromAxisAngle(upaint.Constants.AxisZ, 
+				pc.math.RAD_TO_DEG * Math.PI * 0.5);
+			qb.setFromAxisAngle(upaint.Constants.AxisY, 
+				pc.math.RAD_TO_DEG * Math.atan2(-eyeVec.y, -eyeVec.z));
+			this.rot_x_.pcentity.setLocalRotation(qa.mul(qb));
+
+			// rot_y
+			qa.setFromAxisAngle(upaint.Constants.AxisY, 
+				pc.math.RAD_TO_DEG * Math.atan2(-eyeVec.x, -eyeVec.z));
+			this.rot_y_.pcentity.setLocalRotation(qa);
+
+			// rot_z
+			qa.setFromAxisAngle(upaint.Constants.AxisX, 
+				pc.math.RAD_TO_DEG * Math.PI * 0.5);
+			qb.setFromAxisAngle(upaint.Constants.AxisY, 
+				pc.math.RAD_TO_DEG * Math.atan2(-eyeVec.x, eyeVec.y));
+			this.rot_z_.pcentity.setLocalRotation(qa.mul(qb));
+		}
+	}());
+
+	/**
 	 * マニピュレータのターゲット
 	 */
 	Object.defineProperty(Manipulator.prototype, 'target', {
@@ -136,14 +197,17 @@
 				this.manipEntity_.parent.removeChild(this.manipEntity_);
 			}
 			this.target_ = entity;
-			
-			let canTrans = entity.name === "Model";
-			for (let i = 0; i < this.trans_x_.length; ++i) {
-				this.trans_x_[i].setVisible(canTrans);
-				this.trans_y_[i].setVisible(canTrans);
-				this.trans_z_[i].setVisible(canTrans);
-			}
 			if (this.target_) {
+				let canTrans = entity.name === "Model";
+				for (let i = 0; i < this.trans_x_.length; ++i) {
+					this.trans_x_[i].setVisible(canTrans);
+					this.trans_y_[i].setVisible(canTrans);
+					this.trans_z_[i].setVisible(canTrans);
+				}
+				this.rot_x_.setVisible(true);
+				this.rot_y_.setVisible(true);
+				this.rot_z_.setVisible(true);
+				this.rot_w_.setVisible(true);
 				this.target_.addChild(this.manipEntity_);
 			}
 		}
@@ -155,6 +219,7 @@
 	Manipulator.MANIP_NAME_ROTX = "mainp_rotx";
 	Manipulator.MANIP_NAME_ROTY = "mainp_roty";
 	Manipulator.MANIP_NAME_ROTZ = "mainp_rotz";
+	Manipulator.MANIP_NAME_ROTW = "mainp_rotw";
 	const TRANS_INDEX = {
 		"mainp_transx": 0,
 		"mainp_transy": 1,
@@ -197,7 +262,7 @@
 	};
 
 	// ローカル回転
-	Manipulator.Rot = function (meshInstance,  startRay, endRay) {
+	Manipulator.Rot = function (meshInstance, startRay, endRay) {
 		let name = meshInstance.mesh.name;
 		if (meshInstance.mesh.entity) {
 			let entity = meshInstance.mesh.entity.parent;

@@ -22,6 +22,9 @@
 
 		// ホバー中のEntityリスト
 		this.hoverList = [];
+
+		// マニピュレーター
+		this.manipulator = new upaint.Manipulator();
 		// 操作中のマニピュレータ
 		this.manip = null;
 		this.updateFunc = null;
@@ -41,9 +44,16 @@
 			pc.app.off("update", this.updateFunc);
 		}
 		this.camera = camera;
+		this.scene = scene;
 		this.updateFunc = function (dt) {
 			this.picker.prepare(camera.pccamera, scene.pcscene, scene.pcscene.layers.getLayerById(pc.LAYERID_IMMEDIATE));
 			this.initialized = true;
+
+			// マニピュレータの更新
+			if (this.manipulator.target === null && this.scene.modelList.length > 0) {
+				this.manipulator.target = this.scene.modelList[0].skeleton.pcentity;
+			}
+			this.manipulator.update(camera);
 		}.bind(this);
 		pc.app.on("update", this.updateFunc);
 	};
@@ -66,7 +76,7 @@
 	Pick.prototype.onMouseDown = function (event) {
 		if (!this.initialized) return;
 		
-		this.manip = null;
+		this.manipHandle = null;
 		this.pos = {
 			x : event.x,
 			y : event.y
@@ -83,15 +93,15 @@
 
 		// MeshInstanceのlist
 		let hits = this.picker.getSelection(this.pos.x, this.pos.y);
-		if (hits.length > 0) {
+		for (let i = 0; i < hits.length; ++i) {
 			// 選択Entity切り替え
-			if (upaint.Skeleton.IsSkeleton(hits[0])) {
-				upaint.Skeleton.ShowManipulator(hits[0]);
+			if (upaint.Skeleton.IsSkeleton(hits[i])) {
+				this.manipulator.target = upaint.Skeleton.GetEntity(hits[i]);
 			}
 			// 選択マニピュレータ切り替え
-			if (upaint.Manipulator.IsManipulator(hits[0])) {
-				this.manip = hits[0];
-				let entity = upaint.Manipulator.GetEntity(this.manip);
+			if (upaint.Manipulator.IsManipulator(hits[i])) {
+				this.manipHandle = hits[i];
+				let entity = upaint.Manipulator.GetEntity(this.manipHandle);
 				this.preRot = entity.getRotation();
 			}
 		}
@@ -124,10 +134,10 @@
 		}
 
 		if (this.pos) {
-			if (this.manip && this.camera) {
+			if (this.manipHandle && this.camera) {
 				let mx = px - this.pos.x;
 				let my = py - this.pos.y;
-				let entity = upaint.Manipulator.GetEntity(this.manip);
+				let entity = upaint.Manipulator.GetEntity(this.manipHandle);
 
 				let dist = entity.getPosition().sub(this.camera.pcentity.getPosition()).length();
 
@@ -144,7 +154,7 @@
 				let startRay = new pc.Ray(cameraPos, downpos.clone().sub(cameraPos).normalize());
 				let endRay = new pc.Ray(cameraPos, curpos.clone().sub(cameraPos).normalize());
 	
-				upaint.Manipulator.Manipulate(this.manip, startRay, endRay, downpos, curpos);
+				upaint.Manipulator.Manipulate(this.manipHandle, startRay, endRay, downpos, curpos);
 			}
 			this.pos.x = px;
 			this.pos.y = py;
@@ -154,12 +164,15 @@
 	
 	Pick.prototype.onMouseUp = function (event) {
 		if (!this.initialized) return;
-		if (this.manip) {
-			let type = upaint.Manipulator.GetManipulatorType(this.manip);
-			this.emit(Pick.EVENT_MANIP_ROTATE, null, type, this.manip);
+		if (this.manipHandle) {
+			let type = upaint.Manipulator.GetManipulatorType(this.manipHandle);
+			this.emit(Pick.EVENT_MANIP_ROTATE, null, type, this.manipHandle);
 		}
 		this.pos = null;
 	};
+	
+	Pick.prototype.showManipulator = function (visible) {
+	} 
 
 	Pick.EVENT_MANIP_ROTATE = "rotate"
 	upaint.Pick = Pick;
