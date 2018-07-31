@@ -6,8 +6,10 @@
 	 * 現状LAYERID_IMMEDIATEレイヤーを対象とする
 	 * @param {*} gui 
 	 */
-	let Pick = function () {
+	let Pick = function (action) {
 		EventEmitter.call(this);
+
+		this.action = action;
 		this.initialized = false;
 		let canvas = pc.app.graphicsDevice.canvas;
 		this.picker = new pc.Picker(pc.app, canvas.width, canvas.height);
@@ -25,7 +27,7 @@
 		this.hoverList = [];
 
 		// マニピュレーター
-		this.manipulator = new upaint.Manipulator();
+		this.manipulator = new upaint.Manipulator(action);
 		// 操作中のマニピュレータ
 		this.manip = null;
 		this.updateFunc = null;
@@ -101,12 +103,39 @@
 				this.manipulator.target = upaint.Skeleton.GetEntity(hits[i]);
 			}
 			// 選択マニピュレータ切り替え
-			if (upaint.Manipulator.IsManipulator(hits[i])) {
+			if (this.manipulator.isManipulator(hits[i])) {
 				this.manipHandle = hits[i];
-				let entity = upaint.Manipulator.GetEntity(this.manipHandle);
-				this.preRot = entity.getRotation();
+				let entity = this.manipulator.getEntity(this.manipHandle);
+				this.initialVal = {
+					pos : entity.getPosition().clone(),
+					rot : entity.getRotation().clone()
+				}
 			}
 		}
+	};
+
+	Pick.prototype.transform = function (px, py, isDone) {
+		let mx = px - this.pos.x;
+		let my = py - this.pos.y;
+		let entity = this.manipulator.getEntity(this.manipHandle);
+
+		let dist = entity.getPosition().sub(this.camera.pcentity.getPosition()).length();
+
+		let downpos = this.camera.pccamera.screenToWorld(
+			this.pos.x, this.pos.y, dist, 
+			this.picker.width, this.picker.height);
+
+		let curpos = this.camera.pccamera.screenToWorld(
+			px, py, dist, 
+			this.picker.width, this.picker.height);
+
+		let cameraPos = this.camera.pcentity.getPosition();
+
+		let startRay = new pc.Ray(cameraPos, downpos.clone().sub(cameraPos).normalize());
+		let endRay = new pc.Ray(cameraPos, curpos.clone().sub(cameraPos).normalize());
+
+		this.manipulator.manipulate(
+			this.manipHandle, startRay, endRay, downpos, curpos, this.initialVal, isDone);
 	};
 
 	Pick.prototype.onMouseMove = function (event) {
@@ -137,26 +166,7 @@
 
 		if (this.pos) {
 			if (this.manipHandle && this.camera) {
-				let mx = px - this.pos.x;
-				let my = py - this.pos.y;
-				let entity = upaint.Manipulator.GetEntity(this.manipHandle);
-
-				let dist = entity.getPosition().sub(this.camera.pcentity.getPosition()).length();
-
-				let downpos = this.camera.pccamera.screenToWorld(
-					this.pos.x, this.pos.y, dist, 
-					this.picker.width, this.picker.height);
-
-				let curpos = this.camera.pccamera.screenToWorld(
-					px, py, dist, 
-					this.picker.width, this.picker.height);
-	
-				let cameraPos = this.camera.pcentity.getPosition();
-
-				let startRay = new pc.Ray(cameraPos, downpos.clone().sub(cameraPos).normalize());
-				let endRay = new pc.Ray(cameraPos, curpos.clone().sub(cameraPos).normalize());
-	
-				upaint.Manipulator.Manipulate(this.manipHandle, startRay, endRay, downpos, curpos);
+				this.transform(px, py, false);
 			}
 			this.pos.x = px;
 			this.pos.y = py;
@@ -165,11 +175,15 @@
 	};
 	
 	Pick.prototype.onMouseUp = function (event) {
+		let px = event.x;
+		let py = event.y;
+
 		if (!this.initialized) return;
 		if (this.manipHandle) {
-			let type = upaint.Manipulator.GetManipulatorType(this.manipHandle);
-			this.emit(Pick.EVENT_MANIP_ROTATE, null, type, this.manipHandle);
+			this.transform(px, py, true);
 		}
+		this.initialVal = null;
+		this.manipHandle = null;
 		this.pos = null;
 	};
 	

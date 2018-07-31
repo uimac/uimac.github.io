@@ -19,6 +19,9 @@
 		this.sceneManager = null;
 		this.scene = null;
 
+		this.undoBuffer = [];
+		this.redoBuffer = [];
+
 		this._initEvents();
 	};
 	Store.prototype = Object.create(EventEmitter.prototype);
@@ -33,6 +36,9 @@
 				this.action.on(Action[i], (function (self, method) {
 					return function (err, data) {
 						if (self[method]) {
+							if (method !== "_redo" && method !== "_undo") {
+								self.redoBuffer = [];
+							}
 							self[method](data);
 						}
 					}.bind(self);
@@ -53,6 +59,44 @@
 		this.sceneManager.showFPS(true);
 		this.sceneManager.showManipulator(true);
 		this.action.loadModel("data/nakasis_naka.vrm");
+		this._initKeyEvents();
+	};
+
+	Store.prototype._initKeyEvents = function () {
+		let isControlPressed = false;
+		this.app_.keyboard.on(pc.EVENT_KEYDOWN, function (event) {
+			if (event.key === pc.KEY_CONTROL) {
+				isControlPressed = true;
+			}
+			if (isControlPressed && event.key === pc.KEY_Z) {
+				this.action.undo();
+			}
+			if (isControlPressed && event.key === pc.KEY_Y) {
+				this.action.redo();
+			}
+		}.bind(this), this);
+		this.app_.keyboard.on(pc.EVENT_KEYUP, function (event) {
+			if (event.key === pc.KEY_CONTROL) {
+				isControlPressed = false;
+			}
+		}.bind(this), this);
+	};
+	
+	Store.prototype._undo = function () {
+		let command = this.undoBuffer.pop();
+		if (command) {
+			command.undo();
+			this.redoBuffer.push(command);
+		}
+	};
+
+	Store.prototype._redo = function () {
+		console.log("_redo")
+		let command = this.redoBuffer.pop();
+		if (command) {
+			command.redo();
+			this.undoBuffer.push(command);
+		}
 	};
 
 	Store.prototype._loadModel = function (url) {
@@ -139,14 +183,44 @@
 			prop.data[data.frame] = data.frameData;
 			this.emit(Store.EVENT_KEYFRAME_ADD, null, data.frame, prop);
 		}
-	}
+	};
+	
+	Store.prototype._rotateEntity = function (data) {
+		if (!data.hasOwnProperty('entity')) return;
+		if (!data.hasOwnProperty('rot')) return;
+		if (!data.hasOwnProperty('preRot')) return;
+		this.undoBuffer.push({
+			undo : function (rot) {
+				this.entity.setRotation(rot)
+			}.bind(data, data.preRot), 
+			redo : function (rot) {
+				this.entity.setRotation(rot)
+			}.bind(data, data.rot)
+		});
+		data.entity.setRotation(data.rot);
+	};
+
+	Store.prototype._translateEntity = function (data) {
+		if (!data.hasOwnProperty('entity')) return;
+		if (!data.hasOwnProperty('pos')) return;
+		if (!data.hasOwnProperty('prePos')) return;
+		this.undoBuffer.push({
+			undo : function (prePos) {
+				this.entity.setPosition(prePos)
+			}.bind(data, data.prePos), 
+			redo : function (pos) {
+				this.entity.setPosition(pos)
+			}.bind(data, data.pos)
+		});
+		data.entity.setPosition(data.pos);
+	};
 
 	Store.prototype.getContentIndex = function (contentKey) {
 		if (this.contentKeyToIndex.hasOwnProperty(contentKey)) {
 			return this.contentKeyToIndex[contentKey];
 		}
 		return -1;
-	}
+	};
 
 	Store.prototype.getContent = function (contentKey) {
 		if (this.contentKeyToIndex.hasOwnProperty(contentKey)) {

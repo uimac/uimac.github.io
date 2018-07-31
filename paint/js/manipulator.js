@@ -2,7 +2,9 @@
 	"use strict";
 	let PivotSize = 0.2;
 
-	let Manipulator = function () {
+	let Manipulator = function (action) {
+
+		this.action = action;
 		// xyz軸ハンドルの親
 		this.manipEntity_ = new pc.Entity('Manip');
 		this.target_ = null;
@@ -235,34 +237,44 @@
 		"mainp_roty": new pc.Vec3(0, 1, 0),
 		"mainp_rotz": new pc.Vec3(0, 0, 1)
 	};
-	Manipulator.IsManipulator = function (meshInstance) {
+	Manipulator.prototype.isManipulator = function (meshInstance) {
 		let name = meshInstance.mesh.name;
 		return TRANS_INDEX.hasOwnProperty(name) 
 			|| ROT_INDEX.hasOwnProperty(name);
 	};
-	Manipulator.GetManipulatorType = function (meshInstance) {
+	Manipulator.prototype.getManipulatorType = function (meshInstance) {
 		return meshInstance.mesh.name;
 	};
-	Manipulator.GetEntity = function (meshInstance) {
+	Manipulator.prototype.getEntity = function (meshInstance) {
 		return meshInstance.mesh.entity;
 	};
 	
 	// 移動
-	Manipulator.Trans = function (meshInstance, downpos, curpos) {
+	Manipulator.prototype.translate = function (meshInstance, downpos, curpos, initialVal, isDone) {
 		let name = meshInstance.mesh.name;
 		if (meshInstance.mesh.entity) {
 			let entity = meshInstance.mesh.entity.parent;
 			let pos = entity.getPosition();
 
 			let diff = curpos.sub(downpos);
-			let prePos = entity.getPosition();
-			prePos.data[TRANS_INDEX[name]] += diff.data[TRANS_INDEX[name]]
-			entity.setPosition(prePos);
+			let newpos = entity.getPosition().clone();
+			newpos.data[TRANS_INDEX[name]] += diff.data[TRANS_INDEX[name]]
+			if (isDone) {
+				// 移動の確定
+				this.action.translateEntity({
+					entity : entity,
+					prePos : initialVal.pos,
+					pos : newpos
+				});
+			} else {
+				// 移動中
+				entity.setPosition(newpos);
+			}
 		}
 	};
 
 	// ローカル回転
-	Manipulator.Rot = function (meshInstance, startRay, endRay) {
+	Manipulator.prototype.rotate = function (meshInstance, startRay, endRay, initialVal, isDone) {
 		let name = meshInstance.mesh.name;
 		if (meshInstance.mesh.entity) {
 			let entity = meshInstance.mesh.entity.parent;
@@ -287,20 +299,33 @@
 				
 				let quat = new pc.Quat();
 				quat.setFromAxisAngle(ROT_VEC[name], rot * pc.math.RAD_TO_DEG);
-				let preRot = entity.getRotation();
-				entity.setRotation(preRot.mul(quat));
+				let newrot = entity.getRotation().clone().mul(quat);
+				if (isDone) {
+					// 回転の確定
+					this.action.rotateEntity({
+						entity : entity,
+						preRot : initialVal.rot,
+						rot : newrot
+					});
+				} else {
+					// 回転中
+					entity.setRotation(newrot);
+				}
 			}
 		}
 	};
 
-	Manipulator.Manipulate = function (meshInstance, startRay, endRay, downpos, curpos) {
+	Manipulator.prototype.manipulate = function (
+		meshInstance, startRay, endRay, downpos, curpos, initialVal, isDone) {
 		let name = meshInstance.mesh.name;
 		if (ROT_INDEX.hasOwnProperty(name)) {
-			Manipulator.Rot(meshInstance, startRay, endRay);
+			this.rotate(meshInstance, startRay, endRay, initialVal, isDone);
 		} else if (TRANS_INDEX.hasOwnProperty(name)) {
-			Manipulator.Trans(meshInstance, downpos, curpos);
+			this.translate(meshInstance, downpos, curpos, initialVal, isDone);
 		}
 	};
+
+	Manipulator.EVENT_ROTATE = "rotate"
 	upaint.Manipulator = Manipulator;
 
 }());
