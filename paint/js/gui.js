@@ -1,15 +1,15 @@
 (function () {
 	"use strict";
 	
-	let GUI = function (store) {
+	let GUI = function (store, action) {
 		EventEmitter.call(this);
 
 		this.onReize = function () {
-			this.emit('resize', null);
-		}.bind(this);
+			action.resize();
+		};
 		this.onOrientationChange = function () {
-			this.emit('orientationchange', null);
-		}.bind(this);
+			action.orientationchange();
+		};
 
 		this.dock_ = new upaint.Dock();
 		this.dock_.on("initialize", function (err) {
@@ -25,11 +25,11 @@
 			
 			let dockTimeline = this.dock_.layout.root.getItemsById('dock_timeline')[0];
 			if (dockTimeline && !this.timeline_) {
-				this.timeline_ = new upaint.GUITimeline(store);
+				this.timeline_ = new upaint.GUITimeline(store, action);
 				dockTimeline.element.children().append(this.timeline_.rootElement);
 			}
 			
-			this.emit("initialize", null);
+			action.init(this.canvas_);
 		}.bind(this));
 
 		this.dock_.on("reset", function (err, id) {
@@ -51,12 +51,10 @@
 		document.addEventListener("touchmove", this.onTouchMove, { passive: false });
 		window.addEventListener('resize', this.onReize);
 		window.addEventListener('orientationchange', this.onOrientationChange);
-	};
-	GUI.prototype = Object.create(EventEmitter.prototype);
-
-	GUI.prototype.init = function () {
+		
 		this.dock_.init();
 	};
+	GUI.prototype = Object.create(EventEmitter.prototype);
 
 	GUI.prototype.destroy = function () {
 		document.removeEventListener("touchmove", this.onTouchMove);
@@ -82,9 +80,6 @@
 		}
 	});
 
-	GUI.EVENT_INITIALIZE = "initialize";
-	GUI.EVENT_RESIZE = "resize";
-	GUI.EVENT_ORIENTATION_CHANGE = "orientationchange"
 	window.upaint.GUI = GUI;
 
 }());

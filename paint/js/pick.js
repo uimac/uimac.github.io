@@ -6,10 +6,11 @@
 	 * 現状LAYERID_IMMEDIATEレイヤーを対象とする
 	 * @param {*} gui 
 	 */
-	let Pick = function (gui) {
+	let Pick = function () {
 		EventEmitter.call(this);
 		this.initialized = false;
-		this.picker = new pc.Picker(pc.app, gui.canvas.width, gui.canvas.height);
+		let canvas = pc.app.graphicsDevice.canvas;
+		this.picker = new pc.Picker(pc.app, canvas.width, canvas.height);
 
 		pc.app.mouse.on(pc.EVENT_MOUSEDOWN, this.onMouseDown, this);
 		pc.app.mouse.on(pc.EVENT_MOUSEMOVE, this.onMouseMove, this);
@@ -68,9 +69,10 @@
 		this.hoverList = [];
 	};
 
-	Pick.prototype.update = function (gui) {
+	Pick.prototype.update = function () {
 		this.initialized = false;
-		this.picker = new pc.Picker(pc.app, gui.canvas.width, gui.canvas.height);
+		let canvas = pc.app.graphicsDevice.canvas;
+		this.picker = new pc.Picker(pc.app, canvas.width, canvas.height);
 	};
 
 	Pick.prototype.onMouseDown = function (event) {

@@ -1,22 +1,93 @@
 (function () {
 	"use strict";
 
-	let Store = function () {
+	let Action = upaint.Action;
+
+	let Store = function (action) {
 		EventEmitter.call(this);
+
+		this.action = action;
 		this.timelineData_ = {
 			contents: []
 		};
 		this.contentKeyToIndex = {}
 		this.currentFrame_ = 0;
-		
-		this.currentContentKey = "data/AliciaSolid.vrm";
-		this.currentPropKey = "all";
-		this.addContent("アリシア・ソリッド", this.currentContentKey);
-		this.addProp(this.currentContentKey, "全身", this.currentPropKey);
+		this._initEvents();
 	};
 	Store.prototype = Object.create(EventEmitter.prototype);
 
-	Store.prototype.addContent = function (contentName, contentKey) {
+	Store.prototype.destroy = function () {
+		this.sceneManager.destroy();
+	};	
+
+	Store.prototype._initEvents = function () {
+		for (let i in Action) {
+			if (i.indexOf('EVENT') >= 0) {
+				this.action.on(Action[i], (function (self, method) {
+					return function (err, data) {
+						if (self[method]) {
+							self[method](data);
+						}
+					}.bind(self);
+				}(this, '_' + Action[i])));
+			}
+		}
+	};
+
+	Store.prototype._init = function (canvas) {
+		// init application
+		this.app = new pc.Application(canvas, {
+			mouse: new pc.Mouse(canvas),
+			touch: !!('ontouchstart' in window) ? new pc.TouchDevice(canvas) : null,
+			keyboard: new pc.Keyboard(window)
+		});
+		this.sceneManager = new upaint.SceneManager(this, this.action);
+		this.scene = this.sceneManager.newScene();
+		this.sceneManager.showFPS(true);
+		this.sceneManager.showManipulator(true);
+		this.action.loadModel("data/nakasis_naka.vrm");
+	};
+
+	Store.prototype._loadModel = function (url) {
+		let io = new upaint.ModelIO.VRM();
+		io.on('loaded', function (err, data, json) {
+			this.scene.addModel(data.model);
+			this.scene.addAnimation(data.animation);
+
+			let meta = json.extensions.VRM.meta;
+			this.currentContentKey = url;
+			this.currentPropKey = "all";
+			this._addTimelineContent({
+				contentName : meta.title,
+				contentKey : this.currentContentKey
+			});
+			this._addTimelineProp({
+				contentKey : this.currentContentKey,
+				propName : "全身",
+				propKey : this.currentPropKey
+			});
+
+		}.bind(this));
+		io.load(url);
+	};
+	
+	Store.prototype._orientationchange = function () {
+		this.sceneManager.pcapp.resizeCanvas();
+		this.sceneManager.pick.update();
+	};
+
+	Store.prototype._resize = function () {
+		this.sceneManager.pcapp.resizeCanvas();
+		this.sceneManager.pick.update();
+	};
+
+	Store.prototype._changeCurrentFrame = function (frame) {
+		this.currentFrame_ = frame;
+	};
+
+	Store.prototype._addTimelineContent = function (data) {
+		let contentName = data.contentName;
+		let contentKey = data.contentKey;
 		this.timelineData_.contents.push({
 			name : contentName,
 			contentKey : contentKey,
@@ -28,7 +99,11 @@
 		this.contentKeyToIndex[contentKey] = this.timelineData_.contents.length - 1;
 	};
 
-	Store.prototype.addProp = function (contentKey, propName, propKey) {
+	Store.prototype._addTimelineProp = function (data) {
+		let contentKey = data.contentKey;
+		let propName = data.propName;
+		let propKey = data.propKey;
+
 		let content = this.getContent(contentKey);
 		if (content) {
 			content.props.push({
@@ -40,21 +115,22 @@
 		}
 	};
 	
-	Store.prototype.addKeyFrame = function (frameData, contentKey, propKey, frame) {
-		if (!contentKey) {
-			contentKey = this.currentContentKey;
+	// data = { frameData, contentKey, propKey, frame }
+	Store.prototype._addKeyFrame = function (data) {
+		if (!data.hasOwnProperty('contentKey')) {
+			data.contentKey = this.currentContentKey;
 		}
-		if (!propKey) {
-			propKey = this.currentPropKey;
+		if (!data.hasOwnProperty('propKey')) {
+			data.propKey = this.currentPropKey;
 		}
-		if (!frame) {
-			frame = this.currentFrame;
+		if (!data.hasOwnProperty('frame')) {
+			data.frame = this.currentFrame;
 		}
-		let prop = this.getProp(contentKey, propKey);
-		console.log(contentKey, propKey, frame);
+		let prop = this.getProp(data.contentKey, data.propKey);
+		console.log(data);
 		if (prop) {
-			prop.data[frame] = frameData;
-			this.emit(Store.EVENT_KEYFRAME_ADD, null, frame, prop);
+			prop.data[data.frame] = data.frameData;
+			this.emit(Store.EVENT_KEYFRAME_ADD, null, data.frame, prop);
 		}
 	}
 
@@ -85,14 +161,20 @@
 	};
 
 	/**
+	 * playcanvas application
+	 */
+	Object.defineProperty(Store.prototype, 'pcapp', {
+		get: function () {
+			return this.app;
+		}
+	});
+
+	/**
 	 * current_frame
 	 */
 	Object.defineProperty(Store.prototype, 'currentFrame', {
 		get: function () {
 			return this.currentFrame_;
-		},
-		set: function (frame) {
-			this.currentFrame_ = frame;
 		}
 	});
 

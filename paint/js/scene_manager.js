@@ -4,35 +4,23 @@
 	 * コンストラクタ
 	 * @param {} gui 
 	 */
-	let SceneManager = function (store, gui) {
-		// init application
-		let app = new pc.Application(gui.canvas, {
-			mouse: new pc.Mouse(gui.canvas),
-			touch: !!('ontouchstart' in window) ? new pc.TouchDevice(gui.canvas) : null,
-			keyboard: new pc.Keyboard(window)
-		});
+	let SceneManager = function (store, action) {
+		let app = store.pcapp;
 		app.setCanvasResolution(pc.RESOLUTION_AUTO);
 		app.setCanvasFillMode(pc.FILLMODE_NONE);
 		// これを行うと解像度変更したときにpickがずれる
 		//app.graphicsDevice.maxPixelRatio = window.devicePixelRatio;
 		app.start();
-		pc.app.root.addComponent("script", { enabled: true });
+		app.root.addComponent("script", { enabled: true });
 
-		this.pick = new upaint.Pick(gui);
-
-		gui.on(upaint.GUI.EVENT_RESIZE, function () {
-			app.resizeCanvas();
-			this.pick.update(gui);
-		}.bind(this));
-		gui.on(upaint.GUI.EVENT_ORIENTATION_CHANGE, function () {
-			app.resizeCanvas();
-			this.pick.update(gui);
-		}.bind(this));
+		this.pick = new upaint.Pick();
 
 		this.pick.on(upaint.Pick.EVENT_MANIP_ROTATE, function (err, type, manip) {
 			this.captureImage(150, 100, function (err, data) {
-				store.addKeyFrame({
-					image : data
+				action.addKeyFrame({
+					frameData : {
+						image : data
+					}
 				});
 			})
 		}.bind(this));

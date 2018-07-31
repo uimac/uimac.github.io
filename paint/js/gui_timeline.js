@@ -2,9 +2,10 @@
 	"use strict";
 	let GUITimeline;
 
-	GUITimeline = function (store) {
+	GUITimeline = function (store, action) {
 		let id;
 		this.store = store;
+		this.action = action;
 		this.root_ = document.createElement('div');
 		this.canvas_ = document.createElement('canvas');
 		this.menu_ =  document.createElement('div');
@@ -488,9 +489,9 @@
 	};
 
 	GUITimeline.prototype.setCurrentFrame = function (frame) {
-		this.store.currentFrame = Math.floor(frame + 0.5);
+		this.action.changeCurrentFrame(Math.floor(frame + 0.5));
 		if (frame < 0) {
-			this.store.currentFrame = 0;
+			this.action.changeCurrentFrame(0);
 		}
 		//console.log("frame:", this.store.currentFrame);
 		this.draw();
