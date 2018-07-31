@@ -1,17 +1,24 @@
 (function () {
 	"use strict";
 
+	// 
+
 	let Action = upaint.Action;
 
 	let Store = function (action) {
 		EventEmitter.call(this);
 
-		this.action = action;
+		this.currentFrame_ = 0;
+		this.app_ = null;
 		this.timelineData_ = {
 			contents: []
 		};
+
+		this.action = action;
 		this.contentKeyToIndex = {}
-		this.currentFrame_ = 0;
+		this.sceneManager = null;
+		this.scene = null;
+
 		this._initEvents();
 	};
 	Store.prototype = Object.create(EventEmitter.prototype);
@@ -36,7 +43,7 @@
 
 	Store.prototype._init = function (canvas) {
 		// init application
-		this.app = new pc.Application(canvas, {
+		this.app_ = new pc.Application(canvas, {
 			mouse: new pc.Mouse(canvas),
 			touch: !!('ontouchstart' in window) ? new pc.TouchDevice(canvas) : null,
 			keyboard: new pc.Keyboard(window)
@@ -72,12 +79,12 @@
 	};
 	
 	Store.prototype._orientationchange = function () {
-		this.sceneManager.pcapp.resizeCanvas();
+		this.app_.resizeCanvas();
 		this.sceneManager.pick.update();
 	};
 
 	Store.prototype._resize = function () {
-		this.sceneManager.pcapp.resizeCanvas();
+		this.app_.resizeCanvas();
 		this.sceneManager.pick.update();
 	};
 
@@ -165,7 +172,7 @@
 	 */
 	Object.defineProperty(Store.prototype, 'pcapp', {
 		get: function () {
-			return this.app;
+			return this.app_;
 		}
 	});
 
