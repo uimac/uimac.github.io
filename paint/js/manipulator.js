@@ -239,35 +239,45 @@
 	};
 	
 	// 移動
-	Manipulator.prototype.translate = function (meshInstance, downpos, curpos, initialVal, isDone) {
-		let name = meshInstance.mesh.name;
-		if (meshInstance.mesh.entity) {
-			let entity = meshInstance.mesh.entity.parent;
-			let pos = entity.getPosition();
+	Manipulator.prototype.translate = (function () {
+		let tempVec = new pc.Vec3();
+		return function (meshInstance, downpos, curpos, initialVal, isDone) {
+			let name = meshInstance.mesh.name;
+			if (meshInstance.mesh.entity) {
+				let entity = meshInstance.mesh.entity.parent;
+				let normals = [entity.right, entity.up, entity.forward];
+				
+				let sign = (TRANS_INDEX[name] === 2) ? -1 : 1;
 
-			let diff = curpos.sub(downpos);
-			let newpos = entity.getPosition().clone();
-			newpos.data[TRANS_INDEX[name]] += diff.data[TRANS_INDEX[name]]
-			if (isDone) {
-				// 移動の確定
-				this.action.translateEntity({
-					entity : entity,
-					prePos : initialVal.pos,
-					pos : newpos
-				});
-			} else {
-				// 移動中
-				entity.setPosition(newpos);
+				let rot = entity.getRotation();
+				let diff = curpos.sub(downpos);
+				diff = rot.invert().transformVector(diff);
+
+				let newpos = entity.getPosition().clone();
+				tempVec = normals[TRANS_INDEX[name]].clone();
+				tempVec.scale(sign * diff.data[TRANS_INDEX[name]])
+				newpos.add(tempVec);
+				if (isDone) {
+					// 移動の確定
+					this.action.translateEntity({
+						entity : entity,
+						prePos : initialVal.pos,
+						pos : newpos
+					});
+				} else {
+					// 移動中
+					entity.setPosition(newpos);
+				}
 			}
 		}
-	};
+	}());
 
 	// ローカル回転
-	Manipulator.prototype.rotate = function (meshInstance, startRay, endRay, initialVal, isDone) {
+	Manipulator.prototype.rotate = function (meshInstance, startRay, endRay, downpos, curpos, initialVal, isDone) {
 		let name = meshInstance.mesh.name;
 		if (meshInstance.mesh.entity) {
 			let entity = meshInstance.mesh.entity.parent;
-			let pos = entity.getPosition();
+			let pos = entity.getPosition().clone();
 
 			let normals = [entity.right, entity.up, entity.forward];
 			let plane = new pc.Plane(pos, normals[ROT_INDEX[name]]);
@@ -276,18 +286,21 @@
 			let isHitStart = plane.intersectsRay(startRay, startPos);
 			let isHitEnd = plane.intersectsRay(endRay, endPos);
 			if (isHitStart && isHitEnd) {
+
 				let diffStart = startPos.sub(pos);
 				diffStart.normalize();
 				let diffEnd = endPos.sub(pos);
 				diffEnd.normalize();
-				let side = new pc.Vec3().cross(ROT_VEC[name], diffStart);
+				let side = new pc.Vec3().cross(normals[ROT_INDEX[name]], diffStart);
 
-				let y = upaint.Util.clamp(diffEnd.dot(diffStart), -1.0, 1.0);
-				let x = upaint.Util.clamp(diffEnd.dot(side), -1.0, 1.0);
-				let rot = Math.atan2(x, y);
-				
+				let y = diffEnd.dot(diffStart);
+				let x = diffEnd.dot(side);
+				let startEndRot = Math.atan2(x, y);
+				let sign = (ROT_INDEX[name] === 2) ? -1 : 1;
+
 				let quat = new pc.Quat();
-				quat.setFromAxisAngle(ROT_VEC[name], rot * pc.math.RAD_TO_DEG);
+				quat.setFromAxisAngle(ROT_VEC[name], sign * startEndRot * pc.math.RAD_TO_DEG);
+
 				let newrot = entity.getRotation().clone().mul(quat);
 				if (isDone) {
 					// 回転の確定
@@ -308,12 +321,12 @@
 		meshInstance, startRay, endRay, downpos, curpos, initialVal, isDone) {
 		let name = meshInstance.mesh.name;
 		if (ROT_INDEX.hasOwnProperty(name)) {
-			this.rotate(meshInstance, startRay, endRay, initialVal, isDone);
+			this.rotate(meshInstance, startRay, endRay, downpos, curpos, initialVal, isDone);
 		} else if (TRANS_INDEX.hasOwnProperty(name)) {
 			this.translate(meshInstance, downpos, curpos, initialVal, isDone);
 		}
 	};
-	
+
 	Manipulator.IsManipulator = function (meshInstance) {
 		let name = meshInstance.mesh.name;
 		return TRANS_INDEX.hasOwnProperty(name) 

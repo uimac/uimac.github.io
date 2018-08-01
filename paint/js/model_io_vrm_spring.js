@@ -98,7 +98,7 @@
 				// 長さをboneLengthに強制
 				let posToCollider = posFromCollider.sub(this.transform_.getPosition());
 				posToCollider.normalize();
-				result = this.transform_.getPisition().clone().add(
+				result = this.transform_.getPosition().clone().add(
 					 posToCollider.scale(this.length_)
 				);
 			}
