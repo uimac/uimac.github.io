@@ -237,17 +237,6 @@
 		"mainp_roty": new pc.Vec3(0, 1, 0),
 		"mainp_rotz": new pc.Vec3(0, 0, 1)
 	};
-	Manipulator.prototype.isManipulator = function (meshInstance) {
-		let name = meshInstance.mesh.name;
-		return TRANS_INDEX.hasOwnProperty(name) 
-			|| ROT_INDEX.hasOwnProperty(name);
-	};
-	Manipulator.prototype.getManipulatorType = function (meshInstance) {
-		return meshInstance.mesh.name;
-	};
-	Manipulator.prototype.getEntity = function (meshInstance) {
-		return meshInstance.mesh.entity;
-	};
 	
 	// 移動
 	Manipulator.prototype.translate = function (meshInstance, downpos, curpos, initialVal, isDone) {
@@ -323,6 +312,16 @@
 		} else if (TRANS_INDEX.hasOwnProperty(name)) {
 			this.translate(meshInstance, downpos, curpos, initialVal, isDone);
 		}
+	};
+	
+	Manipulator.IsManipulator = function (meshInstance) {
+		let name = meshInstance.mesh.name;
+		return TRANS_INDEX.hasOwnProperty(name) 
+			|| ROT_INDEX.hasOwnProperty(name);
+	};
+	
+	Manipulator.GetEntity = function (meshInstance) {
+		return meshInstance.mesh.entity;
 	};
 
 	Manipulator.EVENT_ROTATE = "rotate"

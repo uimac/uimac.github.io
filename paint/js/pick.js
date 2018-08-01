@@ -103,9 +103,9 @@
 				this.manipulator.target = upaint.Skeleton.GetEntity(hits[i]);
 			}
 			// 選択マニピュレータ切り替え
-			if (this.manipulator.isManipulator(hits[i])) {
+			if (upaint.Manipulator.IsManipulator(hits[i])) {
 				this.manipHandle = hits[i];
-				let entity = this.manipulator.getEntity(this.manipHandle);
+				let entity = upaint.Manipulator.GetEntity(this.manipHandle);
 				this.initialVal = {
 					pos : entity.getPosition().clone(),
 					rot : entity.getRotation().clone()
@@ -117,7 +117,7 @@
 	Pick.prototype.transform = function (px, py, isDone) {
 		let mx = px - this.pos.x;
 		let my = py - this.pos.y;
-		let entity = this.manipulator.getEntity(this.manipHandle);
+		let entity = upaint.Manipulator.GetEntity(this.manipHandle);
 
 		let dist = entity.getPosition().sub(this.camera.pcentity.getPosition()).length();
 
