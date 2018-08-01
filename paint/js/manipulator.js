@@ -255,7 +255,7 @@
 
 				let newpos = entity.getPosition().clone();
 				tempVec = normals[TRANS_INDEX[name]].clone();
-				tempVec.scale(sign * diff.data[TRANS_INDEX[name]])
+				tempVec.scale(sign * Math.sign(diff.data[TRANS_INDEX[name]]) * diff.length())
 				newpos.add(tempVec);
 				if (isDone) {
 					// 移動の確定
