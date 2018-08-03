@@ -13,7 +13,7 @@
 		app.start();
 		app.root.addComponent("script", { enabled: true });
 
-		this.pick = new upaint.Pick(action);
+		this.pick = new upaint.Pick(store, action);
 
 		this.pick.on(upaint.Pick.EVENT_MANIP_ROTATE, function (err, type, manip) {
 			this.captureImage(150, 100, function (err, data) {
@@ -24,7 +24,6 @@
 				});
 			})
 		}.bind(this));
-		
 
 		// function createMenu() {
 		// 	let menu = new pc.Entity();

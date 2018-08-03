@@ -6,9 +6,10 @@
 	 * 現状LAYERID_IMMEDIATEレイヤーを対象とする
 	 * @param {*} gui 
 	 */
-	let Pick = function (action) {
+	let Pick = function (store, action) {
 		EventEmitter.call(this);
 
+		this.store = store;
 		this.action = action;
 		this.initialized = false;
 		let canvas = pc.app.graphicsDevice.canvas;
@@ -27,7 +28,7 @@
 		this.hoverList = [];
 
 		// マニピュレーター
-		this.manipulator = new upaint.Manipulator(action);
+		this.manipulator = new upaint.Manipulator(store, action);
 		// 操作中のマニピュレータ
 		this.manip = null;
 		this.updateFunc = null;
@@ -38,6 +39,14 @@
 		// マウス位置
 		this.px = null;
 		this.py = null;
+
+		store.on(upaint.Store.EVENT_RESIZE, function (err) {
+			this.resize();
+		}.bind(this));
+		
+		store.on(upaint.Store.EVENT_ORIENTATION_CHANGE, function (err) {
+			this.resize();
+		}.bind(this));
 	};
 	Pick.prototype = Object.create(EventEmitter.prototype);
 
@@ -48,6 +57,7 @@
 		}
 		this.camera = camera;
 		this.scene = scene;
+		this.manipulator.init(camera);
 		this.updateFunc = function (dt) {
 			this.picker.prepare(camera.pccamera, scene.pcscene, scene.pcscene.layers.getLayerById(pc.LAYERID_IMMEDIATE));
 			this.initialized = true;
@@ -71,7 +81,7 @@
 		this.hoverList = [];
 	};
 
-	Pick.prototype.update = function () {
+	Pick.prototype.resize = function () {
 		this.initialized = false;
 		let canvas = pc.app.graphicsDevice.canvas;
 		this.picker = new pc.Picker(pc.app, canvas.width, canvas.height);
@@ -95,6 +105,11 @@
 			if (event.button !== 0) return; // 左ボタンのみ
 		}
 
+		this.mouseDownPos = {
+			x : this.pos.x,
+			y : this.pos.y
+		}
+
 		// MeshInstanceのlist
 		let hits = this.picker.getSelection(this.pos.x, this.pos.y);
 		for (let i = 0; i < hits.length; ++i) {
@@ -114,30 +129,6 @@
 		}
 	};
 
-	Pick.prototype.transform = function (px, py, isDone) {
-		let mx = px - this.pos.x;
-		let my = py - this.pos.y;
-		let entity = upaint.Manipulator.GetEntity(this.manipHandle);
-
-		let dist = entity.getPosition().sub(this.camera.pcentity.getPosition()).length();
-
-		let downpos = this.camera.pccamera.screenToWorld(
-			this.pos.x, this.pos.y, dist, 
-			this.picker.width, this.picker.height);
-
-		let curpos = this.camera.pccamera.screenToWorld(
-			px, py, dist, 
-			this.picker.width, this.picker.height);
-
-		let cameraPos = this.camera.pcentity.getPosition();
-
-		let startRay = new pc.Ray(cameraPos, downpos.clone().sub(cameraPos).normalize());
-		let endRay = new pc.Ray(cameraPos, curpos.clone().sub(cameraPos).normalize());
-
-		this.manipulator.manipulate(
-			this.manipHandle, startRay, endRay, downpos, curpos, this.initialVal, isDone);
-	};
-
 	Pick.prototype.onMouseMove = function (event) {
 		if (!this.initialized) return;
 		
@@ -146,17 +137,18 @@
 		}
 		this.hoverList = [];
 
-		let px = event.x;
-		let py = event.y;
+		let curPos = {
+			x : event.x,
+			y : event.y
+		};
 		
 		if (event.touches && event.touches.length === 1) {
-			px = event.touches[0].x;
-			py = event.touches[0].y;
+			curPos.x = event.touches[0].x;
+			curPos.y = event.touches[0].y;
 		}
 
-
 		// MeshInstanceのlist
-		let hits = this.picker.getSelection(px, py);
+		let hits = this.picker.getSelection(curPos.x, curPos.y);
 		if (hits.length > 0) {
 			if (upaint.Skeleton.IsSkeleton(hits[0])) {
 				hits[0].material.color.set(1, 0, 0);
@@ -165,26 +157,30 @@
 		}
 
 		if (this.pos) {
-			if (this.manipHandle && this.camera) {
-				this.transform(px, py, false);
+			if (this.manipHandle) {
+				this.manipulator.manipulate(
+					this.manipHandle, this.mouseDownPos, this.pos, curPos, this.initialVal, false);
 			}
-			this.pos.x = px;
-			this.pos.y = py;
+			this.pos.x = curPos.x;
+			this.pos.y = curPos.y;
 		}
-
 	};
 	
 	Pick.prototype.onMouseUp = function (event) {
-		let px = event.x;
-		let py = event.y;
-
 		if (!this.initialized) return;
+		
+		let curPos = {
+			x : event.x,
+			y : event.y
+		};
 		if (this.manipHandle) {
-			this.transform(px, py, true);
+			this.manipulator.manipulate(
+				this.manipHandle, this.mouseDownPos, this.pos, curPos, this.initialVal, true);
 		}
 		this.initialVal = null;
 		this.manipHandle = null;
 		this.pos = null;
+		this.mouseDownPos = null;
 	};
 	
 	Pick.prototype.showManipulator = function (visible) {

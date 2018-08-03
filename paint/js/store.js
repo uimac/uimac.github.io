@@ -124,12 +124,13 @@
 	
 	Store.prototype._orientationchange = function () {
 		this.app_.resizeCanvas();
+		this.emit(Store.EVENT_ORIENTATION_CHANGE, null);
 		this.sceneManager.pick.update();
 	};
 
 	Store.prototype._resize = function () {
 		this.app_.resizeCanvas();
-		this.sceneManager.pick.update();
+		this.emit(Store.EVENT_RESIZE, null);
 	};
 
 	Store.prototype._changeCurrentFrame = function (frame) {
@@ -268,6 +269,8 @@
 		}
 	});
 
+	Store.EVENT_RESIZE = "resize"
+	Store.EVENT_ORIENTATION_CHANGE = "orientation_change"
 	Store.EVENT_KEYFRAME_ADD = "add_keyframe"
 	upaint.Store = Store;
 
