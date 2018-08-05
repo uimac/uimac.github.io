@@ -68,6 +68,8 @@
 		store.on(upaint.Store.EVENT_ORIENTATION_CHANGE, function (err) {
 			this.resize();
 		}.bind(this));
+
+		this.ccdik = new upaint.CCDIK();
 	};
 
 	/// カメラにより初期化する
@@ -209,6 +211,8 @@
 			let cameraPos = camera.pcentity.getPosition();
 			let targetPos = this.target.getPosition().clone();
 			let eyeVec = targetPos.sub(cameraPos);
+			let distanceScale = Math.max(PivotSize * eyeVec.length() / 2, PivotSize);
+			let scale = [distanceScale, distanceScale, distanceScale];
 			eyeVec.normalize();
 			eyeVec = rot.clone().transformVector(eyeVec);
 
@@ -218,6 +222,7 @@
 			qa.w = 1.0 + eyeVec.y;
 			qa.normalize();
 			this.rot_w_.pcentity.setLocalRotation(qa);
+			this.rot_w_.pcentity.setLocalScale(scale[0], scale[1], scale[2]);
 
 			// rot_x
 			qa.setFromAxisAngle(upaint.Constants.AxisZ, 
@@ -225,11 +230,13 @@
 			qb.setFromAxisAngle(upaint.Constants.AxisY, 
 				pc.math.RAD_TO_DEG * Math.atan2(-eyeVec.y, -eyeVec.z));
 			this.rot_x_.pcentity.setLocalRotation(qa.mul(qb));
+			this.rot_x_.pcentity.setLocalScale(scale[0], scale[1], scale[2]);
 
 			// rot_y
 			qa.setFromAxisAngle(upaint.Constants.AxisY, 
 				pc.math.RAD_TO_DEG * Math.atan2(-eyeVec.x, -eyeVec.z));
 			this.rot_y_.pcentity.setLocalRotation(qa);
+			this.rot_y_.pcentity.setLocalScale(scale[0], scale[1], scale[2]);
 
 			// rot_z
 			qa.setFromAxisAngle(upaint.Constants.AxisX, 
@@ -237,6 +244,17 @@
 			qb.setFromAxisAngle(upaint.Constants.AxisY, 
 				pc.math.RAD_TO_DEG * Math.atan2(-eyeVec.x, eyeVec.y));
 			this.rot_z_.pcentity.setLocalRotation(qa.mul(qb));
+			this.rot_z_.pcentity.setLocalScale(scale[0], scale[1], scale[2]);
+
+			// trans
+			for (let i = 0; i < this.trans_x_.length; ++i) {
+				this.trans_x_[i].pcentity.setLocalScale(scale[0], scale[1], scale[2]);
+				this.trans_x_[i].pcentity.setLocalPosition(-0.6 * (i+1) * scale[0], 0, 0);
+				this.trans_y_[i].pcentity.setLocalScale(scale[0], scale[1], scale[2]);
+				this.trans_y_[i].pcentity.setLocalPosition(0, 0.6 * (i+1) * scale[1], 0);
+				this.trans_z_[i].pcentity.setLocalScale(scale[0], scale[1], scale[2]);
+				this.trans_z_[i].pcentity.setLocalPosition(0, 0, 0.6 * (i+1) * scale[2]);
+			}
 		}
 	}());
 
@@ -274,7 +292,6 @@
 		let tempVec = new pc.Vec3();
 		return function (name, entity, initialpos, prepos, curpos, initialVal, isDone) {
 			let normals = [entity.right, entity.up, entity.forward];
-			
 			let sign = (TRANS_INDEX[name] === 2) ? -1 : 1;
 
 			let rot = entity.getRotation();
@@ -307,17 +324,16 @@
 		let startRay = new pc.Ray(cameraPos, prepos.clone().sub(cameraPos).normalize());
 		let endRay = new pc.Ray(cameraPos, curpos.clone().sub(cameraPos).normalize());
 
-		let pos = entity.getPosition().clone();
+		let entityPos = entity.getPosition().clone();
 		let normals = [entity.right, entity.up, entity.forward];
-		
 		let sign = (ROT_INDEX[name] === 2) ? -1 : 1;
 		let isVertical = Math.abs(initialRay.direction.dot(normals[ROT_INDEX[name]])) < 0.25;
 
 		let startEndRot = 0.0;
 		if (isVertical) {
-			let diffStart = prepos.sub(pos);
+			let diffStart = prepos.sub(entityPos);
 			diffStart.normalize();
-			let diffEnd = curpos.sub(pos);
+			let diffEnd = curpos.sub(entityPos);
 			diffEnd.normalize();
 			let side = new pc.Vec3().cross(normals[ROT_INDEX[name]], diffStart);
 
@@ -325,15 +341,15 @@
 			let x = upaint.Util.clamp(diffEnd.dot(side), -1.0, 1.0);
 			startEndRot = Math.atan2(x, y);
 		} else {
-			let plane = new pc.Plane(pos, normals[ROT_INDEX[name]]);
+			let plane = new pc.Plane(entityPos, normals[ROT_INDEX[name]]);
 			let startPos = new pc.Vec3();
 			let endPos = new pc.Vec3();
 			let isHitStart = plane.intersectsRay(startRay, startPos);
 			let isHitEnd = plane.intersectsRay(endRay, endPos);
 			if (isHitStart && isHitEnd) {
-				let diffStart = startPos.sub(pos);
+				let diffStart = startPos.sub(entityPos);
 				diffStart.normalize();
-				let diffEnd = endPos.sub(pos);
+				let diffEnd = endPos.sub(entityPos);
 				diffEnd.normalize();
 				let side = new pc.Vec3().cross(normals[ROT_INDEX[name]], diffStart);
 
