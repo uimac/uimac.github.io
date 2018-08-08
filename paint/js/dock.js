@@ -12,10 +12,18 @@
 			content: [{
 				type: 'column',
 				content: [{
+					header : { show: false, popout : false },
+					id: 'dock_menu',
+					title: "Tool",
+					type: 'component',
+					isClosable : false,
+					height: 40,
+					componentName: 'main'
+				}, {
 					type: 'row',
 					height: document.body.clientHeight - 200,
 					content : [{
-						header : { popout : true },
+						header : { popout : false },
 						id: 'dock_tool',
 						title: "Tool",
 						type: 'component',

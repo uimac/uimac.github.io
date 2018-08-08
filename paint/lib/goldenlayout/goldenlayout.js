@@ -2145,6 +2145,13 @@ lm.utils.copy( lm.controls.DragProxy.prototype, {
 			var w = this._contentItem.container.width;
 			var h = Math.max(this._contentItem.container.height, MinAreaSize);
 			this._lastValidArea = this._area;
+			if (this._area.contentItem.contentItems[0] && 
+				this._area.contentItem.contentItems[0].config.header) {
+				var show = this._area.contentItem.contentItems[0].config.header.show;
+				if (show !== undefined && show === false) {
+					return;
+				}
+			}
 			this._area.contentItem._$highlightDropZone( x, y, this._area, w, h );
 		}
 	},
@@ -4914,16 +4921,16 @@ lm.utils.copy( lm.items.Stack.prototype, {
 		var highlightArea = this._contentAreaDimensions[ segment ].highlightArea;
 		var aw = highlightArea.x2 - highlightArea.x1;
 		var ah = highlightArea.y2 - highlightArea.y1;
-		if (segment === "bottom" && h < ah) {
+		if (segment === "bottom") {
 			highlightArea.y1 = highlightArea.y2 - h;
 		}
-		if (segment === "top" && h < ah) {
+		if (segment === "top") {
 			highlightArea.y2 = highlightArea.y1 + h;
 		}
-		if (segment === "right" && w < aw) {
+		if (segment === "right") {
 			highlightArea.x1 = highlightArea.x2 - w;
 		}
-		if (segment === "left" && w < aw) {
+		if (segment === "left") {
 			highlightArea.x2 = highlightArea.x1 + w;
 		}
 
