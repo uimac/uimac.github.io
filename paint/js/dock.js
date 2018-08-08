@@ -6,15 +6,19 @@
 	function initConfig() {
 		config = {
 			settings: {
+				//reorderEnabled: false,
 				showMaximiseIcon : false,
 				//hasHeaders : false
 			},
+			dimensions: {
+				minItemHeight: 56 - 20  // for menu
+			}, 
 			content: [{
 				type: 'column',
 				content: [{
 					header : { show: false, popout : false },
 					id: 'dock_menu',
-					title: "Tool",
+					title: "Menu",
 					type: 'component',
 					isClosable : false,
 					height: 40,
@@ -22,7 +26,7 @@
 				}, {
 					type: 'row',
 					height: document.body.clientHeight - 200,
-					content : [{
+					content : [/*{
 						header : { popout : false },
 						id: 'dock_tool',
 						title: "Tool",
@@ -30,7 +34,7 @@
 						isClosable : false,
 						width: 56,
 						componentName: 'main'
-					}, {
+					}, */{
 						header : { popout : false, maximise : true },
 						id: 'dock_view',
 						title: "View",

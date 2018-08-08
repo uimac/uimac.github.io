@@ -227,7 +227,7 @@
 			this.stats.domElement.style.left = "auto";
 			this.stats.domElement.style.width = "80px"
 			this.stats.domElement.style.right = "0px";
-			this.stats.domElement.style.top = "20px";
+			this.stats.domElement.style.top = "60px";
 			document.body.appendChild( this.stats.dom );
 		};
 		Fps.prototype.update = function (dt) {

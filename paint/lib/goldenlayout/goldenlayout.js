@@ -1,6 +1,6 @@
 (function($){var lm={"config":{},"container":{},"controls":{},"errors":{},"items":{},"utils":{}};
 
-var MinAreaSize = 100;
+var MinAreaSize = 56;
 
 lm.utils.F = function() {
 };
@@ -2145,13 +2145,13 @@ lm.utils.copy( lm.controls.DragProxy.prototype, {
 			var w = this._contentItem.container.width;
 			var h = Math.max(this._contentItem.container.height, MinAreaSize);
 			this._lastValidArea = this._area;
-			if (this._area.contentItem.contentItems[0] && 
-				this._area.contentItem.contentItems[0].config.header) {
-				var show = this._area.contentItem.contentItems[0].config.header.show;
-				if (show !== undefined && show === false) {
-					return;
-				}
-			}
+			// if (this._area.contentItem.contentItems[0] && 
+			// 	this._area.contentItem.contentItems[0].config.header) {
+			// 	var show = this._area.contentItem.contentItems[0].config.header.show;
+			// 	if (show !== undefined && show === false) {
+			// 		return;
+			// 	}
+			// }
 			this._area.contentItem._$highlightDropZone( x, y, this._area, w, h );
 		}
 	},
