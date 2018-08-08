@@ -6,20 +6,33 @@
 	function initConfig() {
 		config = {
 			settings: {
-				showMaximiseIcon : false
+				showMaximiseIcon : false,
+				//hasHeaders : false
 			},
 			content: [{
 				type: 'column',
 				content: [{
-					header : { popout : false },
-					id: 'dock_view',
-					title: "View",
-					type: 'component',
-					isClosable : false,
+					type: 'row',
 					height: document.body.clientHeight - 200,
-					componentName: 'main'
+					content : [{
+						header : { popout : true },
+						id: 'dock_tool',
+						title: "Tool",
+						type: 'component',
+						isClosable : false,
+						width: 56,
+						componentName: 'main'
+					}, {
+						header : { popout : false, maximise : true },
+						id: 'dock_view',
+						title: "View",
+						type: 'component',
+						isClosable : false,
+						width: document.body.clientWidth - 56,
+						componentName: 'main'
+					}]
 				}, {
-					header : { popout : false },
+					header : { popout : false, maximise : true },
 					id: 'dock_timeline',
 					title: "Timeline",
 					type: 'component',

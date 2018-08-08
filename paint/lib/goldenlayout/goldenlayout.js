@@ -1272,14 +1272,14 @@ lm.utils.copy( lm.LayoutManager.prototype, {
 	 * @returns {void}
 	 */
 	_adjustToWindowMode: function() {
-		var popInButton = $( '<div class="lm_popin" title="' + this.config.labels.popin + '">' +
-			'<div class="lm_icon"></div>' +
-			'<div class="lm_bg"></div>' +
-			'</div>' );
+		// var popInButton = $( '<div class="lm_popin" title="' + this.config.labels.popin + '">' +
+		// 	'<div class="lm_icon"></div>' +
+		// 	'<div class="lm_bg"></div>' +
+		// 	'</div>' );
 
-		popInButton.click( lm.utils.fnBind( function() {
-			this.emit( 'popIn' );
-		}, this ) );
+		// popInButton.click( lm.utils.fnBind( function() {
+		// 	this.emit( 'popIn' );
+		// }, this ) );
 
 		document.title = lm.utils.stripTags( this.config.content[ 0 ].title );
 
@@ -1287,8 +1287,8 @@ lm.utils.copy( lm.LayoutManager.prototype, {
 
 		this.container = $( 'body' )
 			.html( '' )
-			.css( 'visibility', 'visible' )
-			.append( popInButton );
+			.css( 'visibility', 'visible' );
+			//.append( popInButton );
 
 		/*
 		 * This seems a bit pointless, but actually causes a reflow/re-evaluation getting around
@@ -1924,7 +1924,7 @@ lm.utils.copy( lm.controls.BrowserPopout.prototype, {
 
 		$( this._popoutWindow )
 			.on( 'load', lm.utils.fnBind( this._positionWindow, this ) )
-			.on( 'unload beforeunload', lm.utils.fnBind( this._onClose, this ) );
+			.on( 'beforeunload', lm.utils.fnBind( this.popIn, this ) );
 
 		/**
 		 * Polling the childwindow to find out if GoldenLayout has been initialised
