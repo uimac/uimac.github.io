@@ -207,14 +207,14 @@
 		return function (camera) {
 			if (!this.target) return;
 			this.camera = camera;
-			let rot = this.target.getRotation().clone().invert();
+			let rotInv = this.target.getRotation().clone().invert();
 			let cameraPos = camera.pcentity.getPosition();
 			let targetPos = this.target.getPosition().clone();
 			let eyeVec = targetPos.sub(cameraPos);
 			let distanceScale = Math.max(PivotSize * eyeVec.length() / 2, PivotSize);
 			let scale = [distanceScale, distanceScale, distanceScale];
 			eyeVec.normalize();
-			eyeVec = rot.clone().transformVector(eyeVec);
+			eyeVec = rotInv.transformVector(eyeVec);
 
 			qa.x = eyeVec.z;
 			qa.y = 0.0;

@@ -1,4 +1,7 @@
 (function($){var lm={"config":{},"container":{},"controls":{},"errors":{},"items":{},"utils":{}};
+
+var MinAreaSize = 100;
+
 lm.utils.F = function() {
 };
 
@@ -1048,15 +1051,14 @@ lm.utils.copy( lm.LayoutManager.prototype, {
 	},
 
 	_$createRootItemAreas: function() {
-		var areaSize = 50;
 		var sides = { y2: 0, x2: 0, y1: 'y2', x1: 'x2' };
 		for( var side in sides ) {
 			var area = this.root._$getArea();
 			area.side = side;
 			if( sides [ side ] )
-				area[ side ] = area[ sides [ side ] ] - areaSize;
+				area[ side ] = area[ sides [ side ] ] - MinAreaSize;
 			else
-				area[ side ] = areaSize;			
+				area[ side ] = MinAreaSize;			
 			area.surface = ( area.x2 - area.x1 ) * ( area.y2 - area.y1 );
 			this._itemAreas.push( area );
 		}
@@ -2137,10 +2139,13 @@ lm.utils.copy( lm.controls.DragProxy.prototype, {
 	_setDropPosition: function( x, y ) {
 		this.element.css( { left: x, top: y } );
 		this._area = this._layoutManager._$getArea( x, y );
+		highlightArea = this._area;
 
 		if( this._area !== null ) {
+			var w = this._contentItem.container.width;
+			var h = Math.max(this._contentItem.container.height, MinAreaSize);
 			this._lastValidArea = this._area;
-			this._area.contentItem._$highlightDropZone( x, y, this._area );
+			this._area.contentItem._$highlightDropZone( x, y, this._area, w, h );
 		}
 	},
 
@@ -3470,7 +3475,8 @@ lm.utils.copy( lm.items.AbstractContentItem.prototype, {
 		this.parent = parent;
 	},
 
-	_$highlightDropZone: function( x, y, area ) {
+	// corners
+	_$highlightDropZone: function( x, y, area, w, h ) {
 		this.layoutManager.dropTargetIndicator.highlightArea( area );
 	},
 
@@ -3798,7 +3804,7 @@ lm.utils.copy( lm.items.Root.prototype, {
 			this.contentItems[ 0 ].element.height( height );
 		}
 	},
-	_$highlightDropZone: function( x, y, area ) {
+	_$highlightDropZone: function( x, y, area, w, h ) {
 		this.layoutManager.tabDropPlaceholder.remove();
 		lm.items.AbstractContentItem.prototype._$highlightDropZone.apply( this, arguments );
 	},
@@ -3815,9 +3821,12 @@ lm.utils.copy( lm.items.Root.prototype, {
 			stack.addChild( contentItem );
 			contentItem = stack;
 		}
+		var area_w = area.x2 - area.x1;
+		var area_h = area.y2 - area.y1;
 
 		if( !this.contentItems.length ) {
 			this.addChild( contentItem );
+			console.error(area)
 		} else {
 			var type = area.side[ 0 ] == 'x' ? 'row' : 'column';
 			var dimension = area.side[ 0 ] == 'x' ? 'width' : 'height';
@@ -3828,9 +3837,19 @@ lm.utils.copy( lm.items.Root.prototype, {
 				this.replaceChild( column, rowOrColumn );
 				rowOrColumn.addChild( contentItem, insertBefore ? 0 : undefined, true );
 				rowOrColumn.addChild( column, insertBefore ? undefined : 0, true );
-				column.config[ dimension ] = 50;
-				contentItem.config[ dimension ] = 50;
-				rowOrColumn.callDownwards( 'setSize' );
+				var area2 = column._$getArea();
+				var itemSize;
+				var anotherSize;
+				if (dimension === "width") {
+					itemSize = area_w;
+					anotherSize = area2.x2 - area2.x1 - area_w;
+				} else {
+					itemSize = area_h;
+					anotherSize = area2.y2 - area2.y1 - area_h;
+				}
+				column.config[ dimension ] = anotherSize;
+				contentItem.config[ dimension ] = itemSize;
+				rowOrColumn.callDownwards( 'setSize'  );
 			} else {
 				var sibbling = column.contentItems[ insertBefore ? 0 : column.contentItems.length - 1 ]
 				column.addChild( contentItem, insertBefore ? 0 : undefined, true );
@@ -4628,6 +4647,14 @@ lm.utils.copy( lm.items.Stack.prototype, {
 
 			this.config[ dimension ] = 50;
 			contentItem.config[ dimension ] = 50;
+			if (this._lastHightlightArea) {
+				var w = this.layoutManager.width;
+				var h = this.layoutManager.height;
+				var aw = this._lastHightlightArea.x2 - this._lastHightlightArea.x1;
+				var ah = this._lastHightlightArea.y2 - this._lastHightlightArea.y1;
+				contentItem.config[ dimension ] = isVertical ? (ah + this.header.element.height()) : aw;
+				this.config[ dimension ] = isVertical ? (h - contentItem.config[ dimension ]) : (w - contentItem.config[ dimension ]);
+			}
 			rowOrColumn.callDownwards( 'setSize' );
 		}
 	},
@@ -4641,7 +4668,7 @@ lm.utils.copy( lm.items.Stack.prototype, {
 	 *
 	 * @returns {void}
 	 */
-	_$highlightDropZone: function( x, y ) {
+	_$highlightDropZone: function( x, y, area, w, h ) {
 		var segment, area;
 
 		for( segment in this._contentAreaDimensions ) {
@@ -4654,7 +4681,7 @@ lm.utils.copy( lm.items.Stack.prototype, {
 					this._highlightHeaderDropZone( this._sided ? y : x );
 				} else {
 					this._resetHeaderDropZone();
-					this._highlightBodyDropZone( segment );
+					this._highlightBodyDropZone( segment, w, h );
 				}
 
 				return;
@@ -4844,7 +4871,6 @@ lm.utils.copy( lm.items.Stack.prototype, {
 			tabElement.after( this.layoutManager.tabDropPlaceholder );
 		}
 
-
 		if( this._sided ) {
 			placeHolderTop = this.layoutManager.tabDropPlaceholder.offset().top;
 			this.layoutManager.dropTargetIndicator.highlightArea( {
@@ -4884,10 +4910,26 @@ lm.utils.copy( lm.items.Stack.prototype, {
 		}
 	},
 
-	_highlightBodyDropZone: function( segment ) {
+	_highlightBodyDropZone: function( segment, w, h) {
 		var highlightArea = this._contentAreaDimensions[ segment ].highlightArea;
+		var aw = highlightArea.x2 - highlightArea.x1;
+		var ah = highlightArea.y2 - highlightArea.y1;
+		if (segment === "bottom" && h < ah) {
+			highlightArea.y1 = highlightArea.y2 - h;
+		}
+		if (segment === "top" && h < ah) {
+			highlightArea.y2 = highlightArea.y1 + h;
+		}
+		if (segment === "right" && w < aw) {
+			highlightArea.x1 = highlightArea.x2 - w;
+		}
+		if (segment === "left" && w < aw) {
+			highlightArea.x2 = highlightArea.x1 + w;
+		}
+
 		this.layoutManager.dropTargetIndicator.highlightArea( highlightArea );
 		this._dropSegment = segment;
+		this._lastHightlightArea = highlightArea;
 	}
 } );
 
