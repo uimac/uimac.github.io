@@ -272,7 +272,7 @@
 			this.target_ = entity;
 			if (this.target_) {
 				// 移動できるやつだけ移動マニピュレーターを出す
-				let canTrans = true;//entity.name === "Model";
+				let canTrans = entity.name === "Model";
 				for (let i = 0; i < this.trans_x_.length; ++i) {
 					this.trans_x_[i].setVisible(canTrans);
 					this.trans_y_[i].setVisible(canTrans);

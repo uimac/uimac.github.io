@@ -28,6 +28,12 @@
 				this.timeline_ = new upaint.GUITimeline(store, action);
 				dockTimeline.element.children().append(this.timeline_.rootElement);
 			}
+
+			let dockMenu = this.dock_.layout.root.getItemsById('dock_menu')[0];
+			if (dockMenu && !this.menu_) {
+				this.menu_ = new upaint.GUIMenu(store, action);
+				dockMenu.element.children().append(this.menu_.rootElement);
+			}
 			
 			action.init(this.canvas_);
 		}.bind(this));
