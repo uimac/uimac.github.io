@@ -1,16 +1,6 @@
 (function () {
 	"use strict";
 
-	const MANIP_NAME_TRANSX = "mainp_transx";
-	const MANIP_NAME_TRANSY = "mainp_transy";
-	const MANIP_NAME_TRANSZ = "mainp_transz";
-	const TRANS_INDEX = {
-		"mainp_transx": 0,
-		"mainp_transy": 1,
-		"mainp_transz": 2
-	};
-	
-
 	let CCDIK = function (store, action) {
 
 	};

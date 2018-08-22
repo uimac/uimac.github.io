@@ -112,7 +112,9 @@
 		for (let i = 0; i < hits.length; ++i) {
 			// 選択Entity切り替え
 			if (upaint.Skeleton.IsSkeleton(hits[i])) {
-				this.manipulator.target = upaint.Skeleton.GetEntity(hits[i]);
+				if (!upaint.Skeleton.IsIKHandle(hits[i])) {
+					this.manipulator.target = upaint.Skeleton.GetEntity(hits[i]);
+				}
 			}
 			// 選択マニピュレータ切り替え
 			if (upaint.Manipulator.IsManipulator(hits[i])) {
@@ -194,7 +196,6 @@
 	Pick.prototype.showManipulator = function (visible) {
 	} 
 
-	Pick.EVENT_MANIP_ROTATE = "rotate"
 	upaint.Pick = Pick;
 
 }());

@@ -1,7 +1,7 @@
 (function () {
 	"use strict";
 
-	let PivotSize = 0.05;
+	let HandleSize = upaint.Constants.SkeletonHandleSize;
 
 	/**
 	 * スケルトン操作＆描画用クラス
@@ -52,13 +52,11 @@
 		}
 		let mesh = pc.createSphere(pc.app.graphicsDevice);
 		mesh.name = Skeleton.HANDLE_NAME;
-		//mesh.skeleton = this;
 		mesh.entity = root;
 		
 		let model = upaint.Util.createImeddiateModel(mesh, this.mat.clone());
-		model.pcentity.setLocalScale(PivotSize, PivotSize, PivotSize);
+		model.pcentity.setLocalScale(HandleSize, HandleSize, HandleSize);
 		root.addChild(model.pcentity);
-		//mesh.entity = model.pcentity;
 
 		this.handleList.push(model);
 	};
@@ -69,10 +67,10 @@
 			for (let k = 0; k < model.pcmodels.length; ++k) {
 				let skeletonHandleEntity = model.pcmodels[k].meshInstances[0].mesh.entity;
 				if (skeletonHandleEntity === entity) {
-					// console.log("Hoghoge")
 					let parent = model.pcentity.parent;
 					model.pcentity.reparent(pc.app.root)
 					model.pcentity.setPosition(parent.getPosition());
+					model.pcentity.setLocalScale(HandleSize * 1.5, HandleSize * 1.5, HandleSize * 1.5);
 					model.pcmaterial.color.set(0, 1, 1);
 					model.pcentity.ikeffector = skeletonHandleEntity;
 					model.pcmodels[k].meshInstances[0].mesh.entity = model.pcentity
@@ -108,7 +106,7 @@
 		return (name === Skeleton.HANDLE_NAME);
 	};
 	Skeleton.IsIKHandle = function (meshInstance) {
-		return (meshInstance.mesh.entity.isIKHandle === true);
+		return (meshInstance.mesh.entity.ikeffector !== undefined);
 	};
 	Skeleton.GetEntity = function (meshInstnace) {
 		return meshInstnace.mesh.entity;

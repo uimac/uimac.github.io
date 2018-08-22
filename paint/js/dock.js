@@ -42,7 +42,7 @@
 						isClosable : false,
 						width: document.body.clientWidth - 180,
 						componentName: 'main'
-					}, {
+					}/*, {
 						header : { popout : false },
 						id: 'dock_shape',
 						title: "Shape",
@@ -50,7 +50,7 @@
 						isClosable : false,
 						width: 180,
 						componentName: 'main'
-					}]
+					}*/]
 				}, {
 					header : { popout : false, maximise : true },
 					id: 'dock_timeline',

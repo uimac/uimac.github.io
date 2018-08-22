@@ -33,7 +33,7 @@
 							orbitSensitivity : 0.3
 						}
 					});
-					this.setTarget(0, 0.8, 0);
+					this.pivotPoint = new pc.Vec3(0, 0.8, 0);
 					// this.pccamera.nearClip = 0.01;
 					// this.pccamera.farClip = 10000;
 					// 初期化完了
@@ -58,13 +58,32 @@
 	}
 
 	// 微妙
-	Camera.prototype.setTarget = function (x, y, z) {
-		this.pcentity_.script.orbitCamera.pivotPoint = new pc.Vec3(x, y, z)
-	};
-	
-	Camera.prototype.setPosition = function (x, y, z) {
-		this.pcentity_.setPosition(x, y, z);
-	};
+	Object.defineProperty(Camera.prototype, "pivotPoint", {
+		get: function () {
+			return this.pcentity_.script.orbitCamera.pivotPoint;
+		},
+		set: function (value) {
+			this.pcentity_.script.orbitCamera.pivotPoint = value;
+		}
+	});
+
+	Object.defineProperty(Camera.prototype, "yaw", {
+		get: function () {
+			return this.pcentity_.script.orbitCamera.yaw;
+		},
+		set: function (value) {
+			this.pcentity_.script.orbitCamera.yaw = value;
+		}
+	});
+
+	Object.defineProperty(Camera.prototype, "pitch", {
+		get: function () {
+			return this.pcentity_.script.orbitCamera.pitch;
+		},
+		set: function (value) {
+			this.pcentity_.script.orbitCamera.pitch = value;
+		}
+	});
 
 	/**
 	 * playcanvas cameracomponent

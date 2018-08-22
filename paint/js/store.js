@@ -100,7 +100,12 @@
 	};
 
 	Store.prototype._loadModel = function (url) {
-		let io = new upaint.ModelIO.VRM();
+		let io;
+		if (url.indexOf('.vrm') > 0) {
+			io = new upaint.ModelIO.VRM();
+		} else {
+			io = new upaint.ModelIO.GLTF();
+		}
 		io.on('loaded', function (err, data, json) {
 			this.scene.addModel(data.model);
 			this.scene.addAnimation(data.animation);
@@ -126,7 +131,6 @@
 				propName : "全身",
 				propKey : this.currentPropKey
 			});
-
 		}.bind(this));
 		io.load(url);
 	};
@@ -172,7 +176,6 @@
 				propKey : propKey,
 				data : {}
 			});
-			console.log(content)
 		}
 	};
 	
@@ -208,6 +211,7 @@
 			}.bind(data, data.rot)
 		});
 		data.entity.setRotation(data.rot);
+		this.emit(Store.EVENT_ROTATE, null, data);
 	};
 
 	Store.prototype._translateEntity = function (data) {
@@ -223,6 +227,44 @@
 			}.bind(data, data.pos)
 		});
 		data.entity.setPosition(data.pos);
+		this.emit(Store.EVENT_TRANSLATE, null, data);
+	};
+
+	Store.prototype._captureImage = function (data) {
+		let canvas = pc.app.graphicsDevice.canvas;
+		let captureFunc =  function() {
+			pc.app.off('frameend', captureFunc);
+			let bigData = canvas.toDataURL();
+			let bigImage = new Image();
+			bigImage.onload = function () {
+				if (data.isNoResize) {
+					let result = {
+						image : bigImage,
+						id : data.id
+					}
+					this.emit(Store.EVENT_IMAGE_CAPTURE, null, result);
+				} else {
+					let dummyCanvas = document.createElement("canvas");
+					dummyCanvas.width = data.width;
+					dummyCanvas.height = data.height;
+					let ctx = dummyCanvas.getContext('2d');
+					ctx.drawImage(bigImage, 0, 0, data.width, data.height);
+					let smallData = dummyCanvas.toDataURL();
+					let smallImage = new Image();
+					smallImage.onload = function () {
+						let result = {
+							image : smallImage,
+							id : data.id
+						}
+						this.emit(Store.EVENT_IMAGE_CAPTURE, null, result);
+					}.bind(this);
+					smallImage.src = smallData;
+					bigImage = null;
+				}
+			}.bind(this);
+			bigImage.src = bigData;
+		}.bind(this);
+		pc.app.on('frameend', captureFunc);
 	};
 
 	Store.prototype.getContentIndex = function (contentKey) {
@@ -282,6 +324,9 @@
 	Store.EVENT_ORIENTATION_CHANGE = "orientation_change"
 	Store.EVENT_KEYFRAME_ADD = "add_keyframe"
 	Store.EVENT_MODEL_ADD = "add_model"
+	Store.EVENT_IMAGE_CAPTURE = "image_capture"
+	Store.EVENT_TRANSLATE = "translate"
+	Store.EVENT_ROTATE = "rotate"
 	upaint.Store = Store;
 
 }());

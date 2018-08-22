@@ -15,14 +15,24 @@
 
 		this.pick = new upaint.Pick(store, action);
 
-		this.pick.on(upaint.Pick.EVENT_MANIP_ROTATE, function (err, type, manip) {
-			this.captureImage(150, 100, function (err, data) {
+		let captureID = "registerKeyframe";
+
+		store.on(upaint.Store.EVENT_IMAGE_CAPTURE, function (err, data) {
+			if (captureID === data.id) {
 				action.addKeyFrame({
 					frameData : {
-						image : data
+						image : data.image
 					}
 				});
-			})
+			}
+		});
+
+		store.on(upaint.Store.EVENT_ROTATE, function (err, type, manip) {
+			action.captureImage({
+				id : captureID,
+				width : 150,
+				height : 100
+			});
 		}.bind(this));
 
 		// function createMenu() {
@@ -91,38 +101,6 @@
 		if (isCurrentScene && this.sceneList.length > 1) {
 			this.currentScene = this.sceneList[0];
 		}
-	};
-
-	/**
-	 * 現在のシーンをキャプチャして返す
-	 */
-	SceneManager.prototype.captureImage = function (width, height, callback) {
-		let dummyCanvas = document.createElement("canvas");
-		let canvas = pc.app.graphicsDevice.canvas;
-		let preW = canvas.width;
-		let preH = canvas.height;
-		dummyCanvas.width = width;
-		dummyCanvas.height = height;
-		let captureFunc =  function() {
-			pc.app.off('frameend', captureFunc);
-			let bigData = canvas.toDataURL();
-			let bigImage = new Image();
-			bigImage.onload = function () {
-				let ctx = dummyCanvas.getContext('2d');
-				ctx.drawImage(bigImage, 0, 0, width, height);
-				let smallData = dummyCanvas.toDataURL();
-				let smallImage = new Image();
-				smallImage.onload = function () {
-					if (callback) {
-						callback(null, smallImage)
-					}
-				};
-				smallImage.src = smallData;
-				bigImage = null;
-			};
-			bigImage.src = bigData;
-		}
-		pc.app.on('frameend', captureFunc);
 	};
 	
 	/**
