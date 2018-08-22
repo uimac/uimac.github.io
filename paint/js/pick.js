@@ -63,9 +63,6 @@
 			this.initialized = true;
 
 			// マニピュレータの更新
-			if (this.manipulator.target === null && this.scene.modelList.length > 0) {
-				this.manipulator.target = this.scene.modelList[0].skeleton.pcentity;
-			}
 			this.manipulator.update(camera);
 		}.bind(this);
 		pc.app.on("update", this.updateFunc);
@@ -131,13 +128,20 @@
 				}
 			}
 		}
+		if (hits.length === 0) {
+			this.manipulator.target = null;
+		}
 	};
 
 	Pick.prototype.onMouseMove = function (event) {
 		if (!this.initialized) return;
 		
 		for (let i = 0; i < this.hoverList.length; ++i) {
-			this.hoverList[i].material.color.fromString(upaint.Constants.HandleColor)
+			if (upaint.Skeleton.IsIKHandle(this.hoverList[i])) {
+				this.hoverList[i].material.color.fromString(upaint.Constants.IKHandleColor)
+			} else {
+				this.hoverList[i].material.color.fromString(upaint.Constants.HandleColor)
+			}
 		}
 		this.hoverList = [];
 

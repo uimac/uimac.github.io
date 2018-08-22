@@ -59,7 +59,7 @@
 	ModelIO.VRM.prototype.loadBlendShape = function (data, resources, shapeMaster) {
 		for (let i = 0; i < shapeMaster.blendShapeGroups.length; ++i) {
 			let group = shapeMaster.blendShapeGroups[i];
-			console.error(resources.meshes, group.binds.length)
+			//console.error(resources.meshes, group.binds.length)
 			for (let k = 0; k < group.binds.length; ++k) {
 				let mesh = group.binds[k].mesh;
 				group.binds[k].reference = resources.meshes[mesh];

@@ -47,15 +47,8 @@
 		this.initTranslationHandles();
 		
 		// ハンドルを非表示に
-		for (let i = 0; i < this.trans_x_.length; ++i) {
-			this.trans_x_[i].setVisible(false);
-			this.trans_y_[i].setVisible(false);
-			this.trans_z_[i].setVisible(false);
-		}
-		this.rot_x_.setVisible(false);
-		this.rot_y_.setVisible(false);
-		this.rot_z_.setVisible(false);
-		this.rot_w_.setVisible(false);
+		this.setTranslationVisible(false);
+		this.setRotationVisible(false);
 
 		this.bbox_ = new pc.BoundingBox(
 			this.manipEntity_.getPosition().clone(), 
@@ -259,6 +252,27 @@
 	}());
 
 	/**
+	 * 回転マニピュレーターの表示非表示を設定
+	 */
+	Manipulator.prototype.setRotationVisible = function (visible) {
+		this.rot_x_.setVisible(visible);
+		this.rot_y_.setVisible(visible);
+		this.rot_z_.setVisible(visible);
+		this.rot_w_.setVisible(visible);
+	};
+	
+	/**
+	 * 移動マニピュレーターの表示非表示を設定
+	 */
+	Manipulator.prototype.setTranslationVisible = function (visible) {
+		for (let i = 0; i < this.trans_x_.length; ++i) {
+			this.trans_x_[i].setVisible(visible);
+			this.trans_y_[i].setVisible(visible);
+			this.trans_z_[i].setVisible(visible);
+		}
+	};
+
+	/**
 	 * マニピュレータのターゲット
 	 */
 	Object.defineProperty(Manipulator.prototype, 'target', {
@@ -272,19 +286,16 @@
 			this.target_ = entity;
 			if (this.target_) {
 				// 移動できるやつだけ移動マニピュレーターを出す
-				let canTrans = true;//entity.name === "Model";
-				for (let i = 0; i < this.trans_x_.length; ++i) {
-					this.trans_x_[i].setVisible(canTrans);
-					this.trans_y_[i].setVisible(canTrans);
-					this.trans_z_[i].setVisible(canTrans);
-				}
-				this.rot_x_.setVisible(true);
-				this.rot_y_.setVisible(true);
-				this.rot_z_.setVisible(true);
-				this.rot_w_.setVisible(true);
+				let canTrans = entity.name === "Model" || entity.ikeffector;
+				this.setTranslationVisible(canTrans);
+				this.setRotationVisible(true);
 				this.target_.addChild(this.manipEntity_);
 				let s = entity.getLocalScale();
 				this.manipEntity_.setLocalScale(new pc.Vec3(1.0/s.x, 1.0 / s.y, 1.0/s.z));
+			} else {
+				// nullがセットされたら非表示にする
+				this.setTranslationVisible(false);
+				this.setRotationVisible(false);
 			}
 		}
 	});
