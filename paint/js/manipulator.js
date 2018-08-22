@@ -272,7 +272,7 @@
 			this.target_ = entity;
 			if (this.target_) {
 				// 移動できるやつだけ移動マニピュレーターを出す
-				let canTrans = entity.name === "Model";
+				let canTrans = true;//entity.name === "Model";
 				for (let i = 0; i < this.trans_x_.length; ++i) {
 					this.trans_x_[i].setVisible(canTrans);
 					this.trans_y_[i].setVisible(canTrans);
@@ -283,6 +283,8 @@
 				this.rot_z_.setVisible(true);
 				this.rot_w_.setVisible(true);
 				this.target_.addChild(this.manipEntity_);
+				let s = entity.getLocalScale();
+				this.manipEntity_.setLocalScale(new pc.Vec3(1.0/s.x, 1.0 / s.y, 1.0/s.z));
 			}
 		}
 	});
@@ -375,7 +377,7 @@
 		}
 	};
 
-	Manipulator.prototype.manipulate = function (meshInstance, initial, start, end, initialVal, isDone) {
+	Manipulator.prototype.manipulate = function (meshInstance, initial, start, end, initialVal, isDone, state) {
 		let name = meshInstance.mesh.name;
 		let entity = Manipulator.GetEntity(meshInstance);
 		let dist = entity.getPosition().sub(this.camera.pcentity.getPosition()).length();
@@ -399,7 +401,12 @@
 		if (ROT_INDEX.hasOwnProperty(name)) {
 			this.rotate(name, targetEntity, initialpos, prepos, curpos, initialVal, isDone);
 		} else if (TRANS_INDEX.hasOwnProperty(name)) {
-			this.translate(name, targetEntity, initialpos, prepos, curpos, initialVal, isDone);
+			if (this.target_.ikeffector) {
+				this.translate(name, this.target_, initialpos, prepos, curpos, initialVal, isDone);
+				this.ccdik.translate(this.target_, this.target_.ikeffector, initialVal, isDone, state);
+			} else {
+				this.translate(name, targetEntity, initialpos, prepos, curpos, initialVal, isDone);
+			}
 		}
 	};
 

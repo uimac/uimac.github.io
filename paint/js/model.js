@@ -87,15 +87,21 @@
 	 * playcanvas material
 	 */
 	Object.defineProperty(Model.prototype, 'pcmaterial', {
-		get: function (index = 0) {
-			if (this.pcmodel_ && this.pcmodel_.meshInstances.length > index) {
-				return this.pcmodel_.meshInstances[index].material;
+		get: function (modelindex = 0, meshindex = 0) {
+			if (this.pcmodels && this.pcmodels.length > modelindex) {
+				let model = this.pcmodels[modelindex];
+				if (model && model.meshInstances.length > meshindex) {
+					return model.meshInstances[meshindex].material;
+				}
 			}
 			return null;
 		},
-		set : function (mat, index = 0) {
-			if (this.pcmodel_ && this.pcmodel_.meshInstances.length > index) {
-				return this.pcmodel_.meshInstances[index].material = mat;
+		set : function (mat, modelindex = 0, meshindex = 0) {
+			if (this.pcmodels && this.pcmodels.length > modelindex) {
+				let model = this.pcmodels[modelindex];
+				if (model && model.meshInstances.length > meshindex) {
+					model.meshInstances[meshindex].material = mat;
+				}
 			}
 		}
 	});

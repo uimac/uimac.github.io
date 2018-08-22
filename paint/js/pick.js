@@ -125,6 +125,10 @@
 					pos : entity.getPosition().clone(),
 					rot : entity.getRotation().clone()
 				}
+				if (this.manipHandle) {
+					this.manipulator.manipulate(
+						this.manipHandle, this.mouseDownPos, this.pos, this.pos, this.initialVal, false, "down");
+				}
 			}
 		}
 	};
@@ -159,7 +163,7 @@
 		if (this.pos) {
 			if (this.manipHandle) {
 				this.manipulator.manipulate(
-					this.manipHandle, this.mouseDownPos, this.pos, curPos, this.initialVal, false);
+					this.manipHandle, this.mouseDownPos, this.pos, curPos, this.initialVal, false, "move");
 			}
 			this.pos.x = curPos.x;
 			this.pos.y = curPos.y;
@@ -175,7 +179,7 @@
 		};
 		if (this.manipHandle) {
 			this.manipulator.manipulate(
-				this.manipHandle, this.mouseDownPos, this.pos, curPos, this.initialVal, true);
+				this.manipHandle, this.mouseDownPos, this.pos, curPos, this.initialVal, true, "up");
 		}
 		this.initialVal = null;
 		this.manipHandle = null;
