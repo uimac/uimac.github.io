@@ -40,7 +40,15 @@
 						title: "View",
 						type: 'component',
 						isClosable : false,
-						width: document.body.clientWidth - 56,
+						width: document.body.clientWidth - 180,
+						componentName: 'main'
+					}, {
+						header : { popout : false },
+						id: 'dock_shape',
+						title: "Shape",
+						type: 'component',
+						isClosable : false,
+						width: 180,
 						componentName: 'main'
 					}]
 				}, {

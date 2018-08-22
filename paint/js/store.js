@@ -105,11 +105,20 @@
 			this.scene.addModel(data.model);
 			this.scene.addAnimation(data.animation);
 
-			let meta = json.extensions.VRM.meta;
+			this.emit(Store.EVENT_MODEL_ADD, null, data.model);
+
+			let title = data.model.pcentity.name;
+			// for VRM
+			if (json.hasOwnProperty("extensions")
+				&& json.extensions.hasOwnProperty('VRM'))
+			{
+				let meta = json.extensions.VRM.meta;
+				title = meta.title;
+			}
 			this.currentContentKey = url;
 			this.currentPropKey = "all";
 			this._addTimelineContent({
-				contentName : meta.title,
+				contentName : title,
 				contentKey : this.currentContentKey
 			});
 			this._addTimelineProp({
@@ -121,7 +130,7 @@
 		}.bind(this));
 		io.load(url);
 	};
-	
+
 	Store.prototype._orientationchange = function () {
 		this.app_.resizeCanvas();
 		this.emit(Store.EVENT_ORIENTATION_CHANGE, null);
@@ -272,6 +281,7 @@
 	Store.EVENT_RESIZE = "resize"
 	Store.EVENT_ORIENTATION_CHANGE = "orientation_change"
 	Store.EVENT_KEYFRAME_ADD = "add_keyframe"
+	Store.EVENT_MODEL_ADD = "add_model"
 	upaint.Store = Store;
 
 }());

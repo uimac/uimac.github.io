@@ -34,6 +34,12 @@
 				this.menu_ = new upaint.GUIMenu(store, action);
 				dockMenu.element.children().append(this.menu_.rootElement);
 			}
+
+			let dockShape = this.dock_.layout.root.getItemsById('dock_shape')[0];
+			if (dockShape && !this.shape_) {
+				this.shape_ = new upaint.GUIShape(store, action);
+				dockShape.element.children().append(this.shape_.rootElement);
+			}
 			
 			action.init(this.canvas_);
 		}.bind(this));

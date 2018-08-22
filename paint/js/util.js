@@ -223,11 +223,13 @@
 			this.isShow = true;
 			this.stats = new Stats();
 			this.stats.showPanel(0);
-			this.stats.domElement.style.position = "fixed";
+			this.stats.domElement.style.position = "absolute";
 			this.stats.domElement.style.left = "auto";
+			this.stats.domElement.style.top = "unset";
 			this.stats.domElement.style.width = "80px"
-			this.stats.domElement.style.right = "0px";
-			this.stats.domElement.style.top = "60px";
+			this.stats.domElement.style.height = "50px";
+			this.stats.domElement.style.right = "3px";
+			this.stats.domElement.style.bottom = "0px";
 			document.body.appendChild( this.stats.dom );
 		};
 		Fps.prototype.update = function (dt) {

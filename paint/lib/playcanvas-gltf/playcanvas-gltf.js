@@ -1,24 +1,5 @@
 (function () {
 
-    var Anim;
-    function initAnim() {
-        if (Anim) return;
-        Anim = pc.createScript('anim');
-
-        Anim.prototype.initialize = function () {
-            if(!this.animComponent || this.animComponent.clipCount() === 0 ||
-                !this.animComponent.getCurrentClip()) 
-                return; 
-            this.animComponent.getCurrentClip().play();
-        };
-
-        Anim.prototype.update = function (dt) {
-            if(!this.animComponent || this.animComponent.clipCount() === 0 ||
-                !this.animComponent.getCurrentClip())
-                return;
-        };
-    }
-
     // Math utility functions
     function nearestPow2(n) {
         return Math.pow(2, Math.round(Math.log(n) / Math.log(2)));
@@ -124,7 +105,6 @@
             clip.name = data.name;
 
         var gltf = resources.gltf;
-        var animComponent = null;
 
         data.channels.forEach(function (channel) {
             var sampler = data.samplers[channel.sampler];
@@ -139,17 +119,6 @@
 
             // Animation for the same root, organized in one AnimationComponent
             var entity = resources.nodes[target.node];
-            var itsRoot = resources.nodes[0]; // entity.root;
-            if (!itsRoot.script)
-                itsRoot.addComponent('script');
-
-            if (!itsRoot.script.anim) {
-                itsRoot.script.create('anim');
-                itsRoot.script.anim.animComponent = new AnimationComponent();
-                AnimationSession.app = itsRoot.script.anim.app;
-                itsRoot.script.anim.animComponent.curClip = clip.name;
-            }
-            animComponent = itsRoot.script.anim.animComponent;
 
             if (path === 'weights') {
                 var numCurves = values.length / times.length;
@@ -208,8 +177,6 @@
             }
         });
 
-        if(animComponent)
-            animComponent.addClip(clip);
         return clip;
     }
 
@@ -235,7 +202,9 @@
     function translateImage(data, resources, success) {
         var image = new Image();
 
-        image.addEventListener('load', function () {
+        var onLoad = function () {
+            image.removeEventListener('load', onLoad, false);
+
             var gltf = resources.gltf;
 
             var imageIndex = resources.images.indexOf(image);
@@ -264,7 +233,9 @@
             if (resources.imagesLoaded === gltf.images.length) {
                 success();
             }
-        }, false);
+        };
+
+        image.addEventListener('load', onLoad, false);
 
         if (data.hasOwnProperty('uri')) {
             if (isDataURI(data.uri)) {
@@ -388,6 +359,59 @@
                 }
             }
         }
+        if (data.hasOwnProperty('extensions')) {
+            var extensions = data.extensions;
+            if (extensions.hasOwnProperty('KHR_materials_pbrSpecularGlossiness')) {
+                var specData = extensions.KHR_materials_pbrSpecularGlossiness;
+
+                if (specData.hasOwnProperty('diffuseFactor')) {
+                    color = specData.diffuseFactor;
+                    // Convert from linear space to sRGB space
+                    material.diffuse.set(Math.pow(color[0], 1 / 2.2), Math.pow(color[1], 1 / 2.2), Math.pow(color[2], 1 / 2.2));
+                    material.opacity = (color[3] != null) ? color[3] : 1;
+                } else {
+                    material.diffuse.set(1, 1, 1);
+                    material.opacity = 1;
+                }
+                if (specData.hasOwnProperty('diffuseTexture')) {
+                    var diffuseTexture = specData.diffuseTexture;
+                    var texture = resources.textures[diffuseTexture.index];
+
+                    material.diffuseMap = texture;
+                    material.diffuseMapChannel = 'rgb';
+                    material.opacityMap = texture;
+                    material.opacityMapChannel = 'a';
+                    if (diffuseTexture.hasOwnProperty('texCoord')) {
+                        material.diffuseMapUv = diffuseTexture.texCoord;
+                        material.opacityMapUv = diffuseTexture.texCoord;
+                    }
+                }
+                material.useMetalness = false;
+                if (specData.hasOwnProperty('specularFactor')) {
+                    color = specData.specularFactor;
+                    // Convert from linear space to sRGB space
+                    material.specular.set(Math.pow(color[0], 1 / 2.2), Math.pow(color[1], 1 / 2.2), Math.pow(color[2], 1 / 2.2));
+                    material.specularTint = true;
+                } else {
+                    material.specular.set(0.2, 0.2, 0.2);
+                    material.specularTint = false;
+                }
+                if (specData.hasOwnProperty('glossinessFactor')) {
+                    material.shininess = 100 * specData.glossinessFactor;
+                } else {
+                    material.shininess = 100;
+                }
+                if (specData.hasOwnProperty('specularGlossinessTexture')) {
+                    var specularGlossinessTexture = specData.specularGlossinessTexture;
+                    material.specularMap = resources.textures[specularGlossinessTexture.index];
+                    material.specularMapChannel = 'a';
+                    if (specularGlossinessTexture.hasOwnProperty('texCoord')) {
+                        material.glossMapUv = specularGlossinessTexture.texCoord;
+                        material.metalnessMapUv = specularGlossinessTexture.texCoord;
+                    }
+                }
+            }
+        }
         if (data.hasOwnProperty('normalTexture')) {
             var normalTexture = data.normalTexture;
             material.normalMap = resources.textures[normalTexture.index];
@@ -417,7 +441,11 @@
             material.emissiveTint = false;
         }
         if (data.hasOwnProperty('emissiveTexture')) {
-            material.emissiveMap = resources.textures[data.emissiveTexture.index];
+            var emissiveTexture = data.emissiveTexture;
+            material.emissiveMap = resources.textures[emissiveTexture.index];
+            if (emissiveTexture.hasOwnProperty('texCoord')) {
+                material.emissiveMapUv = emissiveTexture.texCoord;
+            }
         }
         if (data.hasOwnProperty('alphaMode')) {
             switch (data.alphaMode) {
@@ -458,7 +486,7 @@
     function translateMesh(data, resources) {
         var gltf = resources.gltf;
         var meshes = [];
-
+        
         data.primitives.forEach(function (primitive) {
             var attributes = primitive.attributes;
 
@@ -622,10 +650,6 @@
                 // pc.calculateNormals needs indices so generate some if none are present
                 normals = pc.calculateNormals(positions, (indices === null) ? calculateIndices() : indices);
             }
-            if (positions !== null && normals !== null && texCoord0 !== null && tangents === null) {
-                // pc.calculateTangents needs indices so generate some if none are present
-                tangents = pc.calculateTangents(positions, normals, texCoord0, (indices === null) ? calculateIndices() : indices);
-            }
 
             var vertexDesc = [];
             if (positions) {
@@ -644,7 +668,7 @@
                 vertexDesc.push({ semantic: pc.SEMANTIC_TEXCOORD1, components: 2, type: pc.TYPE_FLOAT32 });
             }
             if (colors) {
-                vertexDesc.push({ semantic: pc.SEMANTIC_COLOR, components: 4, type: pc.TYPE_FLOAT32 });
+                vertexDesc.push({ semantic: pc.SEMANTIC_COLOR, components: 4, type: pc.TYPE_UINT8, normalize: true });
             }
             if (joints) {
                 vertexDesc.push({ semantic: pc.SEMANTIC_BLENDINDICES, components: 4, type: pc.TYPE_UINT8 });
@@ -739,18 +763,18 @@
 
             if (colors !== null) {
                 attr = getAttribute(pc.SEMANTIC_COLOR);
-                dstOffset = attr.offset / 4;
-                dstStride = attr.stride / 4;
+                dstOffset = attr.offset;
+                dstStride = attr.stride;
 
                 accessor = gltf.accessors[primitive.attributes.COLOR_0];
 
                 for (i = 0; i < numVertices; i++) {
                     dstIndex = dstOffset + i * dstStride;
                     srcIndex = accessor.type === 'VEC4' ? i * 4 : i * 3;
-                    vertexDataF32[dstIndex]     = colors[srcIndex];
-                    vertexDataF32[dstIndex + 1] = colors[srcIndex + 1];
-                    vertexDataF32[dstIndex + 2] = colors[srcIndex + 2];
-                    vertexDataF32[dstIndex + 3] = accessor.type === 'VEC4' ? colors[srcIndex + 3] : 1;
+                    vertexDataU8[dstIndex]     = colors[srcIndex] * 255;
+                    vertexDataU8[dstIndex + 1] = colors[srcIndex + 1] * 255;
+                    vertexDataU8[dstIndex + 2] = colors[srcIndex + 2] * 255;
+                    vertexDataU8[dstIndex + 3] = accessor.type === 'VEC4' ? colors[srcIndex + 3] * 255 : 255;
                 }
             }
 
@@ -827,7 +851,6 @@
 
             if (primitive.hasOwnProperty('targets')) {
                 var targets = [];
-
                 primitive.targets.forEach(function (target) {
                     var options = {};
                     if (target.hasOwnProperty('POSITION')) {
@@ -861,9 +884,13 @@
     var tempVec = new pc.Vec3();
 
     function translateNode(data, resources) {
-        var entity = new pc.Entity();
+        var entity = new pc.GraphNode();
 
-        entity.name = data.hasOwnProperty('name') ? data.name : "";
+        if (data.hasOwnProperty('name')) {
+            entity.name = data.name;
+        } else {
+            entity.name = "Node " + resources.nodeCounter;
+        }
 
         // Parse transformation properties
         if (data.hasOwnProperty('matrix')) {
@@ -891,6 +918,9 @@
             entity.setLocalScale(s[0], s[1], s[2]);
         }
 
+        // TODO: The loader has been temporarily switch from using Entities to GraphNodes
+        // in the hierarchy. Therefore, camera loading is disabled for now.
+        /*
         if (data.hasOwnProperty('camera')) {
             var gltf = resources.gltf;
             var camera = gltf.cameras[data.camera];
@@ -929,6 +959,9 @@
             // Diable loaded cameras by default and leave it to the application to enable them
             entity.camera.enabled = false;
         }
+        */
+
+        resources.nodeCounter++;
 
         return entity;
     }
@@ -1105,63 +1138,6 @@
         });
     }
 
-    function createModels(resources) {
-        resources.gltf.nodes.forEach(function (node, idx) {
-            if (node.hasOwnProperty('mesh')) {
-                var meshGroup = resources.meshes[node.mesh];
-                if (meshGroup.length > 0) {
-                    var entity = new pc.Entity();
-                    var meshInstances = [];
-                    var skinInstances = [];
-                    var morphInstances = [];
-
-                    for (var i = 0; i < meshGroup.length; i++) {
-                        var material;
-                        if (meshGroup[i].materialIndex === undefined) {
-                            material = resources.defaultMaterial;
-                        } else {
-                            material = resources.materials[meshGroup[i].materialIndex];
-                        }
-
-                        var meshInstance = new pc.MeshInstance(entity, meshGroup[i], material);
-                        meshInstances.push(meshInstance);
-
-                        if (meshGroup[i].morph) {
-                            var morphInstance = new pc.MorphInstance(meshGroup[i].morph);
-                            meshInstance.morphInstance = morphInstance;
-                            // HACK: need to force calculation of the morph's AABB due to a bug
-                            // in the engine. This is a private function and will be removed!
-                            morphInstance.updateBounds(meshInstance.mesh);
-
-                            morphInstances.push(morphInstance);
-                        }
-
-                        if (node.hasOwnProperty('skin')) {
-                            var skin = resources.skins[node.skin];
-                            meshGroup[i].skin = skin;
-
-                            var skinInstance = new pc.SkinInstance(skin);
-                            skinInstance.bones = skin.bones;
-                            meshInstance.skinInstance = skinInstance;
-
-                            skinInstances.push(skinInstance);
-                        }
-                    }
-
-                    var model = new pc.Model();
-                    model.graph = entity;
-                    model.meshInstances = meshInstances;
-                    model.morphInstances = morphInstances;
-                    model.skinInstances = skinInstances;
-
-                    entity = resources.nodes[idx];
-                    entity.addComponent('model');
-                    entity.model.model = model;
-                }
-            }
-        });
-    }
-
     function getRoots(resources) {
         var gltf = resources.gltf;
         var rootNodes = [];
@@ -1181,26 +1157,83 @@
         return rootNodes;
     }
 
-    function loadGltf(gltf, device, success, options) {
-        initAnim();
+    function createModel(resources) {
+        var meshInstances = [];
+        var skinInstances = [];
+        var morphInstances = [];
 
-        var buffers = options ? options.buffers : undefined;
-        var basePath = options ? options.basePath : undefined;
-        var processUri = options ? options.processUri : undefined;
+        resources.gltf.nodes.forEach(function (node, idx) {
+            if (node.hasOwnProperty('mesh')) {
+                var meshGroup = resources.meshes[node.mesh];
+                for (var i = 0; i < meshGroup.length; i++) {
+                    var material;
+                    if (meshGroup[i].materialIndex === undefined) {
+                        material = resources.defaultMaterial;
+                    } else {
+                        material = resources.materials[meshGroup[i].materialIndex];
+                    }
+
+                    var meshInstance = new pc.MeshInstance(resources.nodes[idx], meshGroup[i], material);
+                    meshInstances.push(meshInstance);
+
+                    if (meshGroup[i].morph) {
+                        var morphInstance = new pc.MorphInstance(meshGroup[i].morph);
+                        meshInstance.morphInstance = morphInstance;
+                        // HACK: need to force calculation of the morph's AABB due to a bug
+                        // in the engine. This is a private function and will be removed!
+                        morphInstance.updateBounds(meshInstance.mesh);
+
+                        morphInstances.push(morphInstance);
+                    }
+
+                    if (node.hasOwnProperty('skin')) {
+                        var skin = resources.skins[node.skin];
+                        meshGroup[i].skin = skin;
+
+                        var skinInstance = new pc.SkinInstance(skin);
+                        skinInstance.bones = skin.bones;
+                        meshInstance.skinInstance = skinInstance;
+
+                        skinInstances.push(skinInstance);
+                    }
+                }
+            }
+        });
+
+        var model = new pc.Model();
+        var roots = getRoots(resources);
+        if (roots.length === 1) {
+            model.graph = roots[0];
+        } else {
+            model.graph = new pc.GraphNode();
+            roots.forEach(function (root) {
+                model.graph.addChild(root);
+            });
+        }
+        model.meshInstances = meshInstances;
+        model.morphInstances = morphInstances;
+        model.skinInstances = skinInstances;
+        return model;
+    }
+
+    function loadGltf(gltf, device, success, options) {
+        var buffers = (options && options.hasOwnProperty('buffers')) ? options.buffers : undefined;
+        var basePath = (options && options.hasOwnProperty('basePath')) ? options.basePath : undefined;
+        var processUri = (options && options.hasOwnProperty('processUri')) ? options.processUri : undefined;
 
         var resources = {
-            buffers: buffers,
-            imagesLoaded: 0,
             basePath: basePath,
-            processUri: processUri,
-            gltf: gltf,
+            buffers: buffers,
             device: device,
-            defaultMaterial: translateMaterial({})
+            defaultMaterial: translateMaterial({}),
+            gltf: gltf,
+            imagesLoaded: 0,
+            nodeCounter: 0,
+            processUri: processUri
         };
 
         if (gltf.hasOwnProperty('extensionsUsed')) {
-            var extensionsUsed = gltf.extensionsUsed;
-            if (extensionsUsed.indexOf('KHR_draco_mesh_compression') !== -1) {
+            if (gltf.extensionsUsed.indexOf('KHR_draco_mesh_compression') !== -1) {
                 resources.decoderModule = DracoDecoderModule();
             }
         }
@@ -1215,13 +1248,11 @@
                 parse('animations', translateAnimation, resources);
 
                 buildHierarchy(resources);
-                createModels(resources);
 
-                success(getRoots(resources), resources);
+                success(createModel(resources), gltf, resources);
 
                 if (gltf.hasOwnProperty('extensionsUsed')) {
-                    var extensionsUsed = gltf.extensionsUsed;
-                    if (extensionsUsed.indexOf('KHR_draco_mesh_compression') !== -1) {
+                    if (gltf.extensionsUsed.indexOf('KHR_draco_mesh_compression') !== -1) {
                         resources.decoderModule = null;
                     }
                 }
@@ -1239,6 +1270,10 @@
             return null;
         }
         var version = dataView.getUint32(4, true);
+        if (version !== 2) {
+            console.error("Invalid version number found in glb header. Expected 2, found " + version);
+            return null;
+        }
         var length = dataView.getUint32(8, true);
 
         // Read JSON chunk
@@ -1249,7 +1284,11 @@
             return null;
         }
         var jsonData = new Uint8Array(glb, 20, chunkLength);
+        var decoder = new TextDecoder('utf-8');
+        var json = decoder.decode(jsonData);
+        json = JSON.parse(json);
 
+        // Read the binary buffers
         var buffers = [];
         var byteOffset = 20 + chunkLength;
         while (byteOffset < length) {
@@ -1266,12 +1305,7 @@
             byteOffset += chunkLength + 8;
         }
 
-        var decoder = new TextDecoder('utf-8');
-        var json = decoder.decode(jsonData);
-        json = JSON.parse(json);
-        loadGltf(json, device, function (rootNodes, resources) {
-            success(rootNodes, json, resources);
-        }, {
+        loadGltf(json, device, success, {
             buffers: buffers
         });
     }

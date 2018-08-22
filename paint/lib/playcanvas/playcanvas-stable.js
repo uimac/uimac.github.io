@@ -9482,18 +9482,18 @@ Object.assign(pc, function() {
       }
     }
   }, updateMorphing:function(drawCalls) {
-    var i, morph;
-    var drawCallsCount = drawCalls.length;
-    for (i = 0;i < drawCallsCount;i++) {
-      if (!drawCalls[i].visibleThisFrame) {
-        continue;
-      }
-      morph = drawCalls[i].morphInstance;
-      if (morph && morph._dirty) {
-        morph.update(drawCalls[i].mesh);
-        morph._dirty = false;
-      }
-    }
+    // var i, morph;
+    // var drawCallsCount = drawCalls.length;
+    // for (i = 0;i < drawCallsCount;i++) {
+    //   if (!drawCalls[i].visibleThisFrame) {
+    //     continue;
+    //   }
+    //   morph = drawCalls[i].morphInstance;
+    //   if (morph && morph._dirty) {
+    //     morph.update(drawCalls[i].mesh);
+    //     morph._dirty = false;
+    //   }
+    // }
   }, setBaseConstants:function(device, material) {
     device.setCullMode(material.cull);
     if (material.opacityMap) {
@@ -14182,9 +14182,9 @@ Object.assign(pc, function() {
         j3 = j * 3;
         index = target.indices[j];
         id = index * vertSizeF + offsetPF;
-        vdata[id] += target.deltaPositions[j3] * weight;
-        vdata[id + 1] += target.deltaPositions[j3 + 1] * weight;
-        vdata[id + 2] += target.deltaPositions[j3 + 2] * weight;
+        vdata[id] += 1.0 ;// target.deltaPositions[j3] * weight;
+        vdata[id + 1] += 1.0 ;// target.deltaPositions[j3 + 1] * weight;
+        vdata[id + 2] += 1.0 ;// target.deltaPositions[j3 + 2] * weight;
         if (target.deltaNormals) {
           id = index * vertSizeF + offsetNF;
           vdata[id] += target.deltaNormals[j3] * weight;
