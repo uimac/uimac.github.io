@@ -52,13 +52,33 @@
 		}
 		let mesh = pc.createSphere(pc.app.graphicsDevice);
 		mesh.name = Skeleton.HANDLE_NAME;
-		mesh.skeleton = this;
+		//mesh.skeleton = this;
 		mesh.entity = root;
 		
 		let model = upaint.Util.createImeddiateModel(mesh, this.mat.clone());
 		model.pcentity.setLocalScale(PivotSize, PivotSize, PivotSize);
 		root.addChild(model.pcentity);
+		//mesh.entity = model.pcentity;
+
 		this.handleList.push(model);
+	};
+
+	Skeleton.prototype.setIKHandle = function (entity) {
+		for (let i = 0; i < this.handleList.length; ++i) {
+			let model = this.handleList[i];
+			for (let k = 0; k < model.pcmodels.length; ++k) {
+				let skeletonHandleEntity = model.pcmodels[k].meshInstances[0].mesh.entity;
+				if (skeletonHandleEntity === entity) {
+					// console.log("Hoghoge")
+					let parent = model.pcentity.parent;
+					model.pcentity.reparent(pc.app.root)
+					model.pcentity.setPosition(parent.getPosition());
+					model.pcmaterial.color.set(0, 1, 1);
+					model.pcentity.ikeffector = skeletonHandleEntity;
+					model.pcmodels[k].meshInstances[0].mesh.entity = model.pcentity
+				}
+			}
+		}
 	};
 
 	Skeleton.prototype.setVisible = function (entity, visible) {
@@ -87,8 +107,10 @@
 		let name = meshInstance.mesh.name;
 		return (name === Skeleton.HANDLE_NAME);
 	};
+	Skeleton.IsIKHandle = function (meshInstance) {
+		return (meshInstance.mesh.entity.isIKHandle === true);
+	};
 	Skeleton.GetEntity = function (meshInstnace) {
-		let skeleton = meshInstnace.mesh.skeleton;
 		return meshInstnace.mesh.entity;
 	}
 	upaint.Skeleton = Skeleton;

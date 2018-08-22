@@ -71,8 +71,21 @@
 							data.model.skeleton.setVisible(entity, false);
 						}
 						for (let i = 0; i < humanoid.humanBones.length; ++i) {
+							let name = humanoid.humanBones[i].bone;
 							let humanEntity = resources.nodes[humanoid.humanBones[i].node];
 							data.model.skeleton.setVisible(humanEntity, true);
+							if (name === "rightFoot") {
+								data.model.skeleton.setIKHandle(humanEntity);
+							}
+							if (name === "leftFoot") {
+								data.model.skeleton.setIKHandle(humanEntity);
+							}
+							if (name === "leftHand") {
+								data.model.skeleton.setIKHandle(humanEntity);
+							}
+							if (name === "rightHand") {
+								data.model.skeleton.setIKHandle(humanEntity);
+							}
 						}
 					}
 				}
