@@ -56,12 +56,25 @@
 		}
 	};
 
+	ModelIO.VRM.prototype.loadBlendShape = function (data, resources, shapeMaster) {
+		for (let i = 0; i < shapeMaster.blendShapeGroups.length; ++i) {
+			let group = shapeMaster.blendShapeGroups[i];
+			console.error(resources.meshes, group.binds.length)
+			for (let k = 0; k < group.binds.length; ++k) {
+				let mesh = group.binds[k].mesh;
+				group.binds[k].reference = resources.meshes[mesh];
+			}
+		}
+		data.model.shapegroups = shapeMaster.blendShapeGroups;
+	}
+
 	ModelIO.VRM.prototype.load = function (url) {
 		let gltfIO = new upaint.ModelIO.GLTF();
 		gltfIO.on('loaded', function (err, data, json, resources) {
 			if (json.hasOwnProperty('extensions')) {
 				let VRM = json.extensions.VRM;
 
+				console.log(resources)
 				// humanoidボーンのみ可視とする
 				if (VRM.hasOwnProperty('humanoid')) {
 					let humanoid = VRM.humanoid;
@@ -79,6 +92,11 @@
 				// 揺れるボーン
 				if (VRM.hasOwnProperty('secondaryAnimation')) {
 					this.loadSecondary(data, resources, VRM.secondaryAnimation)
+				}
+
+				// モーフ設定
+				if (VRM.hasOwnProperty('blendShapeMaster')) {
+					this.loadBlendShape(data, resources, VRM.blendShapeMaster)
 				}
 
 				this.emit(ModelIO.EVENT_LOADED, null, data, json);
