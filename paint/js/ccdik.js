@@ -62,13 +62,15 @@
 		}
 	}());
 
-	CCDIK.prototype.update = function () {
+	CCDIK.prototype.update = function (entity) {
 		let root = this.store.scene.pcentity;
 		let targets = root.find("name", "IKTarget");
 		for (let i = 0; i < targets.length; ++i) {
 			let effector = targets[i].ikeffector;
 			let pos = effector.getPosition();
-			targets[i].setPosition(pos.x, pos.y, pos.z);
+			if (targets[i] !== entity) {
+				targets[i].setPosition(pos.x, pos.y, pos.z);
+			}
 		}
 	}
 

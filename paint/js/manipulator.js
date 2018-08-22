@@ -442,7 +442,7 @@
 				}
 			}
 		}
-		this.ccdik.update(targetEntity);
+		this.ccdik.update(this.target_);
 	};
 
 	Manipulator.IsManipulator = function (meshInstance) {
