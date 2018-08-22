@@ -17,7 +17,7 @@
 		this.action = action;
 		this.contentKeyToIndex = {}
 		this.sceneManager = null;
-		this.scene = null;
+		this.scene_ = null;
 
 		this.undoBuffer = [];
 		this.redoBuffer = [];
@@ -55,7 +55,7 @@
 			keyboard: new pc.Keyboard(window)
 		});
 		this.sceneManager = new upaint.SceneManager(this, this.action);
-		this.scene = this.sceneManager.newScene();
+		this.scene_ = this.sceneManager.newScene();
 		this.sceneManager.showFPS(true);
 		this.sceneManager.showManipulator(true);
 		this.action.loadModel("data/nakasis_naka.vrm");
@@ -107,8 +107,8 @@
 			io = new upaint.ModelIO.GLTF();
 		}
 		io.on('loaded', function (err, data, json) {
-			this.scene.addModel(data.model);
-			this.scene.addAnimation(data.animation);
+			this.scene_.addModel(data.model);
+			this.scene_.addAnimation(data.animation);
 
 			this.emit(Store.EVENT_MODEL_ADD, null, data.model);
 
@@ -292,6 +292,15 @@
 		}
 		return null;
 	};
+
+	/**
+	 * scene
+	 */
+	Object.defineProperty(Store.prototype, 'scene', {
+		get: function () {
+			return this.scene_;
+		}
+	});
 
 	/**
 	 * playcanvas application

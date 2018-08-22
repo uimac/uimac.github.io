@@ -62,7 +62,7 @@
 			this.resize();
 		}.bind(this));
 
-		this.ccdik = new upaint.CCDIK();
+		this.ccdik = new upaint.CCDIK(store, action);
 	};
 
 	/// カメラにより初期化する
@@ -286,9 +286,14 @@
 			this.target_ = entity;
 			if (this.target_) {
 				// 移動できるやつだけ移動マニピュレーターを出す
-				let canTrans = entity.name === "Model" || entity.ikeffector;
+				let canTrans = entity.name === "Model";
 				this.setTranslationVisible(canTrans);
 				this.setRotationVisible(true);
+				// IKの場合は全部非表示
+				if (entity.ikeffector) {
+					this.setTranslationVisible(false);
+					this.setRotationVisible(false);
+				}
 				this.target_.addChild(this.manipEntity_);
 				let s = entity.getLocalScale();
 				this.manipEntity_.setLocalScale(new pc.Vec3(1.0/s.x, 1.0 / s.y, 1.0/s.z));
@@ -326,6 +331,19 @@
 				// 移動中
 				entity.setPosition(newpos);
 			}
+		}
+	}());
+
+	// 自由移動
+	Manipulator.prototype.freeTranslate = (function () {
+		let tempVec = new pc.Vec3();
+		return function (entity, initialpos, prepos, curpos) {
+			let rot = entity.getRotation();
+			let diff = curpos.sub(prepos);
+			diff = rot.invert().transformVector(diff);
+			let newpos = entity.getPosition().clone();
+			newpos.add(diff);
+			entity.setPosition(newpos);
 		}
 	}());
 
@@ -412,13 +430,19 @@
 		if (ROT_INDEX.hasOwnProperty(name)) {
 			this.rotate(name, targetEntity, initialpos, prepos, curpos, initialVal, isDone);
 		} else if (TRANS_INDEX.hasOwnProperty(name)) {
-			if (this.target_.ikeffector) {
-				this.translate(name, this.target_, initialpos, prepos, curpos, initialVal, isDone);
-				this.ccdik.translate(this.target_, this.target_.ikeffector, initialVal, isDone, state);
-			} else {
+			if (!this.target_.ikeffector) {
 				this.translate(name, targetEntity, initialpos, prepos, curpos, initialVal, isDone);
 			}
+		} else {
+			let canTrans = entity.name === "Model";
+			if (canTrans || this.target_.ikeffector) {
+				this.freeTranslate(this.target_, initialpos, prepos, curpos);
+				if (this.target_.ikeffector) {
+					this.ccdik.translate(this.target_, this.target_.ikeffector, initialVal, isDone, state);
+				}
+			}
 		}
+		this.ccdik.update(targetEntity);
 	};
 
 	Manipulator.IsManipulator = function (meshInstance) {

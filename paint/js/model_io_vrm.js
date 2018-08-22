@@ -87,6 +87,7 @@
 							let name = humanoid.humanBones[i].bone;
 							let humanEntity = resources.nodes[humanoid.humanBones[i].node];
 							data.model.skeleton.setVisible(humanEntity, true);
+							console.log(name)
 							if (name === "rightFoot") {
 								data.model.skeleton.setIKHandle(humanEntity);
 							}
@@ -98,6 +99,12 @@
 							}
 							if (name === "rightHand") {
 								data.model.skeleton.setIKHandle(humanEntity);
+							}
+							if (name === "head") {
+								data.model.skeleton.setIKHandle(humanEntity, 1);
+							}
+							if (name === "chest") {
+								data.model.skeleton.setIKHandle(humanEntity, 1);
 							}
 						}
 					}

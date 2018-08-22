@@ -61,17 +61,19 @@
 		this.handleList.push(model);
 	};
 
-	Skeleton.prototype.setIKHandle = function (entity) {
+	Skeleton.prototype.setIKHandle = function (entity, iteration = 2) {
 		for (let i = 0; i < this.handleList.length; ++i) {
 			let model = this.handleList[i];
 			for (let k = 0; k < model.pcmodels.length; ++k) {
 				let skeletonHandleEntity = model.pcmodels[k].meshInstances[0].mesh.entity;
 				if (skeletonHandleEntity === entity) {
 					let parent = model.pcentity.parent;
-					model.pcentity.reparent(pc.app.root)
+					model.pcentity.name = "IKTarget"
+					model.pcentity.reparent(this.root)
 					model.pcentity.setPosition(parent.getPosition());
 					model.pcentity.setLocalScale(HandleSize * 1.5, HandleSize * 1.5, HandleSize * 1.5);
 					model.pcmaterial.color.set(0, 1, 1);
+					model.pcentity.iteration = iteration;
 					model.pcentity.ikeffector = skeletonHandleEntity;
 					model.pcmodels[k].meshInstances[0].mesh.entity = model.pcentity
 				}

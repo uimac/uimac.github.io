@@ -2,16 +2,15 @@
 	"use strict";
 
 	let CCDIK = function (store, action) {
-
+		this.store = store;
 	};
 
 	CCDIK.prototype.translate = (function () {
-		let tempVec = new pc.Vec3();
-		let targetPos = new pc.Vec3();
-		let iteration = 2;
 		return function (target, entity, initialVal, isDone, state) {
 			// 目標座標
-			targetPos = target.getPosition().clone();
+			let targetPos = target.getPosition().clone();
+			let iteration = target.iteration;
+
 			let effector = entity;
 			for (let k = 0; k < 4; ++k) {
 				let targetEntity = effector.parent;
@@ -44,6 +43,10 @@
 					targetEntity = targetEntity.parent;
 				}
 			}
+			if (state === "up") {
+				let pos = effector.getPosition();
+				target.setPosition(pos.x, pos.y, pos.z);
+			}
 
 			// if (isDone) {
 			// 	// 移動の確定
@@ -58,6 +61,16 @@
 			// }
 		}
 	}());
+
+	CCDIK.prototype.update = function () {
+		let root = this.store.scene.pcentity;
+		let targets = root.find("name", "IKTarget");
+		for (let i = 0; i < targets.length; ++i) {
+			let effector = targets[i].ikeffector;
+			let pos = effector.getPosition();
+			targets[i].setPosition(pos.x, pos.y, pos.z);
+		}
+	}
 
 	upaint.CCDIK = CCDIK;
 
