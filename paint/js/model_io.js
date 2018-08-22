@@ -21,19 +21,27 @@
 		req.onload = function (oEvent) {
 			let arrayBuffer = req.response;
 			if (arrayBuffer) {
-				loadGlb(arrayBuffer, pc.app.graphicsDevice, function (roots, json, resources) {
+				loadGlb(arrayBuffer, pc.app.graphicsDevice, function (pcmodel, json, resources) {
 					let model = new upaint.Model();
-					roots.forEach(function (root) {
-						for (let i = 0; i < root.children.length; ++i) {
-							let child = root.children[i];
-							if (child.model) {
-								child.model.receiveShadows = true;
-								child.model.castShadows = true;
-								child.model.castShadowsLightmap = true;
-							}
-						}
-						model.pcentity.addChild(root);
-					}.bind(this));
+					console.log(json)
+					model.pcentity.addComponent('model');
+					model.pcentity.model.model = pcmodel;
+					//pcmodel.generateWireframe();
+					// pcmodel.meshInstances.forEach(function (mi) {
+					// 	mi.renderStyle = pc.RENDERSTYLE_WIREFRAME;
+					// 	mi.material = mi.material.clone();
+					// 	mi.material.diffuse.set(0,0,0,0);
+					// 	mi.material.specular.set(0,0,0,0);
+					// 	mi.material.shininess = 0;
+					// 	mi.material.emissive.set(0.5,0.5,0.5,1);
+					// 	mi.material.update();
+					// });
+					  
+					model.pcmodelcomps.forEach(function (pcmodelcomp) {
+						pcmodelcomp.receiveShadows = true;
+						pcmodelcomp.castShadows = true;
+						pcmodelcomp.castShadowsLightmap = true;
+					});
 					model.skeleton = new upaint.Skeleton(model.pcentity);
 					let data = {
 						model : model,

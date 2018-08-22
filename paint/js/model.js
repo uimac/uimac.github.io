@@ -9,6 +9,7 @@
 		}
 
 		this.skeleton_ = null;
+		this.shapegroups_ = null; // list of blendshape group
 		this.pcmodels_ = null; // list of pc.Model
 		this.pcmodelcomps_ = null; // list of pc.ModelComponent
 	};
@@ -40,32 +41,35 @@
 	/// pc.Modelを再帰的に探して返す
 	function findModels(dstModelList, root) {
 		if (root.model) {
-			dstModelList.push(root.model.model)
-			return root.model.model;
+			dstModelList.push(root.model.model);
 		}
 		for (let i = 0; i < root.children.length; ++i) {
-			let model = findModels(dstModelList, root.children[i]);
-			if (model) {
-				return model;
-			}
+			findModels(dstModelList, root.children[i]);
 		}
-		return null;
 	}
 
 	/// pc.ModelComponentを再帰的に探して返す
 	function findModelComponents(dstModelCompList, root) {
 		if (root.model) {
-			dstModelCompList.push(root.model)
-			return root.model;
+			dstModelCompList.push(root.model);
 		}
 		for (let i = 0; i < root.children.length; ++i) {
-			let modelComponent = findModelComponents(dstModelCompList, root.children[i]);
-			if (modelComponent) {
-				return modelComponent;
-			}
+			findModelComponents(dstModelCompList, root.children[i]);
 		}
-		return null;
 	}
+
+	
+	/**
+	 * shapegroup
+	 */
+	Object.defineProperty(Model.prototype, 'shapegroups', {
+		get: function () {
+			return this.shapegroups_;
+		},
+		set : function (shapegroups) {
+			this.shapegroups_ = shapegroups;
+		}
+	});
 
 	/**
 	 * skeleton
