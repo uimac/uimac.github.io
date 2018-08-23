@@ -113,7 +113,7 @@
 			// 選択Entity切り替え
 			if (upaint.Skeleton.IsSkeleton(hits[i])) {
 				this.manipulator.target = upaint.Skeleton.GetEntity(hits[i]);
-					this.manipHandle = hits[i];
+				this.manipHandle = hits[i];
 			}
 			// 選択マニピュレータ切り替え
 			if (upaint.Manipulator.IsManipulator(hits[i])) {

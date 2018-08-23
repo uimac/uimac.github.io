@@ -90,23 +90,40 @@
 	};
 
 	Manipulator.prototype.initRotationHandles = function () {
-		let createHandle = function (mat, name, radius, trans = false) {
+		let createHandle = function (mat, name, radius, trans = false, hasDragModel = true) {
 			let mesh = upaint.Util.createTorus(pc.app.graphicsDevice, {
-				tubeRadius : 0.03, 
+				tubeRadius : 0.04, 
 				ringRadius : 0.8,
 				radius : radius
 			});
-			mesh.name = name;
+			let dragMesh = upaint.Util.createTorus(pc.app.graphicsDevice, {
+				tubeRadius : 0.15, 
+				ringRadius : 0.8,
+				radius : radius
+			});
+			let mat2 = mat.clone();
+			mesh.name = name + "_";
+			dragMesh.name = name;
 			let model = upaint.Util.createImeddiateModel(mesh, mat, trans);
 			model.pcentity.setLocalScale(PivotSize, PivotSize, PivotSize);
-			mesh.entity = this.manipEntity_;
-			return model;
+			if (hasDragModel) {
+				mat2.color.set(0, 0, 0, 0);
+				mat2.blendType = pc.BLEND_NORMAL;
+				let dragModel = upaint.Util.createImeddiateModel(dragMesh, mat2, trans);
+				dragModel.pcentity.setLocalScale(PivotSize, PivotSize, PivotSize);
+				dragMesh.entity = this.manipEntity_;
+				return [model, dragModel];
+			} else {
+				return [model];
+			}
 		}.bind(this);
 
 		let xmat = this.mat.clone();
 		xmat.color.set(1, 0, 0, 1);
 		this.rot_x_ = createHandle(xmat, MANIP_NAME_ROTX, Math.PI);
-		this.rot_x_.pcentity.setLocalEulerAngles(0, 0, 90);
+		for (let i = 0; i < this.rot_x_.length; ++i) {
+			this.rot_x_[i].pcentity.setLocalEulerAngles(0, 0, 90);
+		}
 
 		let ymat = this.mat.clone();
 		ymat.color.set(0, 1, 0, 1);
@@ -119,17 +136,23 @@
 		let b = new pc.Quat();
 		a.setFromAxisAngle(upaint.Constants.AxisZ, 90);
 		b.setFromAxisAngle(upaint.Constants.AxisX, 90);
-		this.rot_z_.pcentity.setLocalRotation(a.mul(b));
+		let zrot = a.mul(b);
+		for (let i = 0; i < this.rot_z_.length; ++i) {
+			this.rot_z_[i].pcentity.setLocalRotation(zrot);
+		}
 
 		let wmat = this.mat.clone();
 		wmat.color.set(0.6, 0.6, 0.6, 0.2);
 		wmat.blendType = pc.BLEND_NORMAL;
-		this.rot_w_ = createHandle(wmat, MANIP_NAME_ROTW, Math.PI * 2, true);
+		this.rot_w_ = createHandle(wmat, MANIP_NAME_ROTW, Math.PI * 2, true, false);
 
-		this.manipEntity_.addChild(this.rot_x_.pcentity);
-		this.manipEntity_.addChild(this.rot_y_.pcentity);
-		this.manipEntity_.addChild(this.rot_z_.pcentity);
-		this.manipEntity_.addChild(this.rot_w_.pcentity);
+		this.manipEntity_.addChild(this.rot_w_[0].pcentity);
+
+		for (let i = 0; i < 2; ++i) {
+			this.manipEntity_.addChild(this.rot_x_[i].pcentity);
+			this.manipEntity_.addChild(this.rot_y_[i].pcentity);
+			this.manipEntity_.addChild(this.rot_z_[i].pcentity);
+		}
 	};
 
 	Manipulator.prototype.initTranslationHandles = function () {
@@ -204,7 +227,7 @@
 			let cameraPos = camera.pcentity.getPosition();
 			let targetPos = this.target.getPosition().clone();
 			let eyeVec = targetPos.sub(cameraPos);
-			let distanceScale = Math.max(PivotSize * eyeVec.length() / 2, PivotSize);
+			let distanceScale = Math.max(PivotSize * eyeVec.length() / 2, PivotSize * (2 / 3));
 			let scale = [distanceScale, distanceScale, distanceScale];
 			eyeVec.normalize();
 			eyeVec = rotInv.transformVector(eyeVec);
@@ -214,30 +237,38 @@
 			qa.z = -eyeVec.x;
 			qa.w = 1.0 + eyeVec.y;
 			qa.normalize();
-			this.rot_w_.pcentity.setLocalRotation(qa);
-			this.rot_w_.pcentity.setLocalScale(scale[0], scale[1], scale[2]);
+			this.rot_w_[0].pcentity.setLocalRotation(qa);
+			this.rot_w_[0].pcentity.setLocalScale(scale[0], scale[1], scale[2]);
 
 			// rot_x
 			qa.setFromAxisAngle(upaint.Constants.AxisZ, 
 				pc.math.RAD_TO_DEG * Math.PI * 0.5);
 			qb.setFromAxisAngle(upaint.Constants.AxisY, 
 				pc.math.RAD_TO_DEG * Math.atan2(-eyeVec.y, -eyeVec.z));
-			this.rot_x_.pcentity.setLocalRotation(qa.mul(qb));
-			this.rot_x_.pcentity.setLocalScale(scale[0], scale[1], scale[2]);
+			let rotx = qa.mul(qb);
+			for (let i = 0; i < this.rot_x_.length; ++i) {
+				this.rot_x_[i].pcentity.setLocalRotation(rotx);
+				this.rot_x_[i].pcentity.setLocalScale(scale[0], scale[1], scale[2]);
+			}
 
 			// rot_y
 			qa.setFromAxisAngle(upaint.Constants.AxisY, 
 				pc.math.RAD_TO_DEG * Math.atan2(-eyeVec.x, -eyeVec.z));
-			this.rot_y_.pcentity.setLocalRotation(qa);
-			this.rot_y_.pcentity.setLocalScale(scale[0], scale[1], scale[2]);
+			for (let i = 0; i < this.rot_y_.length; ++i) {
+				this.rot_y_[i].pcentity.setLocalRotation(qa);
+				this.rot_y_[i].pcentity.setLocalScale(scale[0], scale[1], scale[2]);
+			}
 
 			// rot_z
 			qa.setFromAxisAngle(upaint.Constants.AxisX, 
 				pc.math.RAD_TO_DEG * Math.PI * 0.5);
 			qb.setFromAxisAngle(upaint.Constants.AxisY, 
 				pc.math.RAD_TO_DEG * Math.atan2(-eyeVec.x, eyeVec.y));
-			this.rot_z_.pcentity.setLocalRotation(qa.mul(qb));
-			this.rot_z_.pcentity.setLocalScale(scale[0], scale[1], scale[2]);
+			let rotz = qa.mul(qb);
+			for (let i = 0; i < this.rot_z_.length; ++i) {
+				this.rot_z_[i].pcentity.setLocalRotation(rotz);
+				this.rot_z_[i].pcentity.setLocalScale(scale[0], scale[1], scale[2]);
+			}
 
 			// trans
 			for (let i = 0; i < this.trans_x_.length; ++i) {
@@ -255,10 +286,12 @@
 	 * 回転マニピュレーターの表示非表示を設定
 	 */
 	Manipulator.prototype.setRotationVisible = function (visible) {
-		this.rot_x_.setVisible(visible);
-		this.rot_y_.setVisible(visible);
-		this.rot_z_.setVisible(visible);
-		this.rot_w_.setVisible(visible);
+		for (let i = 0; i < this.rot_x_.length; ++i) {
+			this.rot_x_[i].setVisible(visible);
+			this.rot_y_[i].setVisible(visible);
+			this.rot_z_[i].setVisible(visible);
+		}
+		this.rot_w_[0].setVisible(visible);
 	};
 	
 	/**
