@@ -106,6 +106,18 @@
 							if (name === "chest") {
 								data.model.skeleton.setIKHandle(humanEntity, 1);
 							}
+							if (name === "leftUpperArm") {
+								data.model.skeleton.setIKHandle(humanEntity, 1);
+							}
+							if (name === "rightUpperArm") {
+								data.model.skeleton.setIKHandle(humanEntity, 1);
+							}
+							if (name === "leftToes") {
+								data.model.skeleton.setIKHandle(humanEntity, 1);
+							}
+							if (name === "rightToes") {
+								data.model.skeleton.setIKHandle(humanEntity, 1);
+							}
 						}
 					}
 				}

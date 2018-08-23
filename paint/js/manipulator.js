@@ -289,13 +289,18 @@
 				let canTrans = entity.name === "Model";
 				this.setTranslationVisible(canTrans);
 				this.setRotationVisible(true);
+				
+				let s = entity.getLocalScale();
+
 				// IKの場合は全部非表示
 				if (entity.ikeffector) {
 					this.setTranslationVisible(false);
-					this.setRotationVisible(false);
+					this.setRotationVisible(true);
+					entity.ikeffector.addChild(this.manipEntity_);
+					s = entity.ikeffector.getLocalScale();
+				} else {
+					this.target_.addChild(this.manipEntity_);
 				}
-				this.target_.addChild(this.manipEntity_);
-				let s = entity.getLocalScale();
 				this.manipEntity_.setLocalScale(new pc.Vec3(1.0/s.x, 1.0 / s.y, 1.0/s.z));
 			} else {
 				// nullがセットされたら非表示にする
@@ -413,6 +418,14 @@
 
 		if (!meshInstance.mesh.entity) { return; }
 		let targetEntity = meshInstance.mesh.entity.parent;
+		if (this.target_.ikeffector) {
+			targetEntity = this.target_.ikeffector;
+			if (state === "down") {
+				this.setRotationVisible(true);
+			} else if (state === "move") {
+				this.setRotationVisible(false);
+			}
+		}
 		if (!targetEntity) { return; }
 
 		let initialpos = this.camera.pccamera.screenToWorld(
