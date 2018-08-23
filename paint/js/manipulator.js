@@ -222,10 +222,14 @@
 		let qb = new pc.Quat();
 		return function (camera) {
 			if (!this.target) return;
+			let entity = this.target;
+			if (this.target.ikeffector) {
+				entity = this.target.ikeffector;
+			}
 			this.camera = camera;
-			let rotInv = this.target.getRotation().clone().invert();
+			let rotInv = entity.getRotation().clone().invert();
 			let cameraPos = camera.pcentity.getPosition();
-			let targetPos = this.target.getPosition().clone();
+			let targetPos = entity.getPosition().clone();
 			let eyeVec = targetPos.sub(cameraPos);
 			let distanceScale = Math.max(PivotSize * eyeVec.length() / 2, PivotSize * (2 / 3));
 			let scale = [distanceScale, distanceScale, distanceScale];
@@ -453,11 +457,6 @@
 		let targetEntity = meshInstance.mesh.entity.parent;
 		if (this.target_.ikeffector) {
 			targetEntity = this.target_.ikeffector;
-			if (state === "down") {
-				this.setRotationVisible(true);
-			} else if (state === "move") {
-				this.setRotationVisible(false);
-			}
 		}
 		if (!targetEntity) { return; }
 
@@ -484,6 +483,11 @@
 			if (canTrans || this.target_.ikeffector) {
 				this.freeTranslate(this.target_, initialpos, prepos, curpos);
 				if (this.target_.ikeffector) {
+					if (state === "down") {
+						this.setRotationVisible(true);
+					} else if (state === "move") {
+						this.setRotationVisible(false);
+					}
 					this.ccdik.translate(this.target_, this.target_.ikeffector, initialVal, isDone, state);
 				}
 			}
