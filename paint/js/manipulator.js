@@ -62,6 +62,13 @@
 			this.resize();
 		}.bind(this));
 
+		store.on(upaint.Store.EVENT_UNDO, function (err, data) {
+			this.ccdik.update();
+		}.bind(this));
+		store.on(upaint.Store.EVENT_REDO, function (err, data) {
+			this.ccdik.update();
+		}.bind(this));
+
 		this.ccdik = new upaint.CCDIK(store, action);
 	};
 

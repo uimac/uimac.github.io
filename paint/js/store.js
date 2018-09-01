@@ -83,10 +83,12 @@
 	};
 	
 	Store.prototype._undo = function () {
+		console.log("_undo")
 		let command = this.undoBuffer.pop();
 		if (command) {
 			command.undo();
 			this.redoBuffer.push(command);
+			this.emit(Store.EVENT_UNDO, null, command);
 		}
 	};
 
@@ -96,6 +98,7 @@
 		if (command) {
 			command.redo();
 			this.undoBuffer.push(command);
+			this.emit(Store.EVENT_REDO, null, command);
 		}
 	};
 
@@ -204,13 +207,13 @@
 		if (!data.hasOwnProperty('preRot')) return;
 		this.undoBuffer.push({
 			undo : function (rot) {
-				this.entity.setRotation(rot)
+				this.entity.setLocalRotation(rot)
 			}.bind(data, data.preRot), 
 			redo : function (rot) {
-				this.entity.setRotation(rot)
+				this.entity.setLocalRotation(rot)
 			}.bind(data, data.rot)
 		});
-		data.entity.setRotation(data.rot);
+		data.entity.setLocalRotation(data.rot);
 		this.emit(Store.EVENT_ROTATE, null, data);
 	};
 
@@ -228,6 +231,30 @@
 		});
 		data.entity.setPosition(data.pos);
 		this.emit(Store.EVENT_TRANSLATE, null, data);
+	};
+
+	Store.prototype._transformIK = function (data) {
+		this.undoBuffer.push({
+			undo : function (data) {
+				let calculatedList = data;
+				for (let i = calculatedList.length - 1; i >= 0; --i) {
+					let calculated = calculatedList[i];
+					calculated.entity.setLocalRotation(calculated.preRot);
+				}
+			}.bind(this, data), 
+			redo : function (data) {
+				let calculatedList = data;
+				for (let i = calculatedList.length - 1; i >= 0; --i) {
+					let calculated = calculatedList[i];
+					calculated.entity.setLocalRotation(calculated.rot);
+				}
+			}.bind(this, data)
+		});
+		for (let i = data.length - 1; i >= 0; --i) {
+			let calculated = data[i];
+			calculated.entity.setLocalRotation(calculated.rot);
+		}
+		this.emit(Store.EVENT_TRANSFORM_IK, null, data);
 	};
 
 	Store.prototype._captureImage = function (data) {
@@ -329,12 +356,15 @@
 		}
 	});
 
+	Store.EVENT_UNDO = "undo"
+	Store.EVENT_REDO = "redo"
 	Store.EVENT_RESIZE = "resize"
 	Store.EVENT_ORIENTATION_CHANGE = "orientation_change"
 	Store.EVENT_KEYFRAME_ADD = "add_keyframe"
 	Store.EVENT_MODEL_ADD = "add_model"
 	Store.EVENT_IMAGE_CAPTURE = "image_capture"
 	Store.EVENT_TRANSLATE = "translate"
+	Store.EVENT_TRANSFORM_IK = "transform_ik"
 	Store.EVENT_ROTATE = "rotate"
 	upaint.Store = Store;
 

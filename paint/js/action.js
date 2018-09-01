@@ -48,6 +48,10 @@
 		this.emit(Action.EVENT_TRANSLATE_ENTITY, null, data);
 	};
 
+	Action.prototype.transformIK = function (data) {
+		this.emit(Action.EVENT_TRANSFORM_IK, null, data);
+	};
+
 	Action.prototype.captureImage = function (data) {
 		this.emit(Action.EVENT_CAPTURE_IMAGE, null, data);
 	};
@@ -66,6 +70,7 @@
 	Action.EVENT_CHANGE_CURRENT_FRAME = "changeCurrentFrame";
 	Action.EVENT_ROTATE_ENTITY = "rotateEntity";
 	Action.EVENT_TRANSLATE_ENTITY = "translateEntity";
+	Action.EVENT_TRANSFORM_IK = "transformIK";
 	Action.EVENT_CAPTURE_IMAGE = "captureImage";
 	//Action.EVENT_ADD_BLENDSHAPE = "addBlendShape";
 	upaint.Action = Action;

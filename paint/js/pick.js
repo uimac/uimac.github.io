@@ -127,6 +127,9 @@
 					this.manipulator.manipulate(
 						this.manipHandle, this.mouseDownPos, this.pos, this.pos, this.initialVal, false, "down");
 				}
+			} else if (upaint.Skeleton.IsIKHandle(hits[i])) {
+				this.manipulator.manipulate(
+					this.manipHandle, this.mouseDownPos, this.pos, this.pos, this.initialVal, false, "down");
 			}
 		}
 		if (hits.length === 0) {
