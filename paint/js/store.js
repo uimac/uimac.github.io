@@ -62,7 +62,7 @@
 		this.scene_ = this.sceneManager.newScene();
 		this.sceneManager.showFPS(true);
 		this.sceneManager.showManipulator(true);
-		this.action.loadModel("data/にゅたこｖ1.1.vrm");
+		this.action.loadModel("data/nakasis_naka.vrm");
 		this._initKeyEvents();
 	};
 
