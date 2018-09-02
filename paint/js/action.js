@@ -56,6 +56,10 @@
 		this.emit(Action.EVENT_CAPTURE_IMAGE, null, data);
 	};
 
+	Action.prototype.toggleSkeleton = function (data) {
+		this.emit(Action.EVENT_TOGGLE_SKELETON, null, data);
+	};
+
 	// Action.prototype.addBlendShape = function (data) {
 	// 	this.emit(Action.EVENT_ADD_BLENDSHAPE, null, data);
 	// }
@@ -72,6 +76,7 @@
 	Action.EVENT_TRANSLATE_ENTITY = "translateEntity";
 	Action.EVENT_TRANSFORM_IK = "transformIK";
 	Action.EVENT_CAPTURE_IMAGE = "captureImage";
+	Action.EVENT_TOGGLE_SKELETON = "toggleSkeleton";
 	//Action.EVENT_ADD_BLENDSHAPE = "addBlendShape";
 	upaint.Action = Action;
 

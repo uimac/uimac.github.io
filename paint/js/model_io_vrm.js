@@ -66,7 +66,47 @@
 			}
 		}
 		data.model.shapegroups = shapeMaster.blendShapeGroups;
-	}
+	};
+	
+
+	ModelIO.VRM.prototype.loadMaterialProperties = function (data, resources, props) {
+		let nameToMat = {};
+		for (let i = 0; i < data.model.pcmaterials.length; ++i) {
+			let mat = data.model.pcmaterials[i];
+			nameToMat[mat.material.name] = mat;
+		}
+		for (let i = 0; i < props.length; ++i) {
+			let prop = props[i];
+			if (nameToMat.hasOwnProperty(prop.name)) {
+				let model = data.model.pcmodels[nameToMat[prop.name].modelindex];
+				let mesh = model.meshInstances[nameToMat[prop.name].meshindex];
+				let mat = nameToMat[prop.name].material;
+				if (prop.hasOwnProperty('renderQueue')) {
+					mesh.drawOrder = Number(prop.renderQueue);
+				}
+				if (prop.hasOwnProperty('tagMap')) {
+					let tagMap = prop.tagMap;
+					if (tagMap.hasOwnProperty('RenderType')) {
+						let renderType = tagMap.RenderType;
+						if (renderType === "Transparent") {
+							mat.blendType = pc.BLEND_NORMAL;
+						} else if (renderType === "Opaque") {
+							mat.opacity = 1;
+						} else if (renderType === "TransparentCutout") {
+							mat.alphaTest = 1;
+							mat.opacityMap = mat.diffuseMap;
+						}
+					}
+				}
+				if (prop.hasOwnProperty('floatProperties')) {
+					let fprops = prop.floatProperties;
+					if (fprops.hasOwnProperty('_ZWrite')) {
+						mat.depthWrite = (fprops._ZWrite === 1);
+					}
+				}
+			}
+		}
+	};
 
 	ModelIO.VRM.prototype.load = function (url) {
 		let gltfIO = new upaint.ModelIO.GLTF();
@@ -87,7 +127,6 @@
 							let name = humanoid.humanBones[i].bone;
 							let humanEntity = resources.nodes[humanoid.humanBones[i].node];
 							data.model.skeleton.setVisible(humanEntity, true);
-							console.log(name)
 							if (name === "rightFoot") {
 								data.model.skeleton.setIKHandle(humanEntity);
 							}
@@ -129,6 +168,11 @@
 				// モーフ設定
 				if (VRM.hasOwnProperty('blendShapeMaster')) {
 					this.loadBlendShape(data, resources, VRM.blendShapeMaster)
+				}
+				
+				// マテリアル設定
+				if (VRM.hasOwnProperty('materialProperties')) {
+					this.loadMaterialProperties(data, resources, VRM.materialProperties)
 				}
 
 				this.emit(ModelIO.EVENT_LOADED, null, data, json);

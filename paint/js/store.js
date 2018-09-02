@@ -22,6 +22,10 @@
 		this.undoBuffer = [];
 		this.redoBuffer = [];
 
+		this.showStatus = {
+			skeleton : true
+		};
+
 		this._initEvents();
 	};
 	Store.prototype = Object.create(EventEmitter.prototype);
@@ -58,7 +62,7 @@
 		this.scene_ = this.sceneManager.newScene();
 		this.sceneManager.showFPS(true);
 		this.sceneManager.showManipulator(true);
-		this.action.loadModel("data/nakasis_naka.vrm");
+		this.action.loadModel("data/にゅたこｖ1.1.vrm");
 		this._initKeyEvents();
 	};
 
@@ -294,6 +298,15 @@
 		pc.app.on('frameend', captureFunc);
 	};
 
+	Store.prototype._toggleSkeleton = function (data) {
+		this.showStatus.skeleton = !this.showStatus.skeleton;
+		for (let i = 0; i < this.scene_.modelList.length; ++i) {
+			let model = this.scene_.modelList[i];
+			model.skeleton.showSkeleton(this.showStatus.skeleton);
+		}
+		this.emit(Store.EVENT_TOGGLE_SKELETON, null, this.showStatus.skeleton);
+	};
+
 	Store.prototype.getContentIndex = function (contentKey) {
 		if (this.contentKeyToIndex.hasOwnProperty(contentKey)) {
 			return this.contentKeyToIndex[contentKey];
@@ -366,6 +379,7 @@
 	Store.EVENT_TRANSLATE = "translate"
 	Store.EVENT_TRANSFORM_IK = "transform_ik"
 	Store.EVENT_ROTATE = "rotate"
+	Store.EVENT_TOGGLE_SKELETON = "toggle_skeleton"
 	upaint.Store = Store;
 
 }());

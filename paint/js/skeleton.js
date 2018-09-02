@@ -20,6 +20,7 @@
 		this.mat.update();
 
 		this.handleList = [];
+		this.handleVisible = {};
 		this.addSphere(this.root);
 	};
 	Skeleton.prototype = Object.create(EventEmitter.prototype);
@@ -81,6 +82,20 @@
 		}
 	};
 
+	Skeleton.prototype.showSkeleton = function (isShow) {
+		for (let i = 0; i < this.handleList.length; ++i) {
+			let model = this.handleList[i];
+			model.setVisible(isShow);
+		}
+		if (isShow) {
+			// setVisibleによる可視不可視を復元
+			for (let index in this.handleVisible) {
+				let model = this.handleList[index];
+				model.setVisible(this.handleVisible[index]);
+			}
+		}
+	};
+
 	Skeleton.prototype.setVisible = function (entity, visible) {
 		for (let i = 0; i < this.handleList.length; ++i) {
 			let model = this.handleList[i];
@@ -88,6 +103,8 @@
 				let skeletonHandleEntity = model.pcmodels[k].meshInstances[0].mesh.entity;
 				if (skeletonHandleEntity === entity) {
 					model.setVisible(visible);
+					this.handleVisible[i] = visible;
+					break;
 				}
 			}
 		}

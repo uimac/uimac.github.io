@@ -1,0 +1,17 @@
+.gui_shape {
+	overflow-y : auto;
+	height: 100%;
+}
+
+.gui_shape_name {
+	margin-left : 10px;
+	color : white;
+	font-size: 12px;
+	padding-top : 5px;
+}
+
+.gui_shape_slider {
+	margin : 5px;
+	margin-left : 15px;
+	width : calc(100% - 30px);
+}

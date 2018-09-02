@@ -19,7 +19,9 @@
 				this.canvas_.style.width = "100%";
 				this.canvas_.style.height = "100%";
 				this.canvas_.style.background = "linear-gradient(white, rgb(100, 110, 140))"
+				this.tool_menu_ = new upaint.GUIToolMenu(store, action);
 				dockView.element.children().append(this.canvas_);
+				dockView.element.children().append(this.tool_menu_.rootElement);
 				dockView.container.on("resize", this.onReize);
 			}
 			

@@ -1,0 +1,21 @@
+
+.gui_menu_button {
+	width : 34px;
+	height : 34px;
+	border : solid deepskyblue;
+	border-width : 2px;
+	border-radius : 4px;
+	background-repeat : no-repeat;
+	background-size : contain;
+	margin : 5px;
+	margin-top : 10px;
+	margin-right : 10px;
+	box-sizing: border-box;
+	float : right;
+}
+
+.gui_menu_button:hover {
+	background-color : rgb(179, 226, 255);
+	cursor : pointer;
+	opacity : 1.0 !important;
+}

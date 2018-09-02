@@ -105,6 +105,27 @@
 			}
 		}
 	});
+	
+	/**
+	 * lsit of playcanvas material
+	 */
+	Object.defineProperty(Model.prototype, 'pcmaterials', {
+		get: function () {
+			let materials = [];
+			for (let i = 0; i < this.pcmodels.length; ++i) {
+				let model = this.pcmodels[i];
+				for (let k = 0; k < model.meshInstances.length; ++k) {
+					let instance = model.meshInstances[k];
+					materials.push({
+						modelindex : i,
+						meshindex : k,
+						material : instance.material
+					});
+				}
+			}
+			return materials;
+		}
+	});
 
 	/**
 	 * list of playcanvas model
