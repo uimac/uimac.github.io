@@ -441,7 +441,7 @@
 		let quat = new pc.Quat();
 		quat.setFromAxisAngle(ROT_VEC[name], sign * startEndRot * pc.math.RAD_TO_DEG);
 
-		let newrot = entity.getRotation().clone().mul(quat).normalize();
+		let newrot = entity.getLocalRotation().clone().mul(quat).normalize();
 		if (isDone) {
 			// 回転の確定
 			this.action.rotateEntity({
@@ -451,7 +451,7 @@
 			});
 		} else {
 			// 回転中
-			entity.setRotation(newrot);
+			entity.setLocalRotation(newrot);
 		}
 	};
 
