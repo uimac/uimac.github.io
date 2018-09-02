@@ -121,7 +121,7 @@
 				let entity = upaint.Manipulator.GetEntity(this.manipHandle);
 				this.initialVal = {
 					pos : entity.getPosition().clone(),
-					rot : entity.getRotation().clone()
+					rot : entity.parent ? entity.parent.getLocalRotation().clone() : entity.getLocalRotation().clone()
 				}
 				if (this.manipHandle) {
 					this.manipulator.manipulate(
