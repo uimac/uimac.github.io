@@ -64,8 +64,9 @@
 		};
 		document.addEventListener("touchmove", this.onTouchMove, { passive: false });
 		window.addEventListener('resize', this.onReize);
-		window.addEventListener('orientationchange', this.onOrientationChange);
-		
+		window.addEventListener('orientationchange', this.onOrientationChange);	
+		window.addEventListener('contextmenu', function (e) {e.preventDefault();});
+
 		this.dock_.init();
 	};
 	GUI.prototype = Object.create(EventEmitter.prototype);

@@ -19,7 +19,7 @@
   navigator = _navigator || navigator;
 
   /*
- PlayCanvas Engine v1.5.0 revision cc49eba
+ PlayCanvas Engine v1.7.0 revision 7a77fe6
  http://playcanvas.com
  Copyright 2011-2018 PlayCanvas Ltd. All rights reserved.
 */
@@ -31,7 +31,7 @@ var _typeLookup = function() {
   }
   return result;
 }();
-var pc = {version:"1.5.0", revision:"cc49eba", config:{}, common:{}, apps:{}, data:{}, unpack:function() {
+var pc = {version:"1.7.0", revision:"7a77fe6", config:{}, common:{}, apps:{}, data:{}, unpack:function() {
   console.warn("pc.unpack has been deprecated and will be removed shortly. Please update your code.");
 }, makeArray:function(arr) {
   var i, ret = [], length = arr.length;
@@ -477,6 +477,36 @@ pc.path = function() {
       }
     }
     return result;
+  }, normalize:function(path) {
+    var lead = path.startsWith(pc.path.delimiter);
+    var trail = path.endsWith(pc.path.delimiter);
+    var parts = path.split("/");
+    var result = "";
+    var cleaned = [];
+    for (var i = 0;i < parts.length;i++) {
+      if (parts[i] === "") {
+        continue;
+      }
+      if (parts[i] === ".") {
+        continue;
+      }
+      if (parts[i] === ".." && cleaned.length > 0) {
+        cleaned = cleaned.slice(0, cleaned.length - 2);
+        continue;
+      }
+      if (i > 0) {
+        cleaned.push(pc.path.delimiter);
+      }
+      cleaned.push(parts[i]);
+    }
+    result = cleaned.join("");
+    if (!lead && result[0] === pc.path.delimiter) {
+      result = result.slice(1);
+    }
+    if (trail && result[result.length - 1] !== pc.path.delimiter) {
+      result += pc.path.delimiter;
+    }
+    return result;
   }, split:function(path) {
     var parts = path.split(pc.path.delimiter);
     var tail = parts.slice(parts.length - 1)[0];
@@ -509,7 +539,64 @@ pc.path = function() {
   }};
 }();
 pc.string = function() {
-  return {ASCII_LOWERCASE:"abcdefghijklmnopqrstuvwxyz", ASCII_UPPERCASE:"ABCDEFGHIJKLMNOPQRSTUVWXYZ", ASCII_LETTERS:this.ASCII_LOWERCASE + this.ASCII_UPPERCASE, format:function(s) {
+  var ASCII_LOWERCASE = "abcdefghijklmnopqrstuvwxyz";
+  var ASCII_UPPERCASE = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  var ASCII_LETTERS = ASCII_LOWERCASE + ASCII_UPPERCASE;
+  var HIGH_SURROGATE_BEGIN = 55296;
+  var HIGH_SURROGATE_END = 56319;
+  var LOW_SURROGATE_BEGIN = 56320;
+  var LOW_SURROGATE_END = 57343;
+  var ZERO_WIDTH_JOINER = 8205;
+  var REGIONAL_INDICATOR_BEGIN = 127462;
+  var REGIONAL_INDICATOR_END = 127487;
+  var FITZPATRICK_MODIFIER_BEGIN = 127995;
+  var FITZPATRICK_MODIFIER_END = 127999;
+  var DIACRITICAL_MARKS_BEGIN = 8400;
+  var DIACRITICAL_MARKS_END = 8447;
+  var VARIATION_MODIFIER_BEGIN = 65024;
+  var VARIATION_MODIFIER_END = 65039;
+  function getCodePointData(string, i) {
+    var size = string.length;
+    i = i || 0;
+    if (i < 0 || i >= size) {
+      return null;
+    }
+    var first = string.charCodeAt(i);
+    var second;
+    if (size > 1 && first >= HIGH_SURROGATE_BEGIN && first <= HIGH_SURROGATE_END) {
+      second = string.charCodeAt(i + 1);
+      if (second >= LOW_SURROGATE_BEGIN && second <= LOW_SURROGATE_END) {
+        return {code:(first - HIGH_SURROGATE_BEGIN) * 1024 + second - LOW_SURROGATE_BEGIN + 65536, "long":true};
+      }
+    }
+    return {code:first, "long":false};
+  }
+  function isCodeBetween(string, begin, end) {
+    if (!string) {
+      return false;
+    }
+    var codeData = getCodePointData(string);
+    if (codeData) {
+      var code = codeData.code;
+      return code >= begin && code <= end;
+    }
+    return false;
+  }
+  function numCharsToTakeForNextSymbol(string, index) {
+    if (index === string.length - 1) {
+      return 1;
+    }
+    if (isCodeBetween(string[index], HIGH_SURROGATE_BEGIN, HIGH_SURROGATE_END)) {
+      var first = string.substring(index, index + 2);
+      var second = string.substring(index + 2, index + 4);
+      if (isCodeBetween(second, FITZPATRICK_MODIFIER_BEGIN, FITZPATRICK_MODIFIER_END) || isCodeBetween(first, REGIONAL_INDICATOR_BEGIN, REGIONAL_INDICATOR_END) && isCodeBetween(second, REGIONAL_INDICATOR_BEGIN, REGIONAL_INDICATOR_END)) {
+        return 4;
+      }
+      return 2;
+    }
+    return 1;
+  }
+  return {ASCII_LOWERCASE:ASCII_LOWERCASE, ASCII_UPPERCASE:ASCII_UPPERCASE, ASCII_LETTERS:ASCII_LETTERS, format:function(s) {
     var i = 0, regexp, args = pc.makeArray(arguments);
     args.shift();
     for (i = 0;i < args.length;i++) {
@@ -531,9 +618,64 @@ pc.string = function() {
       if (s === "false") {
         return false;
       }
-      throw new Error("Not a boolean string");
+      throw new TypeError("Not a boolean string");
     }
     return false;
+  }, getCodePoint:function(string, i) {
+    var codePointData = getCodePointData(string, i);
+    return codePointData && codePointData.code;
+  }, getCodePoints:function(string) {
+    if (typeof string !== "string") {
+      throw new TypeError("Not a string");
+    }
+    var i = 0;
+    var arr = [];
+    var codePoint;
+    while (!!(codePoint = getCodePointData(string, i))) {
+      arr.push(codePoint.code);
+      i += codePoint["long"] ? 2 : 1;
+    }
+    return arr;
+  }, getSymbols:function(string) {
+    if (typeof string !== "string") {
+      throw new TypeError("Not a string");
+    }
+    var index = 0;
+    var length = string.length;
+    var output = [];
+    var take = 0;
+    var ch;
+    while (index < length) {
+      take += numCharsToTakeForNextSymbol(string, index + take);
+      ch = string[index + take];
+      if (isCodeBetween(ch, DIACRITICAL_MARKS_BEGIN, DIACRITICAL_MARKS_END)) {
+        ch = string[index + take++];
+      }
+      if (isCodeBetween(ch, VARIATION_MODIFIER_BEGIN, VARIATION_MODIFIER_END)) {
+        ch = string[index + take++];
+      }
+      if (ch && ch.charCodeAt(0) === ZERO_WIDTH_JOINER) {
+        ch = string[index + take++];
+        continue;
+      }
+      var char = string.substring(index, index + take);
+      output.push(char);
+      index += take;
+      take = 0;
+    }
+    return output;
+  }, fromCodePoint:function() {
+    var chars = [];
+    var current;
+    var codePoint;
+    var units;
+    for (var i = 0;i < arguments.length;++i) {
+      current = Number(arguments[i]);
+      codePoint = current - 65536;
+      units = current > 65535 ? [(codePoint >> 10) + 55296, codePoint % 1024 + 56320] : [current];
+      chars.push(String.fromCharCode.apply(null, units));
+    }
+    return chars.join("");
   }};
 }();
 pc.debug = function() {
@@ -985,30 +1127,26 @@ Object.assign(pc, function() {
     this._list = [];
     this._index = {};
   };
-  IndexedList.prototype.push = function(key, item) {
+  Object.assign(IndexedList.prototype, {push:function(key, item) {
     if (this._index[key]) {
       throw Error("Key already in index " + key);
     }
     var location = this._list.push(item) - 1;
     this._index[key] = location;
-  };
-  IndexedList.prototype.has = function(key) {
+  }, has:function(key) {
     return this._index[key] !== undefined;
-  };
-  IndexedList.prototype.get = function(key) {
+  }, get:function(key) {
     var location = this._index[key];
     if (location !== undefined) {
       return this._list[location];
-    } else {
-      return null;
     }
-  };
-  IndexedList.prototype.remove = function(key) {
+    return null;
+  }, remove:function(key) {
     var location = this._index[key];
     if (location !== undefined) {
       this._list.splice(location, 1);
       delete this._index[key];
-      for (var key in this._index) {
+      for (key in this._index) {
         var idx = this._index[key];
         if (idx > location) {
           this._index[key] = idx - 1;
@@ -1017,16 +1155,14 @@ Object.assign(pc, function() {
       return true;
     }
     return false;
-  };
-  IndexedList.prototype.list = function() {
+  }, list:function() {
     return this._list;
-  };
-  IndexedList.prototype.clear = function() {
+  }, clear:function() {
     this._list.length = 0;
     for (var prop in this._index) {
       delete this._index[prop];
     }
-  };
+  }});
   return {IndexedList:IndexedList};
 }());
 pc.math = {DEG_TO_RAD:Math.PI / 180, RAD_TO_DEG:180 / Math.PI, clamp:function(value, min, max) {
@@ -3223,6 +3359,7 @@ Object.assign(pc, function() {
     this.halfExtents = halfExtents || new pc.Vec3(0.5, 0.5, 0.5);
     worldTransform = worldTransform || tmpMat4.setIdentity();
     this._modelTransform = worldTransform.clone().invert();
+    this._worldTransform = worldTransform.clone();
     this._aabb = new pc.BoundingBox(new pc.Vec3, this.halfExtents);
   };
   Object.assign(OrientedBox.prototype, {intersectsRay:function(ray, point) {
@@ -3245,7 +3382,10 @@ Object.assign(pc, function() {
     }
     return false;
   }});
-  Object.defineProperty(OrientedBox.prototype, "worldTransform", {set:function(value) {
+  Object.defineProperty(OrientedBox.prototype, "worldTransform", {get:function() {
+    return this._worldTransform;
+  }, set:function(value) {
+    this._worldTransform.copy(value);
     this._modelTransform.copy(value).invert();
   }});
   return {OrientedBox:OrientedBox};
@@ -3254,11 +3394,11 @@ Object.assign(pc, function() {
   var enums = {ADDRESS_REPEAT:0, ADDRESS_CLAMP_TO_EDGE:1, ADDRESS_MIRRORED_REPEAT:2, BLENDMODE_ZERO:0, BLENDMODE_ONE:1, BLENDMODE_SRC_COLOR:2, BLENDMODE_ONE_MINUS_SRC_COLOR:3, BLENDMODE_DST_COLOR:4, BLENDMODE_ONE_MINUS_DST_COLOR:5, BLENDMODE_SRC_ALPHA:6, BLENDMODE_SRC_ALPHA_SATURATE:7, BLENDMODE_ONE_MINUS_SRC_ALPHA:8, BLENDMODE_DST_ALPHA:9, BLENDMODE_ONE_MINUS_DST_ALPHA:10, BLENDEQUATION_ADD:0, BLENDEQUATION_SUBTRACT:1, BLENDEQUATION_REVERSE_SUBTRACT:2, BLENDEQUATION_MIN:3, BLENDEQUATION_MAX:4, BUFFER_STATIC:0, 
   BUFFER_DYNAMIC:1, BUFFER_STREAM:2, BUFFER_GPUDYNAMIC:3, CLEARFLAG_COLOR:1, CLEARFLAG_DEPTH:2, CLEARFLAG_STENCIL:4, CUBEFACE_POSX:0, CUBEFACE_NEGX:1, CUBEFACE_POSY:2, CUBEFACE_NEGY:3, CUBEFACE_POSZ:4, CUBEFACE_NEGZ:5, CULLFACE_NONE:0, CULLFACE_BACK:1, CULLFACE_FRONT:2, CULLFACE_FRONTANDBACK:3, TYPE_INT8:0, TYPE_UINT8:1, TYPE_INT16:2, TYPE_UINT16:3, TYPE_INT32:4, TYPE_UINT32:5, TYPE_FLOAT32:6, FILTER_NEAREST:0, FILTER_LINEAR:1, FILTER_NEAREST_MIPMAP_NEAREST:2, FILTER_NEAREST_MIPMAP_LINEAR:3, FILTER_LINEAR_MIPMAP_NEAREST:4, 
   FILTER_LINEAR_MIPMAP_LINEAR:5, FUNC_NEVER:0, FUNC_LESS:1, FUNC_EQUAL:2, FUNC_LESSEQUAL:3, FUNC_GREATER:4, FUNC_NOTEQUAL:5, FUNC_GREATEREQUAL:6, FUNC_ALWAYS:7, INDEXFORMAT_UINT8:0, INDEXFORMAT_UINT16:1, INDEXFORMAT_UINT32:2, PIXELFORMAT_A8:0, PIXELFORMAT_L8:1, PIXELFORMAT_L8_A8:2, PIXELFORMAT_R5_G6_B5:3, PIXELFORMAT_R5_G5_B5_A1:4, PIXELFORMAT_R4_G4_B4_A4:5, PIXELFORMAT_R8_G8_B8:6, PIXELFORMAT_R8_G8_B8_A8:7, PIXELFORMAT_DXT1:8, PIXELFORMAT_DXT3:9, PIXELFORMAT_DXT5:10, PIXELFORMAT_RGB16F:11, PIXELFORMAT_RGBA16F:12, 
-  PIXELFORMAT_RGB32F:13, PIXELFORMAT_RGBA32F:14, PIXELFORMAT_R32F:15, PIXELFORMAT_DEPTH:16, PIXELFORMAT_DEPTHSTENCIL:17, PIXELFORMAT_111110F:18, PIXELFORMAT_SRGB:19, PIXELFORMAT_SRGBA:20, PIXELFORMAT_ETC1:21, PIXELFORMAT_PVRTC_2BPP_RGB_1:22, PIXELFORMAT_PVRTC_2BPP_RGBA_1:23, PIXELFORMAT_PVRTC_4BPP_RGB_1:24, PIXELFORMAT_PVRTC_4BPP_RGBA_1:25, PRIMITIVE_POINTS:0, PRIMITIVE_LINES:1, PRIMITIVE_LINELOOP:2, PRIMITIVE_LINESTRIP:3, PRIMITIVE_TRIANGLES:4, PRIMITIVE_TRISTRIP:5, PRIMITIVE_TRIFAN:6, SEMANTIC_POSITION:"POSITION", 
-  SEMANTIC_NORMAL:"NORMAL", SEMANTIC_TANGENT:"TANGENT", SEMANTIC_BLENDWEIGHT:"BLENDWEIGHT", SEMANTIC_BLENDINDICES:"BLENDINDICES", SEMANTIC_COLOR:"COLOR", SEMANTIC_TEXCOORD0:"TEXCOORD0", SEMANTIC_TEXCOORD1:"TEXCOORD1", SEMANTIC_TEXCOORD2:"TEXCOORD2", SEMANTIC_TEXCOORD3:"TEXCOORD3", SEMANTIC_TEXCOORD4:"TEXCOORD4", SEMANTIC_TEXCOORD5:"TEXCOORD5", SEMANTIC_TEXCOORD6:"TEXCOORD6", SEMANTIC_TEXCOORD7:"TEXCOORD7", SEMANTIC_ATTR0:"ATTR0", SEMANTIC_ATTR1:"ATTR1", SEMANTIC_ATTR2:"ATTR2", SEMANTIC_ATTR3:"ATTR3", 
-  SEMANTIC_ATTR4:"ATTR4", SEMANTIC_ATTR5:"ATTR5", SEMANTIC_ATTR6:"ATTR6", SEMANTIC_ATTR7:"ATTR7", SEMANTIC_ATTR8:"ATTR8", SEMANTIC_ATTR9:"ATTR9", SEMANTIC_ATTR10:"ATTR10", SEMANTIC_ATTR11:"ATTR11", SEMANTIC_ATTR12:"ATTR12", SEMANTIC_ATTR13:"ATTR13", SEMANTIC_ATTR14:"ATTR14", SEMANTIC_ATTR15:"ATTR15", SHADERTAG_MATERIAL:1, STENCILOP_KEEP:0, STENCILOP_ZERO:1, STENCILOP_REPLACE:2, STENCILOP_INCREMENT:3, STENCILOP_INCREMENTWRAP:4, STENCILOP_DECREMENT:5, STENCILOP_DECREMENTWRAP:6, STENCILOP_INVERT:7, 
-  TEXTURELOCK_READ:1, TEXTURELOCK_WRITE:2, TEXHINT_NONE:0, TEXHINT_SHADOWMAP:1, TEXHINT_ASSET:2, TEXHINT_LIGHTMAP:3, UNIFORMTYPE_BOOL:0, UNIFORMTYPE_INT:1, UNIFORMTYPE_FLOAT:2, UNIFORMTYPE_VEC2:3, UNIFORMTYPE_VEC3:4, UNIFORMTYPE_VEC4:5, UNIFORMTYPE_IVEC2:6, UNIFORMTYPE_IVEC3:7, UNIFORMTYPE_IVEC4:8, UNIFORMTYPE_BVEC2:9, UNIFORMTYPE_BVEC3:10, UNIFORMTYPE_BVEC4:11, UNIFORMTYPE_MAT2:12, UNIFORMTYPE_MAT3:13, UNIFORMTYPE_MAT4:14, UNIFORMTYPE_TEXTURE2D:15, UNIFORMTYPE_TEXTURECUBE:16, UNIFORMTYPE_FLOATARRAY:17, 
-  UNIFORMTYPE_TEXTURE2D_SHADOW:18, UNIFORMTYPE_TEXTURECUBE_SHADOW:19, UNIFORMTYPE_TEXTURE3D:20};
+  PIXELFORMAT_RGB32F:13, PIXELFORMAT_RGBA32F:14, PIXELFORMAT_R32F:15, PIXELFORMAT_DEPTH:16, PIXELFORMAT_DEPTHSTENCIL:17, PIXELFORMAT_111110F:18, PIXELFORMAT_SRGB:19, PIXELFORMAT_SRGBA:20, PIXELFORMAT_ETC1:21, PIXELFORMAT_ETC2_RGB:22, PIXELFORMAT_ETC2_RGBA:23, PIXELFORMAT_PVRTC_2BPP_RGB_1:24, PIXELFORMAT_PVRTC_2BPP_RGBA_1:25, PIXELFORMAT_PVRTC_4BPP_RGB_1:26, PIXELFORMAT_PVRTC_4BPP_RGBA_1:27, PRIMITIVE_POINTS:0, PRIMITIVE_LINES:1, PRIMITIVE_LINELOOP:2, PRIMITIVE_LINESTRIP:3, PRIMITIVE_TRIANGLES:4, 
+  PRIMITIVE_TRISTRIP:5, PRIMITIVE_TRIFAN:6, SEMANTIC_POSITION:"POSITION", SEMANTIC_NORMAL:"NORMAL", SEMANTIC_TANGENT:"TANGENT", SEMANTIC_BLENDWEIGHT:"BLENDWEIGHT", SEMANTIC_BLENDINDICES:"BLENDINDICES", SEMANTIC_COLOR:"COLOR", SEMANTIC_TEXCOORD0:"TEXCOORD0", SEMANTIC_TEXCOORD1:"TEXCOORD1", SEMANTIC_TEXCOORD2:"TEXCOORD2", SEMANTIC_TEXCOORD3:"TEXCOORD3", SEMANTIC_TEXCOORD4:"TEXCOORD4", SEMANTIC_TEXCOORD5:"TEXCOORD5", SEMANTIC_TEXCOORD6:"TEXCOORD6", SEMANTIC_TEXCOORD7:"TEXCOORD7", SEMANTIC_ATTR0:"ATTR0", 
+  SEMANTIC_ATTR1:"ATTR1", SEMANTIC_ATTR2:"ATTR2", SEMANTIC_ATTR3:"ATTR3", SEMANTIC_ATTR4:"ATTR4", SEMANTIC_ATTR5:"ATTR5", SEMANTIC_ATTR6:"ATTR6", SEMANTIC_ATTR7:"ATTR7", SEMANTIC_ATTR8:"ATTR8", SEMANTIC_ATTR9:"ATTR9", SEMANTIC_ATTR10:"ATTR10", SEMANTIC_ATTR11:"ATTR11", SEMANTIC_ATTR12:"ATTR12", SEMANTIC_ATTR13:"ATTR13", SEMANTIC_ATTR14:"ATTR14", SEMANTIC_ATTR15:"ATTR15", SHADERTAG_MATERIAL:1, STENCILOP_KEEP:0, STENCILOP_ZERO:1, STENCILOP_REPLACE:2, STENCILOP_INCREMENT:3, STENCILOP_INCREMENTWRAP:4, 
+  STENCILOP_DECREMENT:5, STENCILOP_DECREMENTWRAP:6, STENCILOP_INVERT:7, TEXTURELOCK_READ:1, TEXTURELOCK_WRITE:2, TEXHINT_NONE:0, TEXHINT_SHADOWMAP:1, TEXHINT_ASSET:2, TEXHINT_LIGHTMAP:3, UNIFORMTYPE_BOOL:0, UNIFORMTYPE_INT:1, UNIFORMTYPE_FLOAT:2, UNIFORMTYPE_VEC2:3, UNIFORMTYPE_VEC3:4, UNIFORMTYPE_VEC4:5, UNIFORMTYPE_IVEC2:6, UNIFORMTYPE_IVEC3:7, UNIFORMTYPE_IVEC4:8, UNIFORMTYPE_BVEC2:9, UNIFORMTYPE_BVEC3:10, UNIFORMTYPE_BVEC4:11, UNIFORMTYPE_MAT2:12, UNIFORMTYPE_MAT3:13, UNIFORMTYPE_MAT4:14, UNIFORMTYPE_TEXTURE2D:15, 
+  UNIFORMTYPE_TEXTURECUBE:16, UNIFORMTYPE_FLOATARRAY:17, UNIFORMTYPE_TEXTURE2D_SHADOW:18, UNIFORMTYPE_TEXTURECUBE_SHADOW:19, UNIFORMTYPE_TEXTURE3D:20};
   Object.assign(pc, enums);
   pc.gfx = {};
   Object.assign(pc.gfx, enums);
@@ -3327,7 +3467,7 @@ Object.assign(pc, function() {
   return {VersionedObject:VersionedObject};
 }());
 Object.assign(pc, function() {
-  function VertexIteratorSetter(buffer, vertexElement) {
+  function VertexIteratorAccessor(buffer, vertexElement) {
     this.index = 0;
     switch(vertexElement.dataType) {
       case pc.TYPE_INT8:
@@ -3354,32 +3494,35 @@ Object.assign(pc, function() {
     }
     switch(vertexElement.numComponents) {
       case 1:
-        this.set = VertexIteratorSetter_set1;
+        this.set = VertexIteratorAccessor_set1;
         break;
       case 2:
-        this.set = VertexIteratorSetter_set2;
+        this.set = VertexIteratorAccessor_set2;
         break;
       case 3:
-        this.set = VertexIteratorSetter_set3;
+        this.set = VertexIteratorAccessor_set3;
         break;
       case 4:
-        this.set = VertexIteratorSetter_set4;
+        this.set = VertexIteratorAccessor_set4;
         break;
     }
   }
-  function VertexIteratorSetter_set1(a) {
+  VertexIteratorAccessor.prototype.get = function(offset) {
+    return this.array[this.index + offset];
+  };
+  function VertexIteratorAccessor_set1(a) {
     this.array[this.index] = a;
   }
-  function VertexIteratorSetter_set2(a, b) {
+  function VertexIteratorAccessor_set2(a, b) {
     this.array[this.index] = a;
     this.array[this.index + 1] = b;
   }
-  function VertexIteratorSetter_set3(a, b, c) {
+  function VertexIteratorAccessor_set3(a, b, c) {
     this.array[this.index] = a;
     this.array[this.index + 1] = b;
     this.array[this.index + 2] = c;
   }
-  function VertexIteratorSetter_set4(a, b, c, d) {
+  function VertexIteratorAccessor_set4(a, b, c, d) {
     this.array[this.index] = a;
     this.array[this.index + 1] = b;
     this.array[this.index + 2] = c;
@@ -3388,23 +3531,26 @@ Object.assign(pc, function() {
   function VertexIterator(vertexBuffer) {
     this.vertexBuffer = vertexBuffer;
     this.buffer = this.vertexBuffer.lock();
-    this.setters = [];
+    this.accessors = [];
     this.element = {};
     var vertexFormat = this.vertexBuffer.getFormat();
     for (var i = 0;i < vertexFormat.elements.length;i++) {
       var vertexElement = vertexFormat.elements[i];
-      this.setters[i] = new VertexIteratorSetter(this.buffer, vertexElement);
-      this.element[vertexElement.name] = this.setters[i];
+      this.accessors[i] = new VertexIteratorAccessor(this.buffer, vertexElement);
+      this.element[vertexElement.name] = this.accessors[i];
     }
   }
-  Object.assign(VertexIterator.prototype, {next:function() {
+  Object.assign(VertexIterator.prototype, {next:function(count) {
+    if (count === undefined) {
+      count = 1;
+    }
     var i = 0;
-    var setters = this.setters;
-    var numSetters = this.setters.length;
+    var accessors = this.accessors;
+    var numAccessors = this.accessors.length;
     var vertexFormat = this.vertexBuffer.getFormat();
-    while (i < numSetters) {
-      var setter = setters[i++];
-      setter.index += vertexFormat.size / setter.array.constructor.BYTES_PER_ELEMENT;
+    while (i < numAccessors) {
+      var accessor = accessors[i++];
+      accessor.index += count * vertexFormat.size / accessor.array.constructor.BYTES_PER_ELEMENT;
     }
   }, end:function() {
     this.vertexBuffer.unlock();
@@ -3426,6 +3572,7 @@ Object.assign(pc, function() {
     this.hasUv0 = false;
     this.hasUv1 = false;
     this.hasColor = false;
+    this.hasTangents = false;
     this.size = 0;
     for (i = 0, len = description.length;i < len;i++) {
       var elementDesc = description[i];
@@ -3440,6 +3587,10 @@ Object.assign(pc, function() {
         } else {
           if (elementDesc.semantic === pc.SEMANTIC_COLOR) {
             this.hasColor = true;
+          } else {
+            if (elementDesc.semantic === pc.SEMANTIC_TANGENT) {
+              this.hasTangents = true;
+            }
           }
         }
       }
@@ -3704,6 +3855,7 @@ Object.assign(pc, function() {
       } else {
         this._mipmaps = options.autoMipmap !== undefined ? options.autoMipmap : this._mipmaps;
       }
+      this._levels = options.levels;
       this._cubemap = options.cubemap !== undefined ? options.cubemap : this._cubemap;
       this.fixCubemapSeams = options.fixCubemapSeams !== undefined ? options.fixCubemapSeams : this.fixCubemapSeams;
       this._minFilter = options.minFilter !== undefined ? options.minFilter : this._minFilter;
@@ -3723,10 +3875,11 @@ Object.assign(pc, function() {
     this._compressed = this._format === pc.PIXELFORMAT_DXT1 || this._format === pc.PIXELFORMAT_DXT3 || this._format === pc.PIXELFORMAT_DXT5 || this._format >= pc.PIXELFORMAT_ETC1;
     this._invalid = false;
     this._lockedLevel = -1;
-    this._levels = this._cubemap ? [[null, null, null, null, null, null]] : [null];
+    if (!this._levels) {
+      this._levels = this._cubemap ? [[null, null, null, null, null, null]] : [null];
+    }
     this.dirtyAll();
     this._gpuSize = 0;
-    this.device.textures.push(this);
   };
   Object.defineProperty(Texture.prototype, "minFilter", {get:function() {
     return this._minFilter;
@@ -3905,19 +4058,8 @@ Object.assign(pc, function() {
     }
   }});
   Object.assign(Texture.prototype, {destroy:function() {
-    var device = this.device;
-    var idx = device.textures.indexOf(this);
-    if (idx !== -1) {
-      device.textures.splice(idx, 1);
-    }
-    if (this._glTextureId) {
-      var gl = this.device.gl;
-      gl.deleteTexture(this._glTextureId);
-      this.device._vram.tex -= this._gpuSize;
-      this._glTextureId = null;
-    }
+    this.device.destroyTexture(this);
   }, dirtyAll:function() {
-    this._glTextureId = undefined;
     this._levelsUpdated = this._cubemap ? [[true, true, true, true, true, true]] : [true];
     this._needsUpload = true;
     this._needsMipmapsUpload = this._mipmaps;
@@ -4497,44 +4639,57 @@ Object.assign(pc, function() {
     }
     return image;
   };
-  function _isIE() {
-    var ua = window.navigator.userAgent;
-    var msie = ua.indexOf("MSIE ");
-    var trident = navigator.userAgent.match(/Trident.*rv:11\./);
-    return msie > 0 || !!trident;
-  }
   function testRenderable(gl, pixelFormat) {
+    var result = true;
     var texture = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, texture);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-    var width = 2;
-    var height = 2;
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, pixelFormat, null);
-    var fbo = gl.createFramebuffer();
-    gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 2, 2, 0, gl.RGBA, pixelFormat, null);
+    var framebuffer = gl.createFramebuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
     gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0);
-    gl.bindTexture(gl.TEXTURE_2D, null);
     if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE) {
-      gl.deleteTexture(texture);
-      return false;
+      result = false;
     }
+    gl.bindTexture(gl.TEXTURE_2D, null);
     gl.deleteTexture(texture);
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-    return true;
+    gl.deleteFramebuffer(framebuffer);
+    return result;
   }
-  function testUnsignedByteAttribute(gl) {
-    var storage = new ArrayBuffer(16);
-    var bufferId = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, bufferId);
-    gl.bufferData(gl.ARRAY_BUFFER, storage, gl.STATIC_DRAW);
-    gl.getError();
-    gl.vertexAttribPointer(0, 4, gl.UNSIGNED_BYTE, false, 4, 0);
-    var supported = gl.getError() === 0;
-    gl.deleteBuffer(bufferId);
-    return supported;
+  function testTextureFloatHighPrecision(device) {
+    if (!device.textureFloatRenderable) {
+      return false;
+    }
+    var gl = device.gl;
+    var chunks = pc.shaderChunks;
+    var test1 = chunks.createShaderFromCode(device, chunks.fullscreenQuadVS, chunks.precisionTestPS, "ptest1");
+    var test2 = chunks.createShaderFromCode(device, chunks.fullscreenQuadVS, chunks.precisionTest2PS, "ptest2");
+    var size = 1;
+    var tex = new pc.Texture(device, {format:pc.PIXELFORMAT_RGBA32F, width:size, height:size, mipmaps:false, minFilter:pc.FILTER_NEAREST, magFilter:pc.FILTER_NEAREST});
+    var targ = new pc.RenderTarget(device, tex, {depth:false});
+    pc.drawQuadWithShader(device, targ, test1);
+    var tex2 = new pc.Texture(device, {format:pc.PIXELFORMAT_R8_G8_B8_A8, width:size, height:size, mipmaps:false, minFilter:pc.FILTER_NEAREST, magFilter:pc.FILTER_NEAREST});
+    var targ2 = new pc.RenderTarget(device, tex2, {depth:false});
+    device.constantTexSource.setValue(tex);
+    pc.drawQuadWithShader(device, targ2, test2);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, targ2._glFrameBuffer);
+    var pixels = new Uint8Array(size * size * 4);
+    gl.readPixels(0, 0, size, size, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, device.activeFramebuffer);
+    var x = pixels[0] / 255.0;
+    var y = pixels[1] / 255.0;
+    var z = pixels[2] / 255.0;
+    var w = pixels[3] / 255.0;
+    var f = x / (256.0 * 256.0 * 256.0) + y / (256.0 * 256.0) + z / 256.0 + w;
+    tex.destroy();
+    targ.destroy();
+    tex2.destroy();
+    targ2.destroy();
+    return f === 0.0;
   }
   var GraphicsDevice = function(canvas, options) {
     var i;
@@ -4599,211 +4754,174 @@ Object.assign(pc, function() {
     for (i = 0;i < this.maxCombinedTextures;i++) {
       this.textureUnits.push([null, null, null]);
     }
-    (function() {
-      this.defaultClearOptions = {color:[0, 0, 0, 1], depth:1, stencil:0, flags:pc.CLEARFLAG_COLOR | pc.CLEARFLAG_DEPTH};
-      this.glAddress = [gl.REPEAT, gl.CLAMP_TO_EDGE, gl.MIRRORED_REPEAT];
-      this.glBlendEquation = [gl.FUNC_ADD, gl.FUNC_SUBTRACT, gl.FUNC_REVERSE_SUBTRACT, this.webgl2 ? gl.MIN : this.extBlendMinmax ? this.extBlendMinmax.MIN_EXT : gl.FUNC_ADD, this.webgl2 ? gl.MAX : this.extBlendMinmax ? this.extBlendMinmax.MAX_EXT : gl.FUNC_ADD];
-      this.glBlendFunction = [gl.ZERO, gl.ONE, gl.SRC_COLOR, gl.ONE_MINUS_SRC_COLOR, gl.DST_COLOR, gl.ONE_MINUS_DST_COLOR, gl.SRC_ALPHA, gl.SRC_ALPHA_SATURATE, gl.ONE_MINUS_SRC_ALPHA, gl.DST_ALPHA, gl.ONE_MINUS_DST_ALPHA];
-      this.glComparison = [gl.NEVER, gl.LESS, gl.EQUAL, gl.LEQUAL, gl.GREATER, gl.NOTEQUAL, gl.GEQUAL, gl.ALWAYS];
-      this.glStencilOp = [gl.KEEP, gl.ZERO, gl.REPLACE, gl.INCR, gl.INCR_WRAP, gl.DECR, gl.DECR_WRAP, gl.INVERT];
-      this.glClearFlag = [0, gl.COLOR_BUFFER_BIT, gl.DEPTH_BUFFER_BIT, gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT, gl.STENCIL_BUFFER_BIT, gl.STENCIL_BUFFER_BIT | gl.COLOR_BUFFER_BIT, gl.STENCIL_BUFFER_BIT | gl.DEPTH_BUFFER_BIT, gl.STENCIL_BUFFER_BIT | gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT];
-      this.glCull = [0, gl.BACK, gl.FRONT, gl.FRONT_AND_BACK];
-      this.glFilter = [gl.NEAREST, gl.LINEAR, gl.NEAREST_MIPMAP_NEAREST, gl.NEAREST_MIPMAP_LINEAR, gl.LINEAR_MIPMAP_NEAREST, gl.LINEAR_MIPMAP_LINEAR];
-      this.glPrimitive = [gl.POINTS, gl.LINES, gl.LINE_LOOP, gl.LINE_STRIP, gl.TRIANGLES, gl.TRIANGLE_STRIP, gl.TRIANGLE_FAN];
-      this.glType = [gl.BYTE, gl.UNSIGNED_BYTE, gl.SHORT, gl.UNSIGNED_SHORT, gl.INT, gl.UNSIGNED_INT, gl.FLOAT];
-      this.targetToSlot = {};
-      this.targetToSlot[gl.TEXTURE_2D] = 0;
-      this.targetToSlot[gl.TEXTURE_CUBE_MAP] = 1;
-      this.targetToSlot[gl.TEXTURE_3D] = 2;
-      var scopeX, scopeY, scopeZ, scopeW;
-      var uniformValue;
-      this.commitFunction = [];
-      this.commitFunction[pc.UNIFORMTYPE_BOOL] = function(uniform, value) {
-        if (uniform.value !== value) {
-          gl.uniform1i(uniform.locationId, value);
-          uniform.value = value;
-        }
-      };
-      this.commitFunction[pc.UNIFORMTYPE_INT] = this.commitFunction[pc.UNIFORMTYPE_BOOL];
-      this.commitFunction[pc.UNIFORMTYPE_FLOAT] = function(uniform, value) {
-        if (uniform.value !== value) {
-          gl.uniform1f(uniform.locationId, value);
-          uniform.value = value;
-        }
-      };
-      this.commitFunction[pc.UNIFORMTYPE_VEC2] = function(uniform, value) {
-        uniformValue = uniform.value;
-        scopeX = value[0];
-        scopeY = value[1];
-        if (uniformValue[0] !== scopeX || uniformValue[1] !== scopeY) {
-          gl.uniform2fv(uniform.locationId, value);
-          uniformValue[0] = scopeX;
-          uniformValue[1] = scopeY;
-        }
-      };
-      this.commitFunction[pc.UNIFORMTYPE_VEC3] = function(uniform, value) {
-        uniformValue = uniform.value;
-        scopeX = value[0];
-        scopeY = value[1];
-        scopeZ = value[2];
-        if (uniformValue[0] !== scopeX || uniformValue[1] !== scopeY || uniformValue[2] !== scopeZ) {
-          gl.uniform3fv(uniform.locationId, value);
-          uniformValue[0] = scopeX;
-          uniformValue[1] = scopeY;
-          uniformValue[2] = scopeZ;
-        }
-      };
-      this.commitFunction[pc.UNIFORMTYPE_VEC4] = function(uniform, value) {
-        uniformValue = uniform.value;
-        scopeX = value[0];
-        scopeY = value[1];
-        scopeZ = value[2];
-        scopeW = value[3];
-        if (uniformValue[0] !== scopeX || uniformValue[1] !== scopeY || uniformValue[2] !== scopeZ || uniformValue[3] !== scopeW) {
-          gl.uniform4fv(uniform.locationId, value);
-          uniformValue[0] = scopeX;
-          uniformValue[1] = scopeY;
-          uniformValue[2] = scopeZ;
-          uniformValue[3] = scopeW;
-        }
-      };
-      this.commitFunction[pc.UNIFORMTYPE_IVEC2] = function(uniform, value) {
-        uniformValue = uniform.value;
-        scopeX = value[0];
-        scopeY = value[1];
-        if (uniformValue[0] !== scopeX || uniformValue[1] !== scopeY) {
-          gl.uniform2iv(uniform.locationId, value);
-          uniformValue[0] = scopeX;
-          uniformValue[1] = scopeY;
-        }
-      };
-      this.commitFunction[pc.UNIFORMTYPE_BVEC2] = this.commitFunction[pc.UNIFORMTYPE_IVEC2];
-      this.commitFunction[pc.UNIFORMTYPE_IVEC3] = function(uniform, value) {
-        uniformValue = uniform.value;
-        scopeX = value[0];
-        scopeY = value[1];
-        scopeZ = value[2];
-        if (uniformValue[0] !== scopeX || uniformValue[1] !== scopeY || uniformValue[2] !== scopeZ) {
-          gl.uniform3iv(uniform.locationId, value);
-          uniformValue[0] = scopeX;
-          uniformValue[1] = scopeY;
-          uniformValue[2] = scopeZ;
-        }
-      };
-      this.commitFunction[pc.UNIFORMTYPE_BVEC3] = this.commitFunction[pc.UNIFORMTYPE_IVEC3];
-      this.commitFunction[pc.UNIFORMTYPE_IVEC4] = function(uniform, value) {
-        uniformValue = uniform.value;
-        scopeX = value[0];
-        scopeY = value[1];
-        scopeZ = value[2];
-        scopeW = value[3];
-        if (uniformValue[0] !== scopeX || uniformValue[1] !== scopeY || uniformValue[2] !== scopeZ || uniformValue[3] !== scopeW) {
-          gl.uniform4iv(uniform.locationId, value);
-          uniformValue[0] = scopeX;
-          uniformValue[1] = scopeY;
-          uniformValue[2] = scopeZ;
-          uniformValue[3] = scopeW;
-        }
-      };
-      this.commitFunction[pc.UNIFORMTYPE_BVEC4] = this.commitFunction[pc.UNIFORMTYPE_IVEC4];
-      this.commitFunction[pc.UNIFORMTYPE_MAT2] = function(uniform, value) {
-        gl.uniformMatrix2fv(uniform.locationId, false, value);
-      };
-      this.commitFunction[pc.UNIFORMTYPE_MAT3] = function(uniform, value) {
-        gl.uniformMatrix3fv(uniform.locationId, false, value);
-      };
-      this.commitFunction[pc.UNIFORMTYPE_MAT4] = function(uniform, value) {
-        gl.uniformMatrix4fv(uniform.locationId, false, value);
-      };
-      this.commitFunction[pc.UNIFORMTYPE_FLOATARRAY] = function(uniform, value) {
-        gl.uniform1fv(uniform.locationId, value);
-      };
-      this.scope = new pc.ScopeSpace("Device");
-      this.programLib = new pc.ProgramLibrary(this);
-      for (var generator in pc.programlib) {
-        this.programLib.register(generator, pc.programlib[generator]);
+    this.defaultClearOptions = {color:[0, 0, 0, 1], depth:1, stencil:0, flags:pc.CLEARFLAG_COLOR | pc.CLEARFLAG_DEPTH};
+    this.glAddress = [gl.REPEAT, gl.CLAMP_TO_EDGE, gl.MIRRORED_REPEAT];
+    this.glBlendEquation = [gl.FUNC_ADD, gl.FUNC_SUBTRACT, gl.FUNC_REVERSE_SUBTRACT, this.webgl2 ? gl.MIN : this.extBlendMinmax ? this.extBlendMinmax.MIN_EXT : gl.FUNC_ADD, this.webgl2 ? gl.MAX : this.extBlendMinmax ? this.extBlendMinmax.MAX_EXT : gl.FUNC_ADD];
+    this.glBlendFunction = [gl.ZERO, gl.ONE, gl.SRC_COLOR, gl.ONE_MINUS_SRC_COLOR, gl.DST_COLOR, gl.ONE_MINUS_DST_COLOR, gl.SRC_ALPHA, gl.SRC_ALPHA_SATURATE, gl.ONE_MINUS_SRC_ALPHA, gl.DST_ALPHA, gl.ONE_MINUS_DST_ALPHA];
+    this.glComparison = [gl.NEVER, gl.LESS, gl.EQUAL, gl.LEQUAL, gl.GREATER, gl.NOTEQUAL, gl.GEQUAL, gl.ALWAYS];
+    this.glStencilOp = [gl.KEEP, gl.ZERO, gl.REPLACE, gl.INCR, gl.INCR_WRAP, gl.DECR, gl.DECR_WRAP, gl.INVERT];
+    this.glClearFlag = [0, gl.COLOR_BUFFER_BIT, gl.DEPTH_BUFFER_BIT, gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT, gl.STENCIL_BUFFER_BIT, gl.STENCIL_BUFFER_BIT | gl.COLOR_BUFFER_BIT, gl.STENCIL_BUFFER_BIT | gl.DEPTH_BUFFER_BIT, gl.STENCIL_BUFFER_BIT | gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT];
+    this.glCull = [0, gl.BACK, gl.FRONT, gl.FRONT_AND_BACK];
+    this.glFilter = [gl.NEAREST, gl.LINEAR, gl.NEAREST_MIPMAP_NEAREST, gl.NEAREST_MIPMAP_LINEAR, gl.LINEAR_MIPMAP_NEAREST, gl.LINEAR_MIPMAP_LINEAR];
+    this.glPrimitive = [gl.POINTS, gl.LINES, gl.LINE_LOOP, gl.LINE_STRIP, gl.TRIANGLES, gl.TRIANGLE_STRIP, gl.TRIANGLE_FAN];
+    this.glType = [gl.BYTE, gl.UNSIGNED_BYTE, gl.SHORT, gl.UNSIGNED_SHORT, gl.INT, gl.UNSIGNED_INT, gl.FLOAT];
+    this.targetToSlot = {};
+    this.targetToSlot[gl.TEXTURE_2D] = 0;
+    this.targetToSlot[gl.TEXTURE_CUBE_MAP] = 1;
+    this.targetToSlot[gl.TEXTURE_3D] = 2;
+    var scopeX, scopeY, scopeZ, scopeW;
+    var uniformValue;
+    this.commitFunction = [];
+    this.commitFunction[pc.UNIFORMTYPE_BOOL] = function(uniform, value) {
+      if (uniform.value !== value) {
+        gl.uniform1i(uniform.locationId, value);
+        uniform.value = value;
       }
-      pc.events.attach(this);
-      this.supportsBoneTextures = this.extTextureFloat && this.maxVertexTextures > 0;
-      this.useTexCubeLod = this.extTextureLod && this.maxTextures < 16;
-      var numUniforms = this.vertexUniformsCount;
-      numUniforms -= 4 * 4;
-      numUniforms -= 8;
-      numUniforms -= 1;
-      numUniforms -= 4 * 4;
-      this.boneLimit = Math.floor(numUniforms / 4);
-      this.boneLimit = Math.min(this.boneLimit, 128);
-      if (this.unmaskedRenderer === "Mali-450 MP") {
-        this.boneLimit = 34;
+    };
+    this.commitFunction[pc.UNIFORMTYPE_INT] = this.commitFunction[pc.UNIFORMTYPE_BOOL];
+    this.commitFunction[pc.UNIFORMTYPE_FLOAT] = function(uniform, value) {
+      if (uniform.value !== value) {
+        gl.uniform1f(uniform.locationId, value);
+        uniform.value = value;
       }
-      if (this.unmaskedRenderer === "Apple A8 GPU") {
-        this.forceCpuParticles = true;
+    };
+    this.commitFunction[pc.UNIFORMTYPE_VEC2] = function(uniform, value) {
+      uniformValue = uniform.value;
+      scopeX = value[0];
+      scopeY = value[1];
+      if (uniformValue[0] !== scopeX || uniformValue[1] !== scopeY) {
+        gl.uniform2fv(uniform.locationId, value);
+        uniformValue[0] = scopeX;
+        uniformValue[1] = scopeY;
       }
-      this._drawCallsPerFrame = 0;
-      this._shaderSwitchesPerFrame = 0;
-      this._primsPerFrame = [];
-      for (i = pc.PRIMITIVE_POINTS;i <= pc.PRIMITIVE_TRIFAN;i++) {
-        this._primsPerFrame[i] = 0;
+    };
+    this.commitFunction[pc.UNIFORMTYPE_VEC3] = function(uniform, value) {
+      uniformValue = uniform.value;
+      scopeX = value[0];
+      scopeY = value[1];
+      scopeZ = value[2];
+      if (uniformValue[0] !== scopeX || uniformValue[1] !== scopeY || uniformValue[2] !== scopeZ) {
+        gl.uniform3fv(uniform.locationId, value);
+        uniformValue[0] = scopeX;
+        uniformValue[1] = scopeY;
+        uniformValue[2] = scopeZ;
       }
-      this._renderTargetCreationTime = 0;
-      this._vram = {tex:0, vb:0, ib:0};
-      this._shaderStats = {vsCompiled:0, fsCompiled:0, linked:0, materialShaders:0, compileTime:0};
-      this.supportsUnsignedByte = testUnsignedByteAttribute(gl);
-      this.constantTexSource = this.scope.resolve("source");
-      if (!pc._benchmarked) {
-        if (this.extTextureFloat) {
-          if (this.webgl2) {
-            this.extTextureFloatRenderable = this.extColorBufferFloat;
-          } else {
-            this.extTextureFloatRenderable = testRenderable(gl, gl.FLOAT);
-          }
-        }
-        if (this.extTextureHalfFloat) {
-          if (this.webgl2) {
-            this.extTextureHalfFloatRenderable = this.extColorBufferFloat;
-          } else {
-            this.extTextureHalfFloatRenderable = testRenderable(gl, this.extTextureHalfFloat.HALF_FLOAT_OES);
-          }
-        }
-        if (this.extTextureFloatRenderable) {
-          var device = this;
-          var chunks = pc.shaderChunks;
-          var test1 = chunks.createShaderFromCode(device, chunks.fullscreenQuadVS, chunks.precisionTestPS, "ptest1");
-          var test2 = chunks.createShaderFromCode(device, chunks.fullscreenQuadVS, chunks.precisionTest2PS, "ptest2");
-          var size = 1;
-          var tex = new pc.Texture(device, {format:pc.PIXELFORMAT_RGBA32F, width:size, height:size, mipmaps:false, minFilter:pc.FILTER_NEAREST, magFilter:pc.FILTER_NEAREST});
-          var targ = new pc.RenderTarget(device, tex, {depth:false});
-          pc.drawQuadWithShader(device, targ, test1);
-          var tex2 = new pc.Texture(device, {format:pc.PIXELFORMAT_R8_G8_B8_A8, width:size, height:size, mipmaps:false, minFilter:pc.FILTER_NEAREST, magFilter:pc.FILTER_NEAREST});
-          var targ2 = new pc.RenderTarget(device, tex2, {depth:false});
-          this.constantTexSource.setValue(tex);
-          pc.drawQuadWithShader(device, targ2, test2);
-          var pixels = new Uint8Array(size * size * 4);
-          gl.bindFramebuffer(gl.FRAMEBUFFER, targ2._glFrameBuffer);
-          gl.readPixels(0, 0, size, size, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
-          var x = pixels[0] / 255.0;
-          var y = pixels[1] / 255.0;
-          var z = pixels[2] / 255.0;
-          var w = pixels[3] / 255.0;
-          var f = x / (256.0 * 256.0 * 256.0) + y / (256.0 * 256.0) + z / 256.0 + w;
-          this.extTextureFloatHighPrecision = f === 0.0;
-          tex.destroy();
-          targ.destroy();
-          tex2.destroy();
-          targ2.destroy();
-          pc.destroyPostEffectQuad();
-          gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-        }
-        pc.extTextureFloatRenderable = this.extTextureFloatRenderable;
-        pc.extTextureHalfFloatRenderable = this.extTextureHalfFloatRenderable;
-        pc.extTextureFloatHighPrecision = this.extTextureFloatHighPrecision;
-        pc._benchmarked = true;
+    };
+    this.commitFunction[pc.UNIFORMTYPE_VEC4] = function(uniform, value) {
+      uniformValue = uniform.value;
+      scopeX = value[0];
+      scopeY = value[1];
+      scopeZ = value[2];
+      scopeW = value[3];
+      if (uniformValue[0] !== scopeX || uniformValue[1] !== scopeY || uniformValue[2] !== scopeZ || uniformValue[3] !== scopeW) {
+        gl.uniform4fv(uniform.locationId, value);
+        uniformValue[0] = scopeX;
+        uniformValue[1] = scopeY;
+        uniformValue[2] = scopeZ;
+        uniformValue[3] = scopeW;
+      }
+    };
+    this.commitFunction[pc.UNIFORMTYPE_IVEC2] = function(uniform, value) {
+      uniformValue = uniform.value;
+      scopeX = value[0];
+      scopeY = value[1];
+      if (uniformValue[0] !== scopeX || uniformValue[1] !== scopeY) {
+        gl.uniform2iv(uniform.locationId, value);
+        uniformValue[0] = scopeX;
+        uniformValue[1] = scopeY;
+      }
+    };
+    this.commitFunction[pc.UNIFORMTYPE_BVEC2] = this.commitFunction[pc.UNIFORMTYPE_IVEC2];
+    this.commitFunction[pc.UNIFORMTYPE_IVEC3] = function(uniform, value) {
+      uniformValue = uniform.value;
+      scopeX = value[0];
+      scopeY = value[1];
+      scopeZ = value[2];
+      if (uniformValue[0] !== scopeX || uniformValue[1] !== scopeY || uniformValue[2] !== scopeZ) {
+        gl.uniform3iv(uniform.locationId, value);
+        uniformValue[0] = scopeX;
+        uniformValue[1] = scopeY;
+        uniformValue[2] = scopeZ;
+      }
+    };
+    this.commitFunction[pc.UNIFORMTYPE_BVEC3] = this.commitFunction[pc.UNIFORMTYPE_IVEC3];
+    this.commitFunction[pc.UNIFORMTYPE_IVEC4] = function(uniform, value) {
+      uniformValue = uniform.value;
+      scopeX = value[0];
+      scopeY = value[1];
+      scopeZ = value[2];
+      scopeW = value[3];
+      if (uniformValue[0] !== scopeX || uniformValue[1] !== scopeY || uniformValue[2] !== scopeZ || uniformValue[3] !== scopeW) {
+        gl.uniform4iv(uniform.locationId, value);
+        uniformValue[0] = scopeX;
+        uniformValue[1] = scopeY;
+        uniformValue[2] = scopeZ;
+        uniformValue[3] = scopeW;
+      }
+    };
+    this.commitFunction[pc.UNIFORMTYPE_BVEC4] = this.commitFunction[pc.UNIFORMTYPE_IVEC4];
+    this.commitFunction[pc.UNIFORMTYPE_MAT2] = function(uniform, value) {
+      gl.uniformMatrix2fv(uniform.locationId, false, value);
+    };
+    this.commitFunction[pc.UNIFORMTYPE_MAT3] = function(uniform, value) {
+      gl.uniformMatrix3fv(uniform.locationId, false, value);
+    };
+    this.commitFunction[pc.UNIFORMTYPE_MAT4] = function(uniform, value) {
+      gl.uniformMatrix4fv(uniform.locationId, false, value);
+    };
+    this.commitFunction[pc.UNIFORMTYPE_FLOATARRAY] = function(uniform, value) {
+      gl.uniform1fv(uniform.locationId, value);
+    };
+    this.scope = new pc.ScopeSpace("Device");
+    this.programLib = new pc.ProgramLibrary(this);
+    for (var generator in pc.programlib) {
+      this.programLib.register(generator, pc.programlib[generator]);
+    }
+    pc.events.attach(this);
+    this.supportsBoneTextures = this.extTextureFloat && this.maxVertexTextures > 0;
+    this.useTexCubeLod = this.extTextureLod && this.maxTextures < 16;
+    var numUniforms = this.vertexUniformsCount;
+    numUniforms -= 4 * 4;
+    numUniforms -= 8;
+    numUniforms -= 1;
+    numUniforms -= 4 * 4;
+    this.boneLimit = Math.floor(numUniforms / 4);
+    this.boneLimit = Math.min(this.boneLimit, 128);
+    if (this.unmaskedRenderer === "Mali-450 MP") {
+      this.boneLimit = 34;
+    }
+    if (this.unmaskedRenderer === "Apple A8 GPU") {
+      this.forceCpuParticles = true;
+    }
+    this._drawCallsPerFrame = 0;
+    this._shaderSwitchesPerFrame = 0;
+    this._primsPerFrame = [];
+    for (i = pc.PRIMITIVE_POINTS;i <= pc.PRIMITIVE_TRIFAN;i++) {
+      this._primsPerFrame[i] = 0;
+    }
+    this._renderTargetCreationTime = 0;
+    this._vram = {tex:0, vb:0, ib:0};
+    this._shaderStats = {vsCompiled:0, fsCompiled:0, linked:0, materialShaders:0, compileTime:0};
+    this.constantTexSource = this.scope.resolve("source");
+    if (this.extTextureFloat) {
+      if (this.webgl2) {
+        this.textureFloatRenderable = !!this.extColorBufferFloat;
       } else {
-        this.extTextureFloatRenderable = pc.extTextureFloatRenderable;
-        this.extTextureHalfFloatRenderable = pc.extTextureHalfFloatRenderable;
-        this.extTextureFloatHighPrecision = pc.extTextureFloatHighPrecision;
+        this.textureFloatRenderable = testRenderable(gl, gl.FLOAT);
       }
-    }).call(this);
+    } else {
+      this.textureFloatRenderable = false;
+    }
+    if (this.extTextureHalfFloat) {
+      if (this.webgl2) {
+        this.textureHalfFloatRenderable = !!this.extColorBufferFloat;
+      } else {
+        this.textureHalfFloatRenderable = testRenderable(gl, this.extTextureHalfFloat.HALF_FLOAT_OES);
+      }
+    } else {
+      this.textureHalfFloatRenderable = false;
+    }
+    this.textureFloatHighPrecision = testTextureFloatHighPrecision(this);
   };
   Object.assign(GraphicsDevice.prototype, {getPrecision:function() {
     var gl = this.gl;
@@ -4826,6 +4944,16 @@ Object.assign(pc, function() {
     return precision;
   }, initializeExtensions:function() {
     var gl = this.gl;
+    var supportedExtensions = gl.getSupportedExtensions();
+    var getExtension = function() {
+      var extension = null;
+      for (var i = 0;i < arguments.length;i++) {
+        if (supportedExtensions.indexOf(arguments[i]) !== -1) {
+          extension = gl.getExtension(arguments[i]);
+        }
+      }
+      return extension;
+    };
     if (this.webgl2) {
       this.extBlendMinmax = true;
       this.extDrawBuffers = true;
@@ -4836,29 +4964,29 @@ Object.assign(pc, function() {
       this.extTextureHalfFloatLinear = true;
       this.extTextureLod = true;
       this.extUintElement = true;
+      this.extColorBufferFloat = getExtension("EXT_color_buffer_float");
     } else {
-      this.extBlendMinmax = gl.getExtension("EXT_blend_minmax");
-      this.extDrawBuffers = gl.getExtension("EXT_draw_buffers");
-      this.extInstancing = gl.getExtension("ANGLE_instanced_arrays");
-      this.extStandardDerivatives = gl.getExtension("OES_standard_derivatives");
-      this.extTextureFloat = gl.getExtension("OES_texture_float");
-      this.extTextureHalfFloat = gl.getExtension("OES_texture_half_float");
-      this.extTextureHalfFloatLinear = gl.getExtension("OES_texture_half_float_linear");
-      this.extTextureLod = gl.getExtension("EXT_shader_texture_lod");
-      this.extUintElement = gl.getExtension("OES_element_index_uint");
+      this.extBlendMinmax = getExtension("EXT_blend_minmax");
+      this.extDrawBuffers = getExtension("EXT_draw_buffers");
+      this.extInstancing = getExtension("ANGLE_instanced_arrays");
+      this.extStandardDerivatives = getExtension("OES_standard_derivatives");
+      this.extTextureFloat = getExtension("OES_texture_float");
+      this.extTextureHalfFloat = getExtension("OES_texture_half_float");
+      this.extTextureHalfFloatLinear = getExtension("OES_texture_half_float_linear");
+      this.extTextureLod = getExtension("EXT_shader_texture_lod");
+      this.extUintElement = getExtension("OES_element_index_uint");
+      this.extColorBufferFloat = null;
     }
-    this.extRendererInfo = gl.getExtension("WEBGL_debug_renderer_info");
-    this.extTextureFloatLinear = gl.getExtension("OES_texture_float_linear");
-    this.extColorBufferFloat = gl.getExtension("EXT_color_buffer_float");
-    this.extTextureFilterAnisotropic = gl.getExtension("EXT_texture_filter_anisotropic") || gl.getExtension("WEBKIT_EXT_texture_filter_anisotropic");
-    this.extCompressedTextureETC1 = gl.getExtension("WEBGL_compressed_texture_etc1");
-    this.extCompressedTexturePVRTC = gl.getExtension("WEBGL_compressed_texture_pvrtc") || gl.getExtension("WEBKIT_WEBGL_compressed_texture_pvrtc");
-    this.extCompressedTextureS3TC = gl.getExtension("WEBGL_compressed_texture_s3tc") || gl.getExtension("WEBKIT_WEBGL_compressed_texture_s3tc");
-    if (this.extCompressedTextureS3TC && _isIE()) {
-      this.extCompressedTextureS3TC = null;
-    }
+    this.extDebugRendererInfo = getExtension("WEBGL_debug_renderer_info");
+    this.extTextureFloatLinear = getExtension("OES_texture_float_linear");
+    this.extTextureFilterAnisotropic = getExtension("EXT_texture_filter_anisotropic", "WEBKIT_EXT_texture_filter_anisotropic");
+    this.extCompressedTextureETC1 = getExtension("WEBGL_compressed_texture_etc1");
+    this.extCompressedTextureETC = getExtension("WEBGL_compressed_texture_etc");
+    this.extCompressedTexturePVRTC = getExtension("WEBGL_compressed_texture_pvrtc", "WEBKIT_WEBGL_compressed_texture_pvrtc");
+    this.extCompressedTextureS3TC = getExtension("WEBGL_compressed_texture_s3tc", "WEBKIT_WEBGL_compressed_texture_s3tc");
   }, initializeCapabilities:function() {
     var gl = this.gl;
+    var ext;
     this.maxPrecision = this.precision = this.getPrecision();
     var contextAttribs = gl.getContextAttributes();
     this.supportsMsaa = contextAttribs.antialias;
@@ -4871,17 +4999,21 @@ Object.assign(pc, function() {
     this.maxVertexTextures = gl.getParameter(gl.MAX_VERTEX_TEXTURE_IMAGE_UNITS);
     this.vertexUniformsCount = gl.getParameter(gl.MAX_VERTEX_UNIFORM_VECTORS);
     this.fragmentUniformsCount = gl.getParameter(gl.MAX_FRAGMENT_UNIFORM_VECTORS);
-    this.unmaskedRenderer = this.extRendererInfo ? gl.getParameter(this.extRendererInfo.UNMASKED_RENDERER_WEBGL) : "";
-    this.unmaskedVendor = this.extRendererInfo ? gl.getParameter(this.extRendererInfo.UNMASKED_VENDOR_WEBGL) : "";
     if (this.webgl2) {
       this.maxDrawBuffers = gl.getParameter(gl.MAX_DRAW_BUFFERS);
       this.maxColorAttachments = gl.getParameter(gl.MAX_COLOR_ATTACHMENTS);
       this.maxVolumeSize = gl.getParameter(gl.MAX_3D_TEXTURE_SIZE);
     } else {
-      this.maxDrawBuffers = this.extDrawBuffers ? gl.getParameter(this.extDrawBuffers.MAX_DRAW_BUFFERS_EXT) : 1;
-      this.maxColorAttachments = this.extDrawBuffers ? gl.getParameter(this.extDrawBuffers.MAX_COLOR_ATTACHMENTS_EXT) : 1;
+      ext = this.extDrawBuffers;
+      this.maxDrawBuffers = ext ? gl.getParameter(ext.MAX_DRAW_BUFFERS_EXT) : 1;
+      this.maxColorAttachments = ext ? gl.getParameter(ext.MAX_COLOR_ATTACHMENTS_EXT) : 1;
       this.maxVolumeSize = 1;
     }
+    ext = this.extDebugRendererInfo;
+    this.unmaskedRenderer = ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : "";
+    this.unmaskedVendor = ext ? gl.getParameter(ext.UNMASKED_VENDOR_WEBGL) : "";
+    ext = this.extTextureFilterAnisotropic;
+    this.maxAnisotropy = ext ? gl.getParameter(ext.MAX_TEXTURE_MAX_ANISOTROPY_EXT) : 1;
   }, initializeRenderState:function() {
     var gl = this.gl;
     this.blending = false;
@@ -4951,6 +5083,7 @@ Object.assign(pc, function() {
     }
     gl.enable(gl.SCISSOR_TEST);
     gl.pixelStorei(gl.UNPACK_COLORSPACE_CONVERSION_WEBGL, gl.NONE);
+    gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
   }, initializeContext:function() {
     this.initializeExtensions();
     this.initializeCapabilities();
@@ -4971,6 +5104,7 @@ Object.assign(pc, function() {
     this.vertexBuffers = [];
     for (i = 0, len = this.textures.length;i < len;i++) {
       var texture = this.textures[i];
+      this.destroyTexture(texture);
       texture.dirtyAll();
     }
     this.textureUnit = 0;
@@ -5096,24 +5230,24 @@ Object.assign(pc, function() {
         this.setFramebuffer(target._glFrameBuffer);
         var colorBuffer = target._colorBuffer;
         if (colorBuffer) {
-          if (!colorBuffer._glTextureId) {
+          if (!colorBuffer._glTexture) {
             colorBuffer._width = Math.min(colorBuffer.width, this.maxRenderBufferSize);
             colorBuffer._height = Math.min(colorBuffer.height, this.maxRenderBufferSize);
             this.setTexture(colorBuffer, 0);
           }
-          gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, colorBuffer._cubemap ? gl.TEXTURE_CUBE_MAP_POSITIVE_X + target._face : gl.TEXTURE_2D, colorBuffer._glTextureId, 0);
+          gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, colorBuffer._cubemap ? gl.TEXTURE_CUBE_MAP_POSITIVE_X + target._face : gl.TEXTURE_2D, colorBuffer._glTexture, 0);
         }
         var depthBuffer = target._depthBuffer;
         if (depthBuffer && this.webgl2) {
-          if (!depthBuffer._glTextureId) {
+          if (!depthBuffer._glTexture) {
             depthBuffer._width = Math.min(depthBuffer.width, this.maxRenderBufferSize);
             depthBuffer._height = Math.min(depthBuffer.height, this.maxRenderBufferSize);
             this.setTexture(depthBuffer, 0);
           }
           if (target._stencil) {
-            gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.DEPTH_STENCIL_ATTACHMENT, depthBuffer._cubemap ? gl.TEXTURE_CUBE_MAP_POSITIVE_X + target._face : gl.TEXTURE_2D, target._depthBuffer._glTextureId, 0);
+            gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.DEPTH_STENCIL_ATTACHMENT, depthBuffer._cubemap ? gl.TEXTURE_CUBE_MAP_POSITIVE_X + target._face : gl.TEXTURE_2D, target._depthBuffer._glTexture, 0);
           } else {
-            gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, depthBuffer._cubemap ? gl.TEXTURE_CUBE_MAP_POSITIVE_X + target._face : gl.TEXTURE_2D, target._depthBuffer._glTextureId, 0);
+            gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, depthBuffer._cubemap ? gl.TEXTURE_CUBE_MAP_POSITIVE_X + target._face : gl.TEXTURE_2D, target._depthBuffer._glTexture, 0);
           }
         } else {
           if (target._depth) {
@@ -5172,8 +5306,9 @@ Object.assign(pc, function() {
     var target = this.renderTarget;
     if (target) {
       var colorBuffer = target._colorBuffer;
-      if (colorBuffer && colorBuffer._glTextureId && colorBuffer.mipmaps && colorBuffer._pot) {
-        this.bindTexture(this.maxCombinedTextures - 1, colorBuffer._glTarget, colorBuffer._glTextureId);
+      if (colorBuffer && colorBuffer._glTexture && colorBuffer.mipmaps && colorBuffer._pot) {
+        this.activeTexture(this.maxCombinedTextures - 1);
+        this.bindTexture(colorBuffer);
         gl.generateMipmap(colorBuffer._glTarget);
       }
       if (this.webgl2 && target._samples > 1 && target.autoResolve) {
@@ -5183,7 +5318,7 @@ Object.assign(pc, function() {
   }, initializeTexture:function(texture) {
     var gl = this.gl;
     var ext;
-    texture._glTextureId = gl.createTexture();
+    texture._glTexture = gl.createTexture();
     texture._glTarget = texture._cubemap ? gl.TEXTURE_CUBE_MAP : texture._volume ? gl.TEXTURE_3D : gl.TEXTURE_2D;
     switch(texture._format) {
       case pc.PIXELFORMAT_A8:
@@ -5266,6 +5401,16 @@ Object.assign(pc, function() {
         texture._glFormat = gl.RGBA;
         texture._glInternalFormat = ext.COMPRESSED_RGBA_PVRTC_4BPPV1_IMG;
         break;
+      case pc.PIXELFORMAT_ETC2_RGB:
+        ext = this.extCompressedTextureETC;
+        texture._glFormat = gl.RGB;
+        texture._glInternalFormat = ext.COMPRESSED_RGB8_ETC2;
+        break;
+      case pc.PIXELFORMAT_ETC2_RGBA:
+        ext = this.extCompressedTextureETC;
+        texture._glFormat = gl.RGBA;
+        texture._glInternalFormat = ext.COMPRESSED_RGBA8_ETC2_EAC;
+        break;
       case pc.PIXELFORMAT_RGB16F:
         ext = this.extTextureHalfFloat;
         texture._glFormat = gl.RGB;
@@ -5343,6 +5488,36 @@ Object.assign(pc, function() {
         texture._glPixelType = gl.UNSIGNED_BYTE;
         break;
     }
+    this.textures.push(texture);
+  }, destroyTexture:function(texture) {
+    if (texture._glTexture) {
+      var idx = this.textures.indexOf(texture);
+      if (idx !== -1) {
+        this.textures.splice(idx, 1);
+      }
+      for (var uniformName in this.scope.variables) {
+        var uniform = this.scope.variables[uniformName];
+        if (uniform.value === texture) {
+          uniform.value = null;
+        }
+      }
+      for (var i = 0;i < this.textureUnits.length;i++) {
+        var textureUnit = this.textureUnits[i];
+        for (var j = 0;j < textureUnit.length;j++) {
+          if (textureUnit[j] === texture._glTexture) {
+            textureUnit[j] = null;
+          }
+        }
+      }
+      var gl = this.gl;
+      gl.deleteTexture(texture._glTexture);
+      delete texture._glTexture;
+      delete texture._glTarget;
+      delete texture._glFormat;
+      delete texture._glInternalFormat;
+      delete texture._glPixelType;
+      this._vram.tex -= texture._gpuSize;
+    }
   }, uploadTexture:function(texture) {
     var gl = this.gl;
     if (!texture._needsUpload && (texture._needsMipmapsUpload && texture._mipmapsUploaded || !texture._pot)) {
@@ -5368,7 +5543,6 @@ Object.assign(pc, function() {
       if (texture._cubemap) {
         var face;
         gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
-        gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
         if (mipObject[0] instanceof HTMLCanvasElement || mipObject[0] instanceof HTMLImageElement || mipObject[0] instanceof HTMLVideoElement) {
           for (face = 0;face < 6;face++) {
             if (!texture._levelsUpdated[0][face]) {
@@ -5421,7 +5595,6 @@ Object.assign(pc, function() {
               }
             }
             gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, texture._flipY);
-            gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
             gl.texImage2D(gl.TEXTURE_2D, mipLevel, texture._glInternalFormat, texture._glFormat, texture._glPixelType, mipObject);
           } else {
             gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
@@ -5466,7 +5639,7 @@ Object.assign(pc, function() {
     }
   }, bindTexture:function(texture) {
     var textureTarget = texture._glTarget;
-    var textureObject = texture._glTextureId;
+    var textureObject = texture._glTexture;
     var textureUnit = this.textureUnit;
     var slot = this.targetToSlot[textureTarget];
     if (this.textureUnits[textureUnit][slot] !== textureObject) {
@@ -5475,7 +5648,7 @@ Object.assign(pc, function() {
     }
   }, bindTextureOnUnit:function(texture, textureUnit) {
     var textureTarget = texture._glTarget;
-    var textureObject = texture._glTextureId;
+    var textureObject = texture._glTexture;
     var slot = this.targetToSlot[textureTarget];
     if (this.textureUnits[textureUnit][slot] !== textureObject) {
       this.activeTexture(textureUnit);
@@ -5538,7 +5711,7 @@ Object.assign(pc, function() {
       }
     }
   }, setTexture:function(texture, textureUnit) {
-    if (!texture._glTextureId) {
+    if (!texture._glTexture) {
       this.initializeTexture(texture);
     }
     if (texture._parameterFlags > 0 || texture._needsUpload || texture._needsMipmapsUpload) {
@@ -5971,10 +6144,10 @@ Object.assign(pc, function() {
     }
     return true;
   }, getHdrFormat:function() {
-    if (this.extTextureHalfFloatRenderable) {
+    if (this.textureHalfFloatRenderable) {
       return pc.PIXELFORMAT_RGB16F;
     } else {
-      if (this.extTextureFloatRenderable) {
+      if (this.textureFloatRenderable) {
         return pc.PIXELFORMAT_RGB32F;
       }
     }
@@ -5983,10 +6156,6 @@ Object.assign(pc, function() {
     return this.boneLimit;
   }, setBoneLimit:function(maxBones) {
     this.boneLimit = maxBones;
-  }, enableValidation:function(enable) {
-    console.warn("enableValidation: This function is deprecated and will be removed shortly.");
-  }, validate:function() {
-    console.warn("validate: This function is deprecated and will be removed shortly.");
   }, resizeCanvas:function(width, height) {
     this._width = width;
     this._height = height;
@@ -6032,27 +6201,13 @@ Object.assign(pc, function() {
   }, set:function(value) {
     this._enableAutoInstancing = value && this.extInstancing;
   }});
-  Object.defineProperty(GraphicsDevice.prototype, "maxAnisotropy", {get:function() {
-    var maxAniso;
-    return function() {
-      if (maxAniso === undefined) {
-        maxAniso = 1;
-        var gl = this.gl;
-        var glExt = this.extTextureFilterAnisotropic;
-        if (glExt) {
-          maxAniso = gl.getParameter(glExt.MAX_TEXTURE_MAX_ANISOTROPY_EXT);
-        }
-      }
-      return maxAniso;
-    };
-  }()});
   Object.defineProperty(GraphicsDevice.prototype, "maxPixelRatio", {get:function() {
     return this._maxPixelRatio;
   }, set:function(ratio) {
     this._maxPixelRatio = ratio;
     this.resizeCanvas(this._width, this._height);
   }});
-  return {GraphicsDevice:GraphicsDevice, precalculatedTangents:true};
+  return {GraphicsDevice:GraphicsDevice};
 }());
 Object.assign(pc, function() {
   var shaderChunks = {};
@@ -6567,6 +6722,7 @@ Object.assign(pc, function() {
   return {paraboloidFromCubemap:paraboloidFromCubemap, generateDpAtlas:generateDpAtlas};
 }());
 pc.shaderChunks.TBNPS = "void getTBN() {\n    dTBN = mat3(normalize(dTangentW), normalize(dBinormalW), normalize(dVertexNormalW));\n}\n";
+pc.shaderChunks.TBNderivativePS = "// http://www.thetenthplanet.de/archives/1180\nvoid getTBN() {\n    vec2 uv = $UV;\n    // get edge vectors of the pixel triangle\n    vec3 dp1 = dFdx( vPositionW );\n    vec3 dp2 = dFdy( vPositionW );\n    vec2 duv1 = dFdx( uv );\n    vec2 duv2 = dFdy( uv );\n    // solve the linear system\n    vec3 dp2perp = cross( dp2, dVertexNormalW );\n    vec3 dp1perp = cross( dVertexNormalW, dp1 );\n    vec3 T = dp2perp * duv1.x + dp1perp * duv2.x;\n    vec3 B = dp2perp * duv1.y + dp1perp * duv2.y;\n    // construct a scale-invariant frame\n    float invmax = 1.0 / sqrt( max( dot(T,T), dot(B,B) ) );\n    dTBN = mat3( T * invmax, B * invmax, dVertexNormalW );\n}\n";
 pc.shaderChunks.TBNfastPS = "void getTBN() {\n    dTBN = mat3(dTangentW, dBinormalW, dVertexNormalW);\n}\n";
 pc.shaderChunks.alphaTestPS = "uniform float alpha_ref;\nvoid alphaTest(float a) {\n    if (a < alpha_ref) discard;\n}\n";
 pc.shaderChunks.ambientConstantPS = "\nvoid addAmbient() {\n    dDiffuseLight += light_globalAmbient;\n}\n";
@@ -6582,6 +6738,9 @@ pc.shaderChunks.bakeDirLmEndPS = "\n    vec4 dirLm = texture2D(texture_dirLightM
 pc.shaderChunks.bakeLmEndPS = "\ngl_FragColor.rgb = dDiffuseLight;\ngl_FragColor.rgb = pow(gl_FragColor.rgb, vec3(0.5));\ngl_FragColor.rgb /= 8.0;\ngl_FragColor.a = clamp( max( max( gl_FragColor.r, gl_FragColor.g ), max( gl_FragColor.b, 1.0 / 255.0 ) ), 0.0,1.0 );\ngl_FragColor.a = ceil(gl_FragColor.a * 255.0) / 255.0;\ngl_FragColor.rgb /= gl_FragColor.a;\n";
 pc.shaderChunks.basePS = "\nuniform vec3 view_position;\nuniform vec3 light_globalAmbient;\nfloat square(float x) {\n    return x*x;\n}\nfloat saturate(float x) {\n    return clamp(x, 0.0, 1.0);\n}\nvec3 saturate(vec3 x) {\n    return clamp(x, vec3(0.0), vec3(1.0));\n}\n";
 pc.shaderChunks.baseVS = "\nattribute vec3 vertex_position;\nattribute vec3 vertex_normal;\nattribute vec4 vertex_tangent;\nattribute vec2 vertex_texCoord0;\nattribute vec2 vertex_texCoord1;\nattribute vec4 vertex_color;\nuniform mat4 matrix_viewProjection;\nuniform mat4 matrix_model;\nuniform mat3 matrix_normal;\nvec3 dPositionW;\nmat4 dModelMatrix;\nmat3 dNormalMatrix;\nvec3 dLightPosW;\nvec3 dLightDirNormW;\nvec3 dNormalW;\n";
+pc.shaderChunks.baseNineSlicedPS = "#define NINESLICED\nvarying vec2 vMask;\nvarying vec2 vTiledUv;\nuniform mediump vec4 innerOffset;\nuniform mediump vec2 outerScale;\nuniform mediump vec4 atlasRect;\nvec2 nineSlicedUv;\n";
+pc.shaderChunks.baseNineSlicedVS = "#define NINESLICED\nvarying vec2 vMask;\nvarying vec2 vTiledUv;\nuniform mediump vec4 innerOffset;\nuniform mediump vec2 outerScale;\nuniform mediump vec4 atlasRect;\n";
+pc.shaderChunks.baseNineSlicedTiledPS = "#define NINESLICED\n#define NINESLICETILED\nvarying vec2 vMask;\nvarying vec2 vTiledUv;\nuniform mediump vec4 innerOffset;\nuniform mediump vec2 outerScale;\nuniform mediump vec4 atlasRect;\nvec2 nineSlicedUv;\n";
 pc.shaderChunks.biasConstPS = "#define SHADOWBIAS\nfloat getShadowBias(float resolution, float maxBias) {\n    return maxBias;\n}\n";
 pc.shaderChunks.blurVSMPS = "\nvarying vec2 vUv0;\nuniform sampler2D source;\nuniform vec2 pixelOffset;\n#ifdef GAUSS\nuniform float weight[SAMPLES];\n#endif\n#ifdef PACKED\nfloat decodeFloatRG(vec2 rg) {\n    return rg.y*(1.0/255.0) + rg.x;\n}\nvec2 encodeFloatRG( float v ) {\n  vec2 enc = vec2(1.0, 255.0) * v;\n  enc = fract(enc);\n  enc -= enc.yy * vec2(1.0/255.0, 1.0/255.0);\n  return enc;\n}\n#endif\nvoid main(void) {\n    vec3 moments = vec3(0.0);\n    vec2 uv = vUv0 - pixelOffset * (float(SAMPLES) * 0.5);\n    for(int i=0; i<SAMPLES; i++) {\n        vec4 c = texture2D(source, uv + pixelOffset * float(i));\n        #ifdef PACKED\n        c.xy = vec2(decodeFloatRG(c.xy), decodeFloatRG(c.zw));\n        #endif\n        #ifdef GAUSS\n        moments += c.xyz * weight[i];\n        #else\n        moments += c.xyz;\n        #endif\n    }\n    #ifndef GAUSS\n    moments /= float(SAMPLES);\n    #endif\n    #ifdef PACKED\n    gl_FragColor = vec4(encodeFloatRG(moments.x), encodeFloatRG(moments.y));\n    #else\n    gl_FragColor = vec4(moments.x, moments.y, moments.z, 1.0);\n    #endif\n}\n";
 pc.shaderChunks.combineDiffusePS = "vec3 combineColor() {\n    return dAlbedo * dDiffuseLight;\n}\n";
@@ -6727,6 +6886,8 @@ pc.shaderChunks.specularAaToksvigFloatPS = "float antiAliasGlossiness(float powe
 pc.shaderChunks.spotPS = "float getSpotEffect(vec3 lightSpotDirW, float lightInnerConeAngle, float lightOuterConeAngle) {\n    float cosAngle = dot(dLightDirNormW, lightSpotDirW);\n    return smoothstep(lightOuterConeAngle, lightInnerConeAngle, cosAngle);\n}\n";
 pc.shaderChunks.startPS = "\nvoid main(void) {\n    dDiffuseLight = vec3(0);\n    dSpecularLight = vec3(0);\n    dReflection = vec4(0);\n    dSpecularity = vec3(0);\n";
 pc.shaderChunks.startVS = "\nvoid main(void) {\n    gl_Position = getPosition();\n";
+pc.shaderChunks.startNineSlicedPS = "    nineSlicedUv = vUv0;\n";
+pc.shaderChunks.startNineSlicedTiledPS = "\n    vec2 tileMask = step(vMask, vec2(0.99999));\n    vec2 clampedUv = mix(innerOffset.xy*0.5, vec2(1.0) - innerOffset.zw*0.5, fract(vTiledUv));\n    clampedUv = clampedUv * atlasRect.zw + atlasRect.xy;\n    nineSlicedUv = vUv0 * tileMask + clampedUv * (vec2(1.0) - tileMask);\n";
 pc.shaderChunks.storeEVSMPS = "float exponent = VSM_EXPONENT;\ndepth = 2.0 * depth - 1.0;\ndepth =  exp(exponent * depth);\ngl_FragColor = vec4(depth, depth*depth, 1.0, 1.0);\n";
 pc.shaderChunks.tangentBinormalVS = "\nvec3 getTangent() {\n    return normalize(dNormalMatrix * vertex_tangent.xyz);\n}\nvec3 getBinormal() {\n    return cross(vNormalW, vTangentW) * vertex_tangent.w;\n}\n";
 pc.shaderChunks.tonemappingAcesPS = "uniform float exposure;\nvec3 toneMap(vec3 color) {\n    float tA = 2.51;\n    float tB = 0.03;\n    float tC = 2.43;\n    float tD = 0.59;\n    float tE = 0.14;\n    vec3 x = color * exposure;\n    return (x*(tA*x+tB))/(x*(tC*x+tD)+tE);\n}\n";
@@ -6735,11 +6896,10 @@ pc.shaderChunks.tonemappingFilmicPS = "const float A =  0.15;\nconst float B =  
 pc.shaderChunks.tonemappingHejlPS = "uniform float exposure;\nvec3 toneMap(vec3 color) {\n    color *= exposure;\n    const float  A = 0.22, B = 0.3, C = .1, D = 0.2, E = .01, F = 0.3;\n    const float Scl = 1.25;\n    vec3 h = max( vec3(0.0), color - vec3(0.004) );\n    return (h*((Scl*A)*h+Scl*vec3(C*B,C*B,C*B))+Scl*vec3(D*E,D*E,D*E)) / (h*(A*h+vec3(B,B,B))+vec3(D*F,D*F,D*F)) - Scl*vec3(E/F,E/F,E/F);\n}\n";
 pc.shaderChunks.tonemappingLinearPS = "uniform float exposure;\nvec3 toneMap(vec3 color) {\n    return color * exposure;\n}\n";
 pc.shaderChunks.tonemappingNonePS = "vec3 toneMap(vec3 color) {\n    return color;\n}\n";
-pc.shaderChunks.transformVS = "#ifdef PIXELSNAP\n    uniform vec4 uScreenSize;\n#endif\n#ifdef NINESLICED\n    #ifndef NINESLICE\n    #define NINESLICE\n    uniform vec4 innerOffset;\n    uniform vec2 outerScale;\n    uniform vec4 atlasRect;\n    varying vec2 vTiledUv;\n    #endif\n#endif\nmat4 getModelMatrix() {\n    #ifdef DYNAMICBATCH\n        return getBoneMatrix(vertex_boneIndices);\n    #elif defined(SKIN)\n        return matrix_model * (getBoneMatrix(vertex_boneIndices.x) * vertex_boneWeights.x +\n               getBoneMatrix(vertex_boneIndices.y) * vertex_boneWeights.y +\n               getBoneMatrix(vertex_boneIndices.z) * vertex_boneWeights.z +\n               getBoneMatrix(vertex_boneIndices.w) * vertex_boneWeights.w);\n    #elif defined(INSTANCING)\n        return mat4(instance_line1, instance_line2, instance_line3, instance_line4);\n    #else\n        return matrix_model;\n    #endif\n}\nvec4 getPosition() {\n    dModelMatrix = getModelMatrix();\n    vec3 localPos = vertex_position;\n    #ifdef NINESLICED\n        // outer and inner vertices are at the same position, scale both\n        localPos.xz *= outerScale;\n        // offset inner vertices inside\n        // (original vertices must be in [-1;1] range)\n        vec2 positiveUnitOffset = clamp(vertex_position.xz, vec2(0.0), vec2(1.0));\n        vec2 negativeUnitOffset = clamp(-vertex_position.xz, vec2(0.0), vec2(1.0));\n        localPos.xz += (-positiveUnitOffset * innerOffset.xy + negativeUnitOffset * innerOffset.zw) * vertex_texCoord0.xy;\n        vTiledUv = (localPos.xz - outerScale + innerOffset.xy) * -0.5 + 1.0; // uv = local pos - inner corner\n        localPos.xz *= -0.5; // move from -1;1 to -0.5;0.5\n        localPos = localPos.xzy;\n    #endif\n    vec4 posW = dModelMatrix * vec4(localPos, 1.0);\n    #ifdef SCREENSPACE\n        posW.zw = vec2(0.0, 1.0);\n    #endif\n    dPositionW = posW.xyz;\n    vec4 screenPos;\n    #ifdef UV1LAYOUT\n        screenPos = vec4(vertex_texCoord1.xy * 2.0 - 1.0, 0.5, 1);\n    #else\n        #ifdef SCREENSPACE\n            screenPos = posW;\n        #else\n            screenPos = matrix_viewProjection * posW;\n        #endif\n        #ifdef PIXELSNAP\n            // snap vertex to a pixel boundary\n            screenPos.xy = (screenPos.xy * 0.5) + 0.5;\n            screenPos.xy *= uScreenSize.xy;\n            screenPos.xy = floor(screenPos.xy);\n            screenPos.xy *= uScreenSize.zw;\n            screenPos.xy = (screenPos.xy * 2.0) - 1.0;\n        #endif\n    #endif\n    return screenPos;\n}\nvec3 getWorldPosition() {\n    return dPositionW;\n}\n";
+pc.shaderChunks.transformVS = "#ifdef PIXELSNAP\n    uniform vec4 uScreenSize;\n#endif\nmat4 getModelMatrix() {\n    #ifdef DYNAMICBATCH\n        return getBoneMatrix(vertex_boneIndices);\n    #elif defined(SKIN)\n        return matrix_model * (getBoneMatrix(vertex_boneIndices.x) * vertex_boneWeights.x +\n               getBoneMatrix(vertex_boneIndices.y) * vertex_boneWeights.y +\n               getBoneMatrix(vertex_boneIndices.z) * vertex_boneWeights.z +\n               getBoneMatrix(vertex_boneIndices.w) * vertex_boneWeights.w);\n    #elif defined(INSTANCING)\n        return mat4(instance_line1, instance_line2, instance_line3, instance_line4);\n    #else\n        return matrix_model;\n    #endif\n}\nvec4 getPosition() {\n    dModelMatrix = getModelMatrix();\n    vec3 localPos = vertex_position;\n    #ifdef NINESLICED\n        // outer and inner vertices are at the same position, scale both\n        localPos.xz *= outerScale;\n        // offset inner vertices inside\n        // (original vertices must be in [-1;1] range)\n        vec2 positiveUnitOffset = clamp(vertex_position.xz, vec2(0.0), vec2(1.0));\n        vec2 negativeUnitOffset = clamp(-vertex_position.xz, vec2(0.0), vec2(1.0));\n        localPos.xz += (-positiveUnitOffset * innerOffset.xy + negativeUnitOffset * innerOffset.zw) * vertex_texCoord0.xy;\n        vTiledUv = (localPos.xz - outerScale + innerOffset.xy) * -0.5 + 1.0; // uv = local pos - inner corner\n        localPos.xz *= -0.5; // move from -1;1 to -0.5;0.5\n        localPos = localPos.xzy;\n    #endif\n    vec4 posW = dModelMatrix * vec4(localPos, 1.0);\n    #ifdef SCREENSPACE\n        posW.zw = vec2(0.0, 1.0);\n    #endif\n    dPositionW = posW.xyz;\n    vec4 screenPos;\n    #ifdef UV1LAYOUT\n        screenPos = vec4(vertex_texCoord1.xy * 2.0 - 1.0, 0.5, 1);\n    #else\n        #ifdef SCREENSPACE\n            screenPos = posW;\n        #else\n            screenPos = matrix_viewProjection * posW;\n        #endif\n        #ifdef PIXELSNAP\n            // snap vertex to a pixel boundary\n            screenPos.xy = (screenPos.xy * 0.5) + 0.5;\n            screenPos.xy *= uScreenSize.xy;\n            screenPos.xy = floor(screenPos.xy);\n            screenPos.xy *= uScreenSize.zw;\n            screenPos.xy = (screenPos.xy * 2.0) - 1.0;\n        #endif\n    #endif\n    return screenPos;\n}\nvec3 getWorldPosition() {\n    return dPositionW;\n}\n";
 pc.shaderChunks.transformDeclVS = "attribute vec3 vertex_position;\nuniform mat4 matrix_model;\nuniform mat4 matrix_viewProjection;\nvec3 dPositionW;\nmat4 dModelMatrix;\n";
-pc.shaderChunks.uv0VS = "\nvec2 getUv0() {\n    return vertex_texCoord0;\n}\n";
+pc.shaderChunks.uv0VS = "#ifdef NINESLICED\nvec2 getUv0() {\n    vec2 uv = vertex_position.xz;\n    // offset inner vertices inside\n    // (original vertices must be in [-1;1] range)\n    vec2 positiveUnitOffset = clamp(vertex_position.xz, vec2(0.0), vec2(1.0));\n    vec2 negativeUnitOffset = clamp(-vertex_position.xz, vec2(0.0), vec2(1.0));\n    uv += (-positiveUnitOffset * innerOffset.xy + negativeUnitOffset * innerOffset.zw) * vertex_texCoord0.xy;\n    uv = uv * -0.5 + 0.5;\n    uv = uv * atlasRect.zw + atlasRect.xy;\n    vMask = vertex_texCoord0.xy;\n    return uv;\n}\n#else\nvec2 getUv0() {\n    return vertex_texCoord0;\n}\n#endif\n";
 pc.shaderChunks.uv1VS = "\nvec2 getUv1() {\n    return vertex_texCoord1;\n}\n";
-pc.shaderChunks.uv9SliceVS = "#ifndef NINESLICE\n#define NINESLICE\nuniform vec4 innerOffset;\nuniform vec2 outerScale;\nuniform vec4 atlasRect;\nvarying vec2 vTiledUv;\n#endif\nvarying vec2 vMask;\nvec2 getUv0() {\n    vec2 uv = vertex_position.xz;\n    // offset inner vertices inside\n    // (original vertices must be in [-1;1] range)\n    vec2 positiveUnitOffset = clamp(vertex_position.xz, vec2(0.0), vec2(1.0));\n    vec2 negativeUnitOffset = clamp(-vertex_position.xz, vec2(0.0), vec2(1.0));\n    uv += (-positiveUnitOffset * innerOffset.xy + negativeUnitOffset * innerOffset.zw) * vertex_texCoord0.xy;\n    uv = uv * -0.5 + 0.5;\n    uv = uv * atlasRect.zw + atlasRect.xy;\n    vMask = vertex_texCoord0.xy;\n    return uv;\n}\n";
 pc.shaderChunks.viewDirPS = "void getViewDir() {\n    dViewDirW = normalize(view_position - vPositionW);\n}\n";
 pc.shaderChunks.viewNormalVS = "\n#ifndef VIEWMATRIX\n#define VIEWMATRIX\nuniform mat4 matrix_view;\n#endif\nvec3 getViewNormal() {\n    return mat3(matrix_view) * vNormalW;\n}\n";
 pc.programlib = {gammaCode:function(value) {
@@ -7212,8 +7372,27 @@ f:_oldChunkTransformScreenSpace}, transformScreenSpaceBatchSkinned:{n:"transform
     codes[3][checkId] = true;
   }
   return codes;
-}, _uvSource:function(id, uv) {
-  return id === 0 ? "vUv" + uv : "vUV" + uv + "_" + id;
+}, _getUvSourceExpression:function(transformPropName, uVPropName, options) {
+  var transformId = options[transformPropName];
+  var uvChannel = options[uVPropName];
+  var expression;
+  if (options.nineSlicedMode === pc.SPRITE_RENDERMODE_SLICED) {
+    expression = "nineSlicedUv";
+  } else {
+    if (options.nineSlicedMode === pc.SPRITE_RENDERMODE_TILED) {
+      expression = "nineSlicedUv, -1000.0";
+    } else {
+      if (transformId === 0) {
+        expression = "vUv" + uvChannel;
+      } else {
+        expression = "vUV" + uvChannel + "_" + transformId;
+      }
+      if (options.heightMap && transformPropName !== "heightMapTransform") {
+        expression += " + dUvOffset";
+      }
+    }
+  }
+  return expression;
 }, _addMapDef:function(name, enabled) {
   var s = "\n#undef " + name + "\n";
   if (enabled) {
@@ -7227,30 +7406,32 @@ f:_oldChunkTransformScreenSpace}, transformScreenSpaceBatchSkinned:{n:"transform
   s += this._addMapDef("MAPVERTEX", vertex);
   s += this._addMapDef("MAPTEXTURE", map);
   return s;
-}, _addMap:function(p, options, chunks, uvOffset, subCode, format) {
-  var mname = p + "Map";
-  var tint = options[p + "Tint"];
-  var vert = options[p + "VertexColor"];
-  var tex = options[mname];
-  if (!subCode) {
-    subCode = chunks[p + "PS"];
-  }
-  if (tex) {
-    var uname = mname + "Uv";
-    var tname = mname + "Transform";
-    var cname = mname + "Channel";
-    var uv = this._uvSource(options[tname], options[uname]) + uvOffset;
-    subCode = subCode.replace(/\$UV/g, uv).replace(/\$CH/g, options[cname]);
-    if (format !== undefined) {
-      var fmt = format === 0 ? "texture2DSRGB" : format === 1 ? "texture2DRGBM" : "texture2D";
+}, _addMap:function(propName, chunkName, options, chunks, samplerFormat) {
+  var mapPropName = propName + "Map";
+  var uVPropName = mapPropName + "Uv";
+  var transformPropName = mapPropName + "Transform";
+  var channelPropName = mapPropName + "Channel";
+  var vertexColorChannelPropName = propName + "VertexColorChannel";
+  var tintPropName = propName + "Tint";
+  var vertexColorPropName = propName + "VertexColor";
+  var tintOption = options[tintPropName];
+  var vertexColorOption = options[vertexColorPropName];
+  var textureOption = options[mapPropName];
+  var subCode = chunks[chunkName];
+  if (textureOption) {
+    var uv = this._getUvSourceExpression(transformPropName, uVPropName, options);
+    subCode = subCode.replace(/\$UV/g, uv).replace(/\$CH/g, options[channelPropName]);
+    if (samplerFormat !== undefined) {
+      var fmt = samplerFormat === 0 ? "texture2DSRGB" : samplerFormat === 1 ? "texture2DRGBM" : "texture2D";
       subCode = subCode.replace(/\$texture2DSAMPLE/g, fmt);
     }
   }
-  if (vert) {
-    var vcname = p + "VertexColorChannel";
-    subCode = subCode.replace(/\$VC/g, options[vcname]);
+  if (vertexColorOption) {
+    subCode = subCode.replace(/\$VC/g, options[vertexColorChannelPropName]);
   }
-  subCode = this._addMapDefs(tint === 1, tint === 3, vert, tex) + subCode;
+  var isFloatTint = tintOption === 1;
+  var isVecTint = tintOption === 3;
+  subCode = this._addMapDefs(isFloatTint, isVecTint, vertexColorOption, textureOption) + subCode;
   return subCode.replace(/\$/g, "");
 }, _nonPointShadowMapProjection:function(device, light, shadowCoordArgs) {
   if (!light._normalOffsetBias || light._isVsm) {
@@ -7271,6 +7452,35 @@ f:_oldChunkTransformScreenSpace}, transformScreenSpaceBatchSkinned:{n:"transform
   return "       getShadowCoordOrthoNormalOffset" + shadowCoordArgs;
 }, _addVaryingIfNeeded:function(code, type, name) {
   return code.indexOf(name) >= 0 ? "varying " + type + " " + name + ";\n" : "";
+}, _vsAddTransformCode:function(code, device, chunks, options) {
+  code += chunks.transformVS;
+  return code;
+}, _vsAddBaseCode:function(code, device, chunks, options) {
+  code += chunks.baseVS;
+  if (options.nineSlicedMode === pc.SPRITE_RENDERMODE_SLICED || options.nineSlicedMode === pc.SPRITE_RENDERMODE_TILED) {
+    code += chunks.baseNineSlicedVS;
+  }
+  return code;
+}, _fsAddBaseCode:function(code, device, chunks, options) {
+  code += chunks.basePS;
+  if (options.nineSlicedMode === pc.SPRITE_RENDERMODE_SLICED) {
+    code += chunks.baseNineSlicedPS;
+  } else {
+    if (options.nineSlicedMode === pc.SPRITE_RENDERMODE_TILED) {
+      code += chunks.baseNineSlicedTiledPS;
+    }
+  }
+  return code;
+}, _fsAddStartCode:function(code, device, chunks, options) {
+  code += chunks.startPS;
+  if (options.nineSlicedMode === pc.SPRITE_RENDERMODE_SLICED) {
+    code += chunks.startNineSlicedPS;
+  } else {
+    if (options.nineSlicedMode === pc.SPRITE_RENDERMODE_TILED) {
+      code += chunks.startNineSlicedTiledPS;
+    }
+  }
+  return code;
 }, createShaderDefinition:function(device, options) {
   var i, p;
   var lighting = options.lights.length > 0;
@@ -7289,7 +7499,6 @@ f:_oldChunkTransformScreenSpace}, transformScreenSpaceBatchSkinned:{n:"transform
   }
   var cubemapReflection = (options.cubeMap || options.prefilteredCubemap && options.useSpecular) && !options.sphereMap && !options.dpAtlas;
   var reflections = options.sphereMap || cubemapReflection || options.dpAtlas;
-  var useTangents = pc.precalculatedTangents;
   var useTexCubeLod = options.useTexCubeLod;
   if (options.cubeMap) {
     options.sphereMap = null;
@@ -7353,7 +7562,7 @@ f:_oldChunkTransformScreenSpace}, transformScreenSpaceBatchSkinned:{n:"transform
     }
     chunks = customChunks;
   }
-  code += chunks.baseVS;
+  code = this._vsAddBaseCode(code, device, chunks, options);
   var mainShadowLight = -1;
   if (!options.noShadow && !options.twoSidedLighting) {
     for (i = 0;i < options.lights.length;i++) {
@@ -7399,7 +7608,7 @@ f:_oldChunkTransformScreenSpace}, transformScreenSpaceBatchSkinned:{n:"transform
       code += chunks.viewNormalVS;
       codeBody += "   vNormalV    = getViewNormal();\n";
     }
-    if ((options.heightMap || options.normalMap) && useTangents) {
+    if ((options.heightMap || options.normalMap) && options.hasTangents) {
       attributes.vertex_tangent = pc.SEMANTIC_TANGENT;
       code += chunks.tangentBinormalVS;
       codeBody += "   vTangentW   = getTangent();\n";
@@ -7484,7 +7693,7 @@ f:_oldChunkTransformScreenSpace}, transformScreenSpaceBatchSkinned:{n:"transform
   if (options.pixelSnap) {
     code += "#define PIXELSNAP\n";
   }
-  code += chunks.transformVS;
+  code = this._vsAddTransformCode(code, device, chunks, options);
   if (needsNormal) {
     code += chunks.normalVS;
   }
@@ -7550,7 +7759,7 @@ f:_oldChunkTransformScreenSpace}, transformScreenSpaceBatchSkinned:{n:"transform
     code += varyings;
     if (options.alphaTest) {
       code += "float dAlpha;\n";
-      code += this._addMap("opacity", options, chunks, "");
+      code += this._addMap("opacity", "opacityPS", options, chunks);
       code += chunks.alphaTestPS;
     }
     code += pc.programlib.begin();
@@ -7568,7 +7777,7 @@ f:_oldChunkTransformScreenSpace}, transformScreenSpaceBatchSkinned:{n:"transform
       code += chunks.packDepthPS;
       if (options.alphaTest) {
         code += "float dAlpha;\n";
-        code += this._addMap("opacity", options, chunks, "");
+        code += this._addMap("opacity", "opacityPS", options, chunks);
         code += chunks.alphaTestPS;
       }
       code += pc.programlib.begin();
@@ -7589,7 +7798,7 @@ f:_oldChunkTransformScreenSpace}, transformScreenSpaceBatchSkinned:{n:"transform
           code += "uniform vec2 polygonOffset;\n";
         }
         if (shadowType === pc.SHADOW_VSM32) {
-          if (device.extTextureFloatHighPrecision) {
+          if (device.textureFloatHighPrecision) {
             code += "#define VSM_EXPONENT 15.0\n\n";
           } else {
             code += "#define VSM_EXPONENT 5.54\n\n";
@@ -7606,7 +7815,7 @@ f:_oldChunkTransformScreenSpace}, transformScreenSpaceBatchSkinned:{n:"transform
         code += varyings;
         if (options.alphaTest) {
           code += "float dAlpha;\n";
-          code += this._addMap("opacity", options, chunks, "");
+          code += this._addMap("opacity", "opacityPS", options, chunks);
           code += chunks.alphaTestPS;
         }
         if (shadowType === pc.SHADOW_PCF3 && (!device.webgl2 || lightType === pc.LIGHTTYPE_POINT)) {
@@ -7661,7 +7870,7 @@ f:_oldChunkTransformScreenSpace}, transformScreenSpaceBatchSkinned:{n:"transform
     return {attributes:attributes, vshader:vshader, fshader:fshader, tag:pc.SHADERTAG_MATERIAL};
   }
   code += varyings;
-  code += chunks.basePS;
+  code = this._fsAddBaseCode(code, device, chunks, options);
   var codeBegin = code;
   code = "";
   var numShadowLights = 0;
@@ -7734,16 +7943,27 @@ f:_oldChunkTransformScreenSpace}, transformScreenSpaceBatchSkinned:{n:"transform
     }
   }
   code += "\n";
-  var uvOffset = options.heightMap ? " + dUvOffset" : "";
-  var tbn = options.fastTbn ? chunks.TBNfastPS : chunks.TBNPS;
+  var tbn;
+  if (!options.hasTangents) {
+    tbn = chunks.TBNderivativePS;
+  } else {
+    if (options.fastTbn) {
+      tbn = chunks.TBNfastPS;
+    } else {
+      tbn = chunks.TBNPS;
+    }
+  }
   if (needsNormal) {
-    if (options.normalMap && useTangents) {
+    if (options.normalMap) {
       code += options.packedNormal ? chunks.normalXYPS : chunks.normalXYZPS;
-      var uv = this._uvSource(options.normalMapTransform, options.normalMapUv) + uvOffset;
+      var transformedNormalMapUv = this._getUvSourceExpression("normalMapTransform", "normalMapUv", options);
       if (options.needsNormalFloat) {
-        code += (options.fastTbn ? chunks.normalMapFloatTBNfastPS : chunks.normalMapFloatPS).replace(/\$UV/g, uv);
+        code += (options.fastTbn ? chunks.normalMapFloatTBNfastPS : chunks.normalMapFloatPS).replace(/\$UV/g, transformedNormalMapUv);
       } else {
-        code += chunks.normalMapPS.replace(/\$UV/g, uv);
+        code += chunks.normalMapPS.replace(/\$UV/g, transformedNormalMapUv);
+      }
+      if (!options.hasTangents) {
+        tbn = tbn.replace(/\$UV/g, transformedNormalMapUv);
       }
       code += tbn;
     } else {
@@ -7763,11 +7983,11 @@ f:_oldChunkTransformScreenSpace}, transformScreenSpaceBatchSkinned:{n:"transform
     code += options.cubeMapProjection > 0 ? chunks.cubeMapProjectBoxPS : chunks.cubeMapProjectNonePS;
     code += options.skyboxIntensity ? chunks.envMultiplyPS : chunks.envConstPS;
   }
-  code += this._addMap("diffuse", options, chunks, uvOffset);
+  code += this._addMap("diffuse", "diffusePS", options, chunks);
   if (options.blendType !== pc.BLEND_NONE || options.alphaTest || options.alphaToCoverage) {
-    code += this._addMap("opacity", options, chunks, uvOffset);
+    code += this._addMap("opacity", "opacityPS", options, chunks);
   }
-  code += this._addMap("emissive", options, chunks, uvOffset, null, options.emissiveFormat);
+  code += this._addMap("emissive", "emissivePS", options, chunks, options.emissiveFormat);
   if (options.useSpecular && (lighting || reflections)) {
     if (options.specularAntialias && options.normalMap) {
       if (options.needsNormalFloat && needsNormal) {
@@ -7778,8 +7998,9 @@ f:_oldChunkTransformScreenSpace}, transformScreenSpaceBatchSkinned:{n:"transform
     } else {
       code += chunks.specularAaNonePS;
     }
-    code += this._addMap(options.useMetalness ? "metalness" : "specular", options, chunks, uvOffset);
-    code += this._addMap("gloss", options, chunks, uvOffset);
+    var specularPropName = options.useMetalness ? "metalness" : "specular";
+    code += this._addMap(specularPropName, specularPropName + "PS", options, chunks);
+    code += this._addMap("gloss", "glossPS", options, chunks);
     if (options.fresnelModel > 0) {
       if (options.fresnelModel === pc.FRESNEL_SIMPLE) {
         code += chunks.fresnelSimplePS;
@@ -7796,13 +8017,17 @@ f:_oldChunkTransformScreenSpace}, transformScreenSpaceBatchSkinned:{n:"transform
   }
   if (options.heightMap) {
     if (!options.normalMap) {
+      var transformedHeightMapUv = this._getUvSourceExpression("heightMapTransform", "heightMapUv", options);
+      if (!options.hasTangents) {
+        tbn = tbn.replace(/\$UV/g, transformedHeightMapUv);
+      }
       code += tbn;
     }
-    code += this._addMap("height", options, chunks, "", chunks.parallaxPS);
+    code += this._addMap("height", "parallaxPS", options, chunks);
   }
   var useAo = options.aoMap || options.aoVertexColor;
   if (useAo) {
-    code += this._addMap("ao", options, chunks, uvOffset, options.aoVertexColor ? chunks.aoVertPS : chunks.aoTexPS);
+    code += this._addMap("ao", "aoPS", options, chunks);
     if (options.occludeSpecular) {
       if (options.occludeSpecular === pc.SPECOCC_AO) {
         code += options.occludeSpecularFloat ? chunks.aoSpecOccSimplePS : chunks.aoSpecOccConstSimplePS;
@@ -7914,7 +8139,8 @@ f:_oldChunkTransformScreenSpace}, transformScreenSpaceBatchSkinned:{n:"transform
   }
   var addAmbient = true;
   if (options.lightMap || options.lightVertexColor) {
-    code += this._addMap("light", options, chunks, uvOffset, options.dirLightMap ? chunks.lightmapDirPS : chunks.lightmapSinglePS, options.lightMapFormat);
+    var lightmapChunkPropName = options.dirLightMap ? "lightmapDirPS" : "lightmapSinglePS";
+    code += this._addMap("light", lightmapChunkPropName, options, chunks, options.lightMapFormat);
     addAmbient = options.lightMapWithoutAmbient;
   }
   if (addAmbient) {
@@ -7954,14 +8180,14 @@ f:_oldChunkTransformScreenSpace}, transformScreenSpaceBatchSkinned:{n:"transform
   var usesSpot = false;
   var usesCookie = false;
   var usesCookieNow;
-  code += chunks.startPS;
+  code = this._fsAddStartCode(code, device, chunks, options);
   if (needsNormal) {
     if (options.twoSidedLighting) {
       code += "   dVertexNormalW = gl_FrontFacing ? vNormalW : -vNormalW;\n";
     } else {
       code += "   dVertexNormalW = vNormalW;\n";
     }
-    if (options.heightMap || options.normalMap) {
+    if ((options.heightMap || options.normalMap) && options.hasTangents) {
       if (options.twoSidedLighting) {
         code += "   dTangentW = gl_FrontFacing ? vTangentW : -vTangentW;\n";
         code += "   dBinormalW = gl_FrontFacing ? vBinormalW : -vBinormalW;\n";
@@ -8087,7 +8313,7 @@ f:_oldChunkTransformScreenSpace}, transformScreenSpaceBatchSkinned:{n:"transform
           } else {
             if (light._shadowType === pc.SHADOW_VSM32) {
               shadowReadMode = "VSM32";
-              if (device.extTextureFloatHighPrecision) {
+              if (device.textureFloatHighPrecision) {
                 evsmExp = "15.0";
               } else {
                 evsmExp = "5.54";
@@ -8332,9 +8558,9 @@ Object.assign(pc, function() {
 (function() {
   var enums = {BLEND_SUBTRACTIVE:0, BLEND_ADDITIVE:1, BLEND_NORMAL:2, BLEND_NONE:3, BLEND_PREMULTIPLIED:4, BLEND_MULTIPLICATIVE:5, BLEND_ADDITIVEALPHA:6, BLEND_MULTIPLICATIVE2X:7, BLEND_SCREEN:8, BLEND_MIN:9, BLEND_MAX:10, FOG_NONE:"none", FOG_LINEAR:"linear", FOG_EXP:"exp", FOG_EXP2:"exp2", FRESNEL_NONE:0, FRESNEL_SCHLICK:2, LAYER_HUD:0, LAYER_GIZMO:1, LAYER_FX:2, LAYER_WORLD:15, LAYERID_WORLD:0, LAYERID_DEPTH:1, LAYERID_SKYBOX:2, LAYERID_IMMEDIATE:3, LAYERID_UI:4, LIGHTTYPE_DIRECTIONAL:0, LIGHTTYPE_POINT:1, 
   LIGHTTYPE_SPOT:2, LIGHTFALLOFF_LINEAR:0, LIGHTFALLOFF_INVERSESQUARED:1, SHADOW_PCF3:0, SHADOW_DEPTH:0, SHADOW_VSM8:1, SHADOW_VSM16:2, SHADOW_VSM32:3, SHADOW_PCF5:4, BLUR_BOX:0, BLUR_GAUSSIAN:1, PARTICLESORT_NONE:0, PARTICLESORT_DISTANCE:1, PARTICLESORT_NEWER_FIRST:2, PARTICLESORT_OLDER_FIRST:3, PARTICLEMODE_GPU:0, PARTICLEMODE_CPU:1, EMITTERSHAPE_BOX:0, EMITTERSHAPE_SPHERE:1, PROJECTION_PERSPECTIVE:0, PROJECTION_ORTHOGRAPHIC:1, RENDERSTYLE_SOLID:0, RENDERSTYLE_WIREFRAME:1, RENDERSTYLE_POINTS:2, 
-  CUBEPROJ_NONE:0, CUBEPROJ_BOX:1, SPECULAR_PHONG:0, SPECULAR_BLINN:1, GAMMA_NONE:0, GAMMA_SRGB:1, GAMMA_SRGBFAST:2, GAMMA_SRGBHDR:3, TONEMAP_LINEAR:0, TONEMAP_FILMIC:1, TONEMAP_HEJL:2, TONEMAP_ACES:3, TONEMAP_ACES2:4, SPECOCC_NONE:0, SPECOCC_AO:1, SPECOCC_GLOSSDEPENDENT:2, SHADERDEF_NOSHADOW:1, SHADERDEF_SKIN:2, SHADERDEF_UV0:4, SHADERDEF_UV1:8, SHADERDEF_VCOLOR:16, SHADERDEF_INSTANCING:32, SHADERDEF_LM:64, SHADERDEF_DIRLM:128, SHADERDEF_SCREENSPACE:256, LINEBATCH_WORLD:0, LINEBATCH_OVERLAY:1, LINEBATCH_GIZMO:2, 
-  SHADOWUPDATE_NONE:0, SHADOWUPDATE_THISFRAME:1, SHADOWUPDATE_REALTIME:2, SORTKEY_FORWARD:0, SORTKEY_DEPTH:1, MASK_DYNAMIC:1, MASK_BAKED:2, MASK_LIGHTMAP:4, SHADER_FORWARD:0, SHADER_FORWARDHDR:1, SHADER_DEPTH:2, SHADER_SHADOW:3, SHADER_PICK:18, BAKE_COLOR:0, BAKE_COLORDIR:1, VIEW_CENTER:0, VIEW_LEFT:1, VIEW_RIGHT:2, SORTMODE_NONE:0, SORTMODE_MANUAL:1, SORTMODE_MATERIALMESH:2, SORTMODE_BACK2FRONT:3, SORTMODE_FRONT2BACK:4, COMPUPDATED_INSTANCES:1, COMPUPDATED_LIGHTS:2, COMPUPDATED_CAMERAS:4, COMPUPDATED_BLEND:8, 
-  ASPECT_AUTO:0, ASPECT_MANUAL:1, ORIENTATION_HORIZONTAL:0, ORIENTATION_VERTICAL:1};
+  CUBEPROJ_NONE:0, CUBEPROJ_BOX:1, SPECULAR_PHONG:0, SPECULAR_BLINN:1, GAMMA_NONE:0, GAMMA_SRGB:1, GAMMA_SRGBFAST:2, GAMMA_SRGBHDR:3, TONEMAP_LINEAR:0, TONEMAP_FILMIC:1, TONEMAP_HEJL:2, TONEMAP_ACES:3, TONEMAP_ACES2:4, SPECOCC_NONE:0, SPECOCC_AO:1, SPECOCC_GLOSSDEPENDENT:2, SHADERDEF_NOSHADOW:1, SHADERDEF_SKIN:2, SHADERDEF_UV0:4, SHADERDEF_UV1:8, SHADERDEF_VCOLOR:16, SHADERDEF_INSTANCING:32, SHADERDEF_LM:64, SHADERDEF_DIRLM:128, SHADERDEF_SCREENSPACE:256, SHADERDEF_TANGENTS:512, LINEBATCH_WORLD:0, 
+  LINEBATCH_OVERLAY:1, LINEBATCH_GIZMO:2, SHADOWUPDATE_NONE:0, SHADOWUPDATE_THISFRAME:1, SHADOWUPDATE_REALTIME:2, SORTKEY_FORWARD:0, SORTKEY_DEPTH:1, MASK_DYNAMIC:1, MASK_BAKED:2, MASK_LIGHTMAP:4, SHADER_FORWARD:0, SHADER_FORWARDHDR:1, SHADER_DEPTH:2, SHADER_SHADOW:3, SHADER_PICK:18, BAKE_COLOR:0, BAKE_COLORDIR:1, VIEW_CENTER:0, VIEW_LEFT:1, VIEW_RIGHT:2, SORTMODE_NONE:0, SORTMODE_MANUAL:1, SORTMODE_MATERIALMESH:2, SORTMODE_BACK2FRONT:3, SORTMODE_FRONT2BACK:4, SORTMODE_CUSTOM:5, COMPUPDATED_INSTANCES:1, 
+  COMPUPDATED_LIGHTS:2, COMPUPDATED_CAMERAS:4, COMPUPDATED_BLEND:8, ASPECT_AUTO:0, ASPECT_MANUAL:1, ORIENTATION_HORIZONTAL:0, ORIENTATION_VERTICAL:1};
   Object.assign(pc, enums);
   pc.scene = {};
   Object.assign(pc.scene, enums);
@@ -9482,18 +9708,18 @@ Object.assign(pc, function() {
       }
     }
   }, updateMorphing:function(drawCalls) {
-    // var i, morph;
-    // var drawCallsCount = drawCalls.length;
-    // for (i = 0;i < drawCallsCount;i++) {
-    //   if (!drawCalls[i].visibleThisFrame) {
-    //     continue;
-    //   }
-    //   morph = drawCalls[i].morphInstance;
-    //   if (morph && morph._dirty) {
-    //     morph.update(drawCalls[i].mesh);
-    //     morph._dirty = false;
-    //   }
-    // }
+    var i, morph;
+    var drawCallsCount = drawCalls.length;
+    for (i = 0;i < drawCallsCount;i++) {
+      if (!drawCalls[i].visibleThisFrame) {
+        continue;
+      }
+      morph = drawCalls[i].morphInstance;
+      if (morph && morph._dirty) {
+        morph.update(drawCalls[i].mesh);
+        morph._dirty = false;
+      }
+    }
   }, setBaseConstants:function(device, material) {
     device.setCullMode(material.cull);
     if (material.opacityMap) {
@@ -11796,10 +12022,10 @@ Object.assign(pc, function() {
     if (value === pc.SHADOW_PCF5 && !device.webgl2) {
       value = pc.SHADOW_PCF3;
     }
-    if (value === pc.SHADOW_VSM32 && !device.extTextureFloatRenderable) {
+    if (value === pc.SHADOW_VSM32 && !device.textureFloatRenderable) {
       value = pc.SHADOW_VSM16;
     }
-    if (value === pc.SHADOW_VSM16 && !device.extTextureHalfFloatRenderable) {
+    if (value === pc.SHADOW_VSM16 && !device.textureHalfFloatRenderable) {
       value = pc.SHADOW_VSM8;
     }
     this._isVsm = value >= pc.SHADOW_VSM8 && value <= pc.SHADOW_VSM32;
@@ -12384,37 +12610,13 @@ Object.assign(pc, function() {
 Object.assign(pc, function() {
   var StandardMaterial = function() {
     pc.Material.call(this);
+    this._assetReferences = {};
+    this._validator = null;
     this.reset();
     this.update();
   };
   StandardMaterial.prototype = Object.create(pc.Material.prototype);
   StandardMaterial.prototype.constructor = StandardMaterial;
-  var _createTexture = function(param) {
-    return param.data instanceof pc.Texture ? param.data : null;
-  };
-  var _createCubemap = function(param) {
-    return param.data instanceof pc.Texture ? param.data : null;
-  };
-  var _createVec2 = function(param) {
-    return new pc.Vec2(param.data[0], param.data[1]);
-  };
-  var _createBoundingBox = function(param) {
-    var center, halfExtents;
-    if (param.data && param.data.center) {
-      center = new pc.Vec3(param.data.center[0], param.data.center[1], param.data.center[2]);
-    } else {
-      center = new pc.Vec3(0, 0, 0);
-    }
-    if (param.data && param.data.halfExtents) {
-      halfExtents = new pc.Vec3(param.data.halfExtents[0], param.data.halfExtents[1], param.data.halfExtents[2]);
-    } else {
-      halfExtents = new pc.Vec3(0.5, 0.5, 0.5);
-    }
-    return new pc.BoundingBox(center, halfExtents);
-  };
-  var _createRgb = function(param) {
-    return new pc.Color(param.data[0], param.data[1], param.data[2]);
-  };
   var _propsSerial = [];
   var _propsSerialDefaultVal = [];
   var _propsInternalNull = [];
@@ -12708,34 +12910,46 @@ Object.assign(pc, function() {
       clone.update();
     }
     return clone;
-  }, init:function(data) {
+  }, initialize:function(data) {
     this.reset();
-    this.name = data.name;
+    if (!data.validated) {
+      if (!this._validator) {
+        this._validator = new pc.StandardMaterialValidator;
+      }
+      this._validator.validate(data);
+    }
     if (data.chunks) {
       this.chunks.copy(data.chunks);
     }
-    for (var i = 0;i < data.parameters.length;i++) {
-      var param = data.parameters[i];
-      if (param.type === "vec3") {
-        this[param.name] = _createRgb(param);
+    for (var key in data) {
+      var type = pc.StandardMaterial.PARAMETER_TYPES[key];
+      var value = data[key];
+      if (type === "vec2") {
+        this[key] = new pc.Vec2(value[0], value[1]);
       } else {
-        if (param.type === "vec2") {
-          this[param.name] = _createVec2(param);
+        if (type === "rgb") {
+          this[key] = new pc.Color(value[0], value[1], value[2]);
         } else {
-          if (param.type === "texture") {
-            this[param.name] = _createTexture(param);
-          } else {
-            if (param.type === "cubemap") {
-              this[param.name] = _createCubemap(param);
+          if (type === "texture") {
+            if (value instanceof pc.Texture) {
+              this[key] = value;
             } else {
-              if (param.name === "bumpMapFactor") {
-                this.bumpiness = param.data;
+              this[key] = null;
+            }
+          } else {
+            if (type === "cubemap") {
+              if (value instanceof pc.Texture) {
+                this[key] = value;
               } else {
-                if (param.type === "boundingbox") {
-                  this[param.name] = _createBoundingBox(param);
-                } else {
-                  this[param.name] = param.data;
-                }
+                this[key] = null;
+              }
+            } else {
+              if (type === "boundingbox") {
+                var center = new pc.Vec3(value.center[0], value.center[1], value.center[2]);
+                var halfExtents = new pc.Vec3(value.halfExtents[0], value.halfExtents[1], value.halfExtents[2]);
+                this[key] = new pc.BoundingBox(center, halfExtents);
+              } else {
+                this[key] = data[key];
               }
             }
           }
@@ -12743,6 +12957,9 @@ Object.assign(pc, function() {
       }
     }
     this.update();
+  }, init:function(data) {
+    console.warn("StandardMaterial.init is deprecated. Use StandardMaterial.initialize instead");
+    this.initialize(data);
   }, _updateMapTransform:function(transform, tiling, offset) {
     transform = transform || new pc.Vec4;
     transform.set(tiling.x, tiling.y, offset.x, offset.y);
@@ -12775,8 +12992,10 @@ Object.assign(pc, function() {
       }
     }
   }, _setParameter:function(name, value) {
+    if (!this.parameters[name]) {
+      this._propsSet.push(name);
+    }
     this.setParameter(name, value);
-    this._propsSet.push(name);
   }, _clearParameters:function() {
     var props = this._propsSet;
     for (var i = 0;i < props.length;i++) {
@@ -12800,6 +13019,7 @@ Object.assign(pc, function() {
     }
     return null;
   }, update:function() {
+    var uniform;
     this._clearParameters();
     this._setParameter("material_ambient", this.ambientUniform);
     if (!this.diffuseMap || this.diffuseTint) {
@@ -12814,7 +13034,8 @@ Object.assign(pc, function() {
         this._setParameter("material_metalness", this.metalness);
       }
     }
-    this._setParameter(this.getUniform("shininess", this.shininess, true));
+    uniform = this.getUniform("shininess", this.shininess, true);
+    this._setParameter(uniform.name, uniform.value);
     if (!this.emissiveMap || this.emissiveTint) {
       this._setParameter("material_emissive", this.emissiveUniform);
     }
@@ -12842,7 +13063,8 @@ Object.assign(pc, function() {
       this._setParameter("material_bumpiness", this.bumpiness);
     }
     if (this.heightMap) {
-      this._setParameter(this.getUniform("heightMapFactor", this.heightMapFactor, true));
+      uniform = this.getUniform("heightMapFactor", this.heightMapFactor, true);
+      this._setParameter(uniform.name, uniform.value);
     }
     if (this.cubeMap) {
       this._setParameter("texture_cubeMap", this.cubeMap);
@@ -13040,7 +13262,7 @@ Object.assign(pc, function() {
       alphaToCoverage:this.alphaToCoverage, needsNormalFloat:this.normalizeNormalMap, sphereMap:!!this.sphereMap, cubeMap:!!this.cubeMap, dpAtlas:!!this.dpAtlas, ambientSH:!!this.ambientSH, useSpecular:useSpecular, rgbmAmbient:rgbmAmbient, rgbmReflection:rgbmReflection, hdrAmbient:hdrAmbient, hdrReflection:hdrReflection, fixSeams:prefilteredCubeMap128 ? prefilteredCubeMap128.fixCubemapSeams : this.cubeMap ? this.cubeMap.fixCubemapSeams : false, prefilteredCubemap:!!prefilteredCubeMap128, emissiveFormat:this.emissiveMap ? 
       this.emissiveMap.rgbm ? 1 : this.emissiveMap.format === pc.PIXELFORMAT_RGBA32F ? 2 : 0 : null, lightMapFormat:this.lightMap ? this.lightMap.rgbm ? 1 : this.lightMap.format === pc.PIXELFORMAT_RGBA32F ? 2 : 0 : null, useRgbm:rgbmReflection || rgbmAmbient || (this.emissiveMap ? this.emissiveMap.rgbm : 0) || (this.lightMap ? this.lightMap.rgbm : 0), specularAntialias:this.specularAntialias, conserveEnergy:this.conserveEnergy, occludeSpecular:this.occludeSpecular, occludeSpecularFloat:this.occludeSpecularIntensity !== 
       1.0, occludeDirect:this.occludeDirect, shadingModel:this.shadingModel, fresnelModel:this.fresnelModel, packedNormal:this.normalMap ? this.normalMap.format === pc.PIXELFORMAT_DXT5 : false, forceFragmentPrecision:this.forceFragmentPrecision, fastTbn:this.fastTbn, cubeMapProjection:this.cubeMapProjection, chunks:this.chunks, customFragmentShader:this.customFragmentShader, refraction:!!this.refraction, useMetalness:this.useMetalness, blendType:this.blendType, skyboxIntensity:prefilteredCubeMap128 === 
-      globalSky128 && prefilteredCubeMap128 && scene.skyboxIntensity !== 1, forceUv1:this.forceUv1, useTexCubeLod:useTexCubeLod, msdf:!!this.msdfMap, twoSidedLighting:this.twoSidedLighting, pixelSnap:this.pixelSnap, pass:pass};
+      globalSky128 && prefilteredCubeMap128 && scene.skyboxIntensity !== 1, forceUv1:this.forceUv1, useTexCubeLod:useTexCubeLod, msdf:!!this.msdfMap, twoSidedLighting:this.twoSidedLighting, pixelSnap:this.pixelSnap, pass:pass, nineSlicedMode:this.nineSlicedMode};
       if (pass === pc.SHADER_FORWARDHDR) {
         if (options.gamma) {
           options.gamma = pc.GAMMA_SRGBHDR;
@@ -13065,6 +13287,9 @@ Object.assign(pc, function() {
           if ((objDefs & pc.SHADERDEF_DIRLM) !== 0) {
             options.dirLightMap = true;
           }
+        }
+        if (this.normalMap) {
+          options.hasTangents = (objDefs & pc.SHADERDEF_TANGENTS) !== 0;
         }
       }
       options.screenSpace = (objDefs & pc.SHADERDEF_SCREENSPACE) !== 0;
@@ -13211,6 +13436,7 @@ Object.assign(pc, function() {
     _defineFlag(obj, "forceUv1", false);
     _defineFlag(obj, "pixelSnap", false);
     _defineFlag(obj, "twoSidedLighting", false);
+    _defineFlag(obj, "nineSlicedMode", pc.SPRITE_RENDERMODE_SLICED);
     _defineTex2D(obj, "diffuse", 0, 3);
     _defineTex2D(obj, "specular", 0, 3);
     _defineTex2D(obj, "emissive", 0, 3);
@@ -13250,6 +13476,149 @@ Object.assign(pc, function() {
   _defineMaterialProps(StandardMaterial.prototype);
   return {StandardMaterial:StandardMaterial};
 }());
+(function() {
+  pc.StandardMaterial.PARAMETER_TYPES = {name:"string", chunks:"chunks", mappingFormat:"string", _engine:"boolean", ambient:"rgb", ambientTint:"boolean", aoVertexColor:"boolean", aoVertexColorChannel:"string", aoMap:"texture", aoMapChannel:"string", aoMapUv:"number", aoMapTiling:"vec2", aoMapOffset:"vec2", diffuse:"rgb", diffuseTint:"boolean", diffuseVertexColor:"boolean", diffuseVertexColorChannel:"string", diffuseMap:"texture", diffuseMapChannel:"string", diffuseMapUv:"number", diffuseMapTiling:"vec2", 
+  diffuseMapOffset:"vec2", specular:"rgb", specularTint:"boolean", specularVertexColor:"boolean", specularVertexColorChannel:"string", specularMap:"texture", specularMapChannel:"string", specularMapUv:"number", specularMapTiling:"vec2", specularMapOffset:"vec2", specularAntialias:"boolean", occludeSpecular:"enum:occludeSpecular", useMetalness:"boolean", metalness:"number", metalnessTint:"boolean", metalnessVertexColor:"boolean", metalnessVertexColorChannel:"string", metalnessMap:"texture", metalnessMapChannel:"string", 
+  metalnessMapUv:"number", metalnessMapTiling:"vec2", metalnessMapOffset:"vec2", conserveEnergy:"boolean", shininess:"number", glossVertexColor:"boolean", glossVertexColorChannel:"string", glossMap:"texture", glossMapChannel:"string", glossMapUv:"number", glossMapTiling:"vec2", glossMapOffset:"vec2", fresnelModel:"number", emissive:"rgb", emissiveTint:"boolean", emissiveVertexColor:"boolean", emissiveVertexColorChannel:"string", emissiveMap:"texture", emissiveMapChannel:"string", emissiveMapUv:"number", 
+  emissiveMapTiling:"vec2", emissiveMapOffset:"vec2", emissiveIntensity:"number", normalMap:"texture", normalMapTiling:"vec2", normalMapOffset:"vec2", normalMapUv:"number", bumpiness:"number", heightMap:"texture", heightMapChannel:"string", heightMapUv:"number", heightMapTiling:"vec2", heightMapOffset:"vec2", heightMapFactor:"number", alphaToCoverage:"boolean", alphaTest:"number", opacity:"number", opacityVertexColor:"boolean", opacityVertexColorChannel:"string", opacityMap:"texture", opacityMapChannel:"string", 
+  opacityMapUv:"number", opacityMapTiling:"vec2", opacityMapOffset:"vec2", reflectivity:"number", refraction:"number", refractionIndex:"number", sphereMap:"texture", cubeMap:"cubemap", cubeMapProjection:"number", cubeMapProjectionBox:"boundingbox", lightVertexColor:"boolean", lightVertexColorChannel:"string", lightMap:"texture", lightMapChannel:"string", lightMapUv:"number", lightMapTiling:"vec2", lightMapOffset:"vec2", depthTest:"boolean", depthWrite:"boolean", depthBias:"number", slopeDepthBias:"number", 
+  cull:"enum:cull", blendType:"enum:blendType", shadingModel:"enum:shadingModel", useFog:"boolean", useLighting:"boolean", useSkybox:"boolean", useGammaTonemap:"boolean", prefilteredCubeMap128:"texture", prefilteredCubeMap64:"texture", prefilteredCubeMap32:"texture", prefilteredCubeMap16:"texture", prefilteredCubeMap8:"texture", prefilteredCubeMap4:"texture"};
+  var key, type;
+  pc.StandardMaterial.TEXTURE_PARAMETERS = [];
+  for (key in pc.StandardMaterial.PARAMETER_TYPES) {
+    type = pc.StandardMaterial.PARAMETER_TYPES[key];
+    if (type === "texture") {
+      pc.StandardMaterial.TEXTURE_PARAMETERS.push(key);
+    }
+  }
+  pc.StandardMaterial.CUBEMAP_PARAMETERS = [];
+  for (key in pc.StandardMaterial.PARAMETER_TYPES) {
+    type = pc.StandardMaterial.PARAMETER_TYPES[key];
+    if (type === "cubemap") {
+      pc.StandardMaterial.CUBEMAP_PARAMETERS.push(key);
+    }
+  }
+})();
+Object.assign(pc, function() {
+  var StandardMaterialValidator = function() {
+    this.removeInvalid = true;
+    this.valid = true;
+    this.enumValidators = {occludeSpecular:this._createEnumValidator([pc.SPECOCC_NONE, pc.SPECOCC_AO, pc.SPECOCC_GLOSSDEPENDENT]), cull:this._createEnumValidator([pc.CULLFACE_NONE, pc.CULLFACE_BACK, pc.CULLFACE_FRONT, pc.CULLFACE_FRONTANDBACK]), blendType:this._createEnumValidator([pc.BLEND_SUBTRACTIVE, pc.BLEND_ADDITIVE, pc.BLEND_NORMAL, pc.BLEND_NONE, pc.BLEND_PREMULTIPLIED, pc.BLEND_MULTIPLICATIVE, pc.BLEND_ADDITIVEALPHA, pc.BLEND_MULTIPLICATIVE2X, pc.BLEND_SCREEN, pc.BLEND_MIN, pc.BLEND_MAX]), 
+    shadingModel:this._createEnumValidator([pc.SPECULAR_PHONG, pc.SPECULAR_BLINN])};
+  };
+  StandardMaterialValidator.prototype.setInvalid = function(key, data) {
+    this.valid = false;
+    if (this.removeInvalid) {
+      delete data[key];
+    }
+  };
+  StandardMaterialValidator.prototype.validate = function(data) {
+    var TYPES = pc.StandardMaterial.PARAMETER_TYPES;
+    var type;
+    var i;
+    var pathMapping = data.mappingFormat === "path";
+    for (var key in data) {
+      type = TYPES[key];
+      if (!type) {
+        this.valid = false;
+        continue;
+      }
+      if (type.startsWith("enum")) {
+        var enumType = type.split(":")[1];
+        if (this.enumValidators[enumType]) {
+          if (!this.enumValidators[enumType](data[key])) {
+            this.setInvalid(key, data);
+          }
+        }
+      } else {
+        if (type === "number") {
+          if (typeof data[key] !== "number") {
+            this.setInvalid(key, data);
+          }
+        } else {
+          if (type === "boolean") {
+            if (typeof data[key] !== "boolean") {
+              this.setInvalid(key, data);
+            }
+          } else {
+            if (type === "string") {
+              if (typeof data[key] !== "string") {
+                this.setInvalid(key, data);
+              }
+            } else {
+              if (type === "vec2") {
+                if (!(data[key] instanceof Array && data[key].length === 2)) {
+                  this.setInvalid(key, data);
+                }
+              } else {
+                if (type === "rgb") {
+                  if (!(data[key] instanceof Array && data[key].length === 3)) {
+                    this.setInvalid(key, data);
+                  }
+                } else {
+                  if (type === "texture") {
+                    if (!pathMapping) {
+                      if (typeof data[key] === "number" || data[key] === null) {
+                      } else {
+                        if (!(data[key] instanceof pc.Texture)) {
+                          this.setInvalid(key, data);
+                        }
+                      }
+                    } else {
+                      if (typeof data[key] === "string" || data[key === null]) {
+                      } else {
+                        if (!(data[key] instanceof pc.Texture)) {
+                          this.setInvalid(key, data);
+                        }
+                      }
+                    }
+                  } else {
+                    if (type === "boundingbox") {
+                      if (!(data[key].center && data[key].center instanceof Array && data[key].center.length === 3)) {
+                        this.setInvalid(key, data);
+                      }
+                      if (!(data[key].halfExtents && data[key].halfExtents instanceof Array && data[key].halfExtents.length === 3)) {
+                        this.setInvalid(key, data);
+                      }
+                    } else {
+                      if (type === "cubemap") {
+                        if (typeof data[key] === "number" || data[key] === null || data[key] === undefined) {
+                        } else {
+                          if (!(data[key] instanceof pc.Texture && data[key].cubemap)) {
+                            this.setInvalid(key, data);
+                          }
+                        }
+                      } else {
+                        if (type === "chunks") {
+                          var chunkNames = Object.keys(data[key]);
+                          for (i = 0;i < chunkNames.length;i++) {
+                            if (typeof data[key][chunkNames[i]] !== "string") {
+                              this.setInvalid(chunkNames[i], data[key]);
+                            }
+                          }
+                        } else {
+                          console.error("Unknown material type: " + type);
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    data.validated = true;
+    return this.valid;
+  };
+  StandardMaterialValidator.prototype._createEnumValidator = function(values) {
+    return function(value) {
+      return values.indexOf(value) >= 0;
+    };
+  };
+  return {StandardMaterialValidator:StandardMaterialValidator};
+}());
 Object.assign(pc, function() {
   var id = 0;
   var _tmpAabb = new pc.BoundingBox;
@@ -13288,6 +13657,7 @@ Object.assign(pc, function() {
     this._shaderDefs |= mesh.vertexBuffer.format.hasUv0 ? pc.SHADERDEF_UV0 : 0;
     this._shaderDefs |= mesh.vertexBuffer.format.hasUv1 ? pc.SHADERDEF_UV1 : 0;
     this._shaderDefs |= mesh.vertexBuffer.format.hasColor ? pc.SHADERDEF_VCOLOR : 0;
+    this._shaderDefs |= mesh.vertexBuffer.format.hasTangents ? pc.SHADERDEF_TANGENTS : 0;
     this._lightHash = 0;
     this.visible = true;
     this.layer = pc.LAYER_WORLD;
@@ -14182,9 +14552,9 @@ Object.assign(pc, function() {
         j3 = j * 3;
         index = target.indices[j];
         id = index * vertSizeF + offsetPF;
-        vdata[id] += 1.0 ;// target.deltaPositions[j3] * weight;
-        vdata[id + 1] += 1.0 ;// target.deltaPositions[j3 + 1] * weight;
-        vdata[id + 2] += 1.0 ;// target.deltaPositions[j3 + 2] * weight;
+        vdata[id] += target.deltaPositions[j3] * weight;
+        vdata[id + 1] += target.deltaPositions[j3 + 1] * weight;
+        vdata[id + 2] += target.deltaPositions[j3 + 2] * weight;
         if (target.deltaNormals) {
           id = index * vertSizeF + offsetNF;
           vdata[id] += target.deltaNormals[j3] * weight;
@@ -14857,7 +15227,7 @@ Object.assign(pc, function() {
     this.spawnBounds = this.emitterShape === pc.EMITTERSHAPE_BOX ? this.emitterExtents : this.emitterRadius;
     this.useCpu = this.useCpu || this.sort > pc.PARTICLESORT_NONE || gd.maxVertexTextures <= 1 || gd.fragmentUniformsCount < 64 || gd.forceCpuParticles || !gd.extTextureFloat;
     this.vertexBuffer = undefined;
-    this.pack8 = (this.pack8 || !gd.extTextureFloatRenderable) && !this.useCpu;
+    this.pack8 = (this.pack8 || !gd.textureFloatRenderable) && !this.useCpu;
     particleTexHeight = this.useCpu || this.pack8 ? 4 : 2;
     this.useMesh = false;
     if (this.mesh) {
@@ -16026,6 +16396,7 @@ pc.createTorus = function(device, opts) {
   var rt = opts && opts.ringRadius !== undefined ? opts.ringRadius : 0.3;
   var segments = opts && opts.segments !== undefined ? opts.segments : 30;
   var sides = opts && opts.sides !== undefined ? opts.sides : 20;
+  var calculateTangents = opts && opts.calculateTangents !== undefined ? opts.calculateTangents : false;
   var i, j;
   var x, y, z, nx, ny, nz, u, v;
   var positions = [];
@@ -16057,7 +16428,7 @@ pc.createTorus = function(device, opts) {
     }
   }
   var options = {normals:normals, uvs:uvs, indices:indices};
-  if (pc.precalculatedTangents) {
+  if (calculateTangents) {
     options.tangents = pc.calculateTangents(positions, normals, uvs, indices);
   }
   return pc.createMesh(device, positions, options);
@@ -16240,8 +16611,9 @@ pc.createCylinder = function(device, opts) {
   var height = opts && opts.height !== undefined ? opts.height : 1.0;
   var heightSegments = opts && opts.heightSegments !== undefined ? opts.heightSegments : 5;
   var capSegments = opts && opts.capSegments !== undefined ? opts.capSegments : 20;
+  var calculateTangents = opts && opts.calculateTangents !== undefined ? opts.calculateTangents : false;
   var options = pc._createConeData(radius, radius, height, heightSegments, capSegments, false);
-  if (pc.precalculatedTangents) {
+  if (calculateTangents) {
     options.tangents = pc.calculateTangents(options.positions, options.normals, options.uvs, options.indices);
   }
   return pc.createMesh(device, options.positions, options);
@@ -16251,8 +16623,9 @@ pc.createCapsule = function(device, opts) {
   var height = opts && opts.height !== undefined ? opts.height : 1.0;
   var heightSegments = opts && opts.heightSegments !== undefined ? opts.heightSegments : 1;
   var sides = opts && opts.sides !== undefined ? opts.sides : 20;
+  var calculateTangents = opts && opts.calculateTangents !== undefined ? opts.calculateTangents : false;
   var options = pc._createConeData(radius, radius, height - 2 * radius, heightSegments, sides, true);
-  if (pc.precalculatedTangents) {
+  if (calculateTangents) {
     options.tangents = pc.calculateTangents(options.positions, options.normals, options.uvs, options.indices);
   }
   return pc.createMesh(device, options.positions, options);
@@ -16263,8 +16636,9 @@ pc.createCone = function(device, opts) {
   var height = opts && opts.height !== undefined ? opts.height : 1.0;
   var heightSegments = opts && opts.heightSegments !== undefined ? opts.heightSegments : 5;
   var capSegments = opts && opts.capSegments !== undefined ? opts.capSegments : 18;
+  var calculateTangents = opts && opts.calculateTangents !== undefined ? opts.calculateTangents : false;
   var options = pc._createConeData(baseRadius, peakRadius, height, heightSegments, capSegments, false);
-  if (pc.precalculatedTangents) {
+  if (calculateTangents) {
     options.tangents = pc.calculateTangents(options.positions, options.normals, options.uvs, options.indices);
   }
   return pc.createMesh(device, options.positions, options);
@@ -16273,6 +16647,7 @@ pc.createSphere = function(device, opts) {
   var radius = opts && opts.radius !== undefined ? opts.radius : 0.5;
   var latitudeBands = opts && opts.latitudeBands !== undefined ? opts.latitudeBands : 16;
   var longitudeBands = opts && opts.longitudeBands !== undefined ? opts.longitudeBands : 16;
+  var calculateTangents = opts && opts.calculateTangents !== undefined ? opts.calculateTangents : false;
   var lon, lat;
   var theta, sinTheta, cosTheta, phi, sinPhi, cosPhi;
   var first, second;
@@ -16308,7 +16683,7 @@ pc.createSphere = function(device, opts) {
     }
   }
   var options = {normals:normals, uvs:uvs, uvs1:uvs, indices:indices};
-  if (pc.precalculatedTangents) {
+  if (calculateTangents) {
     options.tangents = pc.calculateTangents(positions, normals, uvs, indices);
   }
   return pc.createMesh(device, positions, options);
@@ -16317,6 +16692,7 @@ pc.createPlane = function(device, opts) {
   var he = opts && opts.halfExtents !== undefined ? opts.halfExtents : new pc.Vec2(0.5, 0.5);
   var ws = opts && opts.widthSegments !== undefined ? opts.widthSegments : 5;
   var ls = opts && opts.lengthSegments !== undefined ? opts.lengthSegments : 5;
+  var calculateTangents = opts && opts.calculateTangents !== undefined ? opts.calculateTangents : false;
   var i, j;
   var x, y, z, u, v;
   var positions = [];
@@ -16342,7 +16718,7 @@ pc.createPlane = function(device, opts) {
     }
   }
   var options = {normals:normals, uvs:uvs, uvs1:uvs, indices:indices};
-  if (pc.precalculatedTangents) {
+  if (calculateTangents) {
     options.tangents = pc.calculateTangents(positions, normals, uvs, indices);
   }
   return pc.createMesh(device, positions, options);
@@ -16352,6 +16728,7 @@ pc.createBox = function(device, opts) {
   var ws = opts && opts.widthSegments !== undefined ? opts.widthSegments : 1;
   var ls = opts && opts.lengthSegments !== undefined ? opts.lengthSegments : 1;
   var hs = opts && opts.heightSegments !== undefined ? opts.heightSegments : 1;
+  var calculateTangents = opts && opts.calculateTangents !== undefined ? opts.calculateTangents : false;
   var corners = [new pc.Vec3(-he.x, -he.y, he.z), new pc.Vec3(he.x, -he.y, he.z), new pc.Vec3(he.x, he.y, he.z), new pc.Vec3(-he.x, he.y, he.z), new pc.Vec3(he.x, -he.y, -he.z), new pc.Vec3(-he.x, -he.y, -he.z), new pc.Vec3(-he.x, he.y, -he.z), new pc.Vec3(he.x, he.y, -he.z)];
   var faceAxes = [[0, 1, 3], [4, 5, 7], [3, 2, 6], [1, 0, 4], [1, 4, 2], [5, 0, 6]];
   var faceNormals = [[0, 0, 1], [0, 0, -1], [0, 1, 0], [0, -1, 0], [1, 0, 0], [-1, 0, 0]];
@@ -16402,7 +16779,7 @@ pc.createBox = function(device, opts) {
   generateFace(sides.RIGHT, ls, hs);
   generateFace(sides.LEFT, ls, hs);
   var options = {normals:normals, uvs:uvs, uvs1:uvs1, indices:indices};
-  if (pc.precalculatedTangents) {
+  if (calculateTangents) {
     options.tangents = pc.calculateTangents(positions, normals, uvs, indices);
   }
   return pc.createMesh(device, positions, options);
@@ -16502,6 +16879,8 @@ Object.assign(pc, function() {
     this.opaqueMeshInstances = this.instances.opaqueMeshInstances;
     this.transparentMeshInstances = this.instances.transparentMeshInstances;
     this.shadowCasters = this.instances.shadowCasters;
+    this.customSortCallback = null;
+    this.customCalculateSortValues = null;
     this._lightComponents = [];
     this._lights = [];
     this._sortedLights = [[], [], []];
@@ -16843,15 +17222,29 @@ Object.assign(pc, function() {
       return;
     }
     var visible = transparent ? objects.visibleTransparent[cameraPass] : objects.visibleOpaque[cameraPass];
-    if (sortMode === pc.SORTMODE_BACK2FRONT || sortMode === pc.SORTMODE_FRONT2BACK) {
+    if (sortMode === pc.SORTMODE_CUSTOM) {
       sortPos = cameraNode.getPosition().data;
       sortDir = cameraNode.forward.data;
-      this._calculateSortDistances(visible.list, visible.length, sortPos, sortDir);
+      if (this.customCalculateSortValues) {
+        this.customCalculateSortValues(visible.list, visible.length, sortPos, sortDir);
+      }
+      if (visible.list.length !== visible.length) {
+        visible.list.length = visible.length;
+      }
+      if (this.customSortCallback) {
+        visible.list.sort(this.customSortCallback);
+      }
+    } else {
+      if (sortMode === pc.SORTMODE_BACK2FRONT || sortMode === pc.SORTMODE_FRONT2BACK) {
+        sortPos = cameraNode.getPosition().data;
+        sortDir = cameraNode.forward.data;
+        this._calculateSortDistances(visible.list, visible.length, sortPos, sortDir);
+      }
+      if (visible.list.length !== visible.length) {
+        visible.list.length = visible.length;
+      }
+      visible.list.sort(sortCallbacks[sortMode]);
     }
-    if (visible.list.length !== visible.length) {
-      visible.list.length = visible.length;
-    }
-    visible.list.sort(sortCallbacks[sortMode]);
   };
   return {Layer:Layer, InstanceList:InstanceList, VisibleInstanceList:VisibleInstanceList};
 }());
@@ -17857,6 +18250,13 @@ Object.assign(pc, function() {
       }
       if (this.context) {
         var context = this.context;
+        var resumeContext = function() {
+          context.resume();
+          window.removeEventListener("mousedown", resumeContext);
+          window.removeEventListener("touchend", resumeContext);
+        };
+        window.addEventListener("mousedown", resumeContext);
+        window.addEventListener("touchend", resumeContext);
         if (pc.platform.ios) {
           var unlock = function() {
             var buffer = context.createBuffer(1, 1, 44100);
@@ -20223,6 +20623,12 @@ Object.assign(pc, function() {
     }
     return _accumulatedScale;
   }, _checkElement2d:function(x, y, element, camera) {
+    if (element.maskedBy) {
+      var result = this._checkElement2d(x, y, element.maskedBy.element, camera);
+      if (!result) {
+        return false;
+      }
+    }
     var sw = this.app.graphicsDevice.width;
     var sh = this.app.graphicsDevice.height;
     var cameraWidth = camera.rect.z * sw;
@@ -20247,6 +20653,12 @@ Object.assign(pc, function() {
     }
     return false;
   }, _checkElement3d:function(x, y, element, camera) {
+    if (element.maskedBy) {
+      var result = this._checkElement3d(x, y, element.maskedBy.element, camera);
+      if (!result) {
+        return false;
+      }
+    }
     var sw = this._target.clientWidth;
     var sh = this._target.clientHeight;
     var cameraWidth = camera.rect.z * sw;
@@ -20835,16 +21247,20 @@ Object.assign(pc, function() {
       if (!self._scripts.hasOwnProperty(script.__name)) {
         return;
       }
+      if (!self.app.systems.script) {
+        return;
+      }
       var components = self.app.systems.script._components;
       var i, scriptInstance, attributes;
       var scriptInstances = [];
       var scriptInstancesInitialized = [];
-      for (i = 0;i < components.length;i++) {
-        if (components[i]._scriptsIndex[script.__name] && components[i]._scriptsIndex[script.__name].awaiting) {
-          if (components[i]._scriptsData && components[i]._scriptsData[script.__name]) {
-            attributes = components[i]._scriptsData[script.__name].attributes;
+      for (components.loopIndex = 0;components.loopIndex < components.length;components.loopIndex++) {
+        var component = components.items[components.loopIndex];
+        if (component._scriptsIndex[script.__name] && component._scriptsIndex[script.__name].awaiting) {
+          if (component._scriptsData && component._scriptsData[script.__name]) {
+            attributes = component._scriptsData[script.__name].attributes;
           }
-          scriptInstance = components[i].create(script.__name, {preloading:true, ind:components[i]._scriptsIndex[script.__name].ind, attributes:attributes});
+          scriptInstance = component.create(script.__name, {preloading:true, ind:component._scriptsIndex[script.__name].ind, attributes:attributes});
           if (scriptInstance) {
             scriptInstances.push(scriptInstance);
           }
@@ -21094,6 +21510,7 @@ Object.assign(pc, function() {
       this.__attributes = {};
       this.__attributesRaw = args.attributes || null;
       this.__scriptType = script;
+      this.__executionOrder = -1;
     };
     script.__name = name;
     script.attributes = new ScriptAttributes(script);
@@ -21160,7 +21577,7 @@ Object.assign(pc, function() {
     reservedScripts[createScript.reservedScripts[i]] = 1;
   }
   createScript.reservedScripts = reservedScripts;
-  createScript.reservedAttributes = ["app", "entity", "enabled", "_enabled", "_enabledOld", "_destroyed", "__attributes", "__attributesRaw", "__scriptType", "_callbacks", "has", "on", "off", "fire", "once", "hasEvent"];
+  createScript.reservedAttributes = ["app", "entity", "enabled", "_enabled", "_enabledOld", "_destroyed", "__attributes", "__attributesRaw", "__scriptType", "__executionOrder", "_callbacks", "has", "on", "off", "fire", "once", "hasEvent"];
   var reservedAttributes = {};
   for (i = 0;i < createScript.reservedAttributes.length;i++) {
     reservedAttributes[createScript.reservedAttributes[i]] = 1;
@@ -21209,6 +21626,7 @@ Object.assign(pc, function() {
     this.frame = 0;
     this.autoRender = true;
     this.renderNextFrame = false;
+    this.useLegacyScriptAttributeCloning = false;
     this._librariesLoaded = false;
     this._fillMode = pc.FILLMODE_KEEP_ASPECT;
     this._resolutionMode = pc.RESOLUTION_FIXED;
@@ -21219,6 +21637,7 @@ Object.assign(pc, function() {
     this.systems = new pc.ComponentSystemRegistry;
     this._audioManager = new pc.SoundManager(options);
     this.loader = new pc.ResourceLoader;
+    this._entityIndex = {};
     this.scene = new pc.Scene;
     this.root = new pc.Entity(this);
     this.root._enabledInHierarchy = true;
@@ -22944,30 +23363,50 @@ Object.assign(pc, function() {
           this.model = null;
         }
       } else {
+        var system = this.system;
+        var gd = system.app.graphicsDevice;
         switch(newValue) {
           case "box":
-            mesh = this.system.box;
+            if (!system.box) {
+              system.box = pc.createBox(gd, {halfExtents:new pc.Vec3(0.5, 0.5, 0.5)});
+            }
+            mesh = system.box;
             this._area = {x:2, y:2, z:2, uv:2.0 / 3};
             break;
           case "capsule":
-            mesh = this.system.capsule;
+            if (!system.capsule) {
+              system.capsule = pc.createCapsule(gd, {radius:0.5, height:2});
+            }
+            mesh = system.capsule;
             this._area = {x:Math.PI * 2, y:Math.PI, z:Math.PI * 2, uv:1.0 / 3 + 1.0 / 3 / 3 * 2};
             break;
-          case "sphere":
-            mesh = this.system.sphere;
-            this._area = {x:Math.PI, y:Math.PI, z:Math.PI, uv:1};
-            break;
           case "cone":
-            mesh = this.system.cone;
+            if (!system.cone) {
+              system.cone = pc.createCone(gd, {baseRadius:0.5, peakRadius:0, height:1});
+            }
+            mesh = system.cone;
             this._area = {x:2.54, y:2.54, z:2.54, uv:1.0 / 3 + 1.0 / 3 / 3};
             break;
           case "cylinder":
-            mesh = this.system.cylinder;
+            if (!system.cylinder) {
+              system.cylinder = pc.createCylinder(gd, {radius:0.5, height:1});
+            }
+            mesh = system.cylinder;
             this._area = {x:Math.PI, y:0.79 * 2, z:Math.PI, uv:1.0 / 3 + 1.0 / 3 / 3 * 2};
             break;
           case "plane":
-            mesh = this.system.plane;
+            if (!system.plane) {
+              system.plane = pc.createPlane(gd, {halfExtents:new pc.Vec2(0.5, 0.5), widthSegments:1, lengthSegments:1});
+            }
+            mesh = system.plane;
             this._area = {x:0, y:1, z:0, uv:1};
+            break;
+          case "sphere":
+            if (!system.sphere) {
+              system.sphere = pc.createSphere(gd, {radius:0.5});
+            }
+            mesh = system.sphere;
+            this._area = {x:Math.PI, y:Math.PI, z:Math.PI, uv:1};
             break;
           default:
             throw new Error("Invalid model type: " + newValue);
@@ -22976,7 +23415,7 @@ Object.assign(pc, function() {
         var model = new pc.Model;
         model.graph = node;
         model.meshInstances = [new pc.MeshInstance(node, mesh, data.material)];
-        if (this.system._inTools) {
+        if (system._inTools) {
           model.generateWireframe();
         }
         this.model = model;
@@ -23450,13 +23889,12 @@ Object.assign(pc, function() {
     this.ComponentType = pc.ModelComponent;
     this.DataType = pc.ModelComponentData;
     this.schema = _schema;
-    var gd = app.graphicsDevice;
-    this.box = pc.createBox(gd, {halfExtents:new pc.Vec3(0.5, 0.5, 0.5)});
-    this.capsule = pc.createCapsule(gd, {radius:0.5, height:2});
-    this.sphere = pc.createSphere(gd, {radius:0.5});
-    this.cone = pc.createCone(gd, {baseRadius:0.5, peakRadius:0, height:1});
-    this.cylinder = pc.createCylinder(gd, {radius:0.5, height:1});
-    this.plane = pc.createPlane(gd, {halfExtents:new pc.Vec2(0.5, 0.5), widthSegments:1, lengthSegments:1});
+    this.box = null;
+    this.capsule = null;
+    this.cone = null;
+    this.cylinder = null;
+    this.plane = null;
+    this.sphere = null;
     this.defaultMaterial = new pc.StandardMaterial;
     this.on("beforeremove", this.onRemove, this);
   };
@@ -24431,10 +24869,10 @@ Object.assign(pc, function() {
               _backbufferRt2Used = true;
             }
             if (layers[i].postEffect.hdr) {
-              if (device.webgl2 && device.extTextureFloatRenderable) {
+              if (device.webgl2 && device.textureFloatRenderable) {
                 backbufferRtFormat = pc.PIXELFORMAT_111110F;
               } else {
-                if (device.extTextureHalfFloatLinear && device.extTextureHalfFloatRenderable) {
+                if (device.extTextureHalfFloatLinear && device.textureHalfFloatRenderable) {
                   backbufferRtFormat = pc.PIXELFORMAT_RGBA16F;
                 } else {
                   backbufferRtFormat = pc.PIXELFORMAT_R8_G8_B8_A8;
@@ -24944,13 +25382,17 @@ Object.assign(pc, function() {
   var ScriptComponent = function ScriptComponent(system, entity) {
     pc.Component.call(this, system, entity);
     this._scripts = [];
+    this._updateList = new pc.SortedLoopArray({sortBy:"__executionOrder"});
+    this._postUpdateList = new pc.SortedLoopArray({sortBy:"__executionOrder"});
     this._scriptsIndex = {};
     this._destroyedScripts = [];
     this._destroyed = false;
     this._scriptsData = null;
     this._oldState = true;
+    this._enabled = true;
     this._beingEnabled = false;
     this._isLoopingThroughScripts = false;
+    this._executionOrder = -1;
     this.on("set_enabled", this._onSetEnabled, this);
   };
   ScriptComponent.prototype = Object.create(pc.Component.prototype);
@@ -25001,6 +25443,11 @@ Object.assign(pc, function() {
     this._oldState = state;
     this.fire(state ? "enable" : "disable");
     this.fire("state", state);
+    if (state) {
+      this.system._addComponentToEnabled(this);
+    } else {
+      this.system._removeComponentFromEnabled(this);
+    }
     var wasLooping = this._beginLooping();
     var script;
     for (var i = 0, len = this.scripts.length;i < len;i++) {
@@ -25024,13 +25471,13 @@ Object.assign(pc, function() {
     if (!len) {
       return;
     }
-    for (var i = 0;i < len;i++) {
-      var idx = this._scripts.indexOf(this._destroyedScripts[i]);
-      if (idx >= 0) {
-        this._scripts.splice(idx, 1);
-      }
+    var i;
+    for (i = 0;i < len;i++) {
+      var script = this._destroyedScripts[i];
+      this._removeScriptInstance(script);
     }
     this._destroyedScripts.length = 0;
+    this._resetExecutionOrder(0, this._scripts.length);
   }, _onInitializeAttributes:function() {
     for (var i = 0, len = this.scripts.length;i < len;i++) {
       this.scripts[i].__initializeAttributes();
@@ -25063,27 +25510,73 @@ Object.assign(pc, function() {
   }, _onPostInitialize:function() {
     this.onPostStateChange();
   }, _onUpdate:function(dt) {
-    var script, scripts = this._scripts;
-    var wasLooping = this._beginLooping();
-    for (var i = 0, len = scripts.length;i < len;i++) {
-      script = scripts[i];
-      if (script.update && script.enabled) {
-        this._scriptMethod(script, ScriptComponent.scriptMethods.update, dt);
+    var self = this;
+    var list = self._updateList;
+    if (!list.length) {
+      return;
+    }
+    var script;
+    var wasLooping = self._beginLooping();
+    for (list.loopIndex = 0;list.loopIndex < list.length;list.loopIndex++) {
+      script = list.items[list.loopIndex];
+      if (script.enabled) {
+        self._scriptMethod(script, ScriptComponent.scriptMethods.update, dt);
       }
     }
-    this._endLooping(wasLooping);
+    self._endLooping(wasLooping);
   }, _onPostUpdate:function(dt) {
-    var i;
-    var len;
-    var wasLooping = this._beginLooping();
-    var script, scripts = this._scripts;
-    for (i = 0, len = scripts.length;i < len;i++) {
-      script = scripts[i];
-      if (script.postUpdate && script.enabled) {
-        this._scriptMethod(script, ScriptComponent.scriptMethods.postUpdate, dt);
+    var self = this;
+    var list = self._postUpdateList;
+    if (!list.length) {
+      return;
+    }
+    var wasLooping = self._beginLooping();
+    var script;
+    for (list.loopIndex = 0;list.loopIndex < list.length;list.loopIndex++) {
+      script = list.items[list.loopIndex];
+      if (script.enabled) {
+        self._scriptMethod(script, ScriptComponent.scriptMethods.postUpdate, dt);
       }
     }
-    this._endLooping(wasLooping);
+    self._endLooping(wasLooping);
+  }, _insertScriptInstance:function(scriptInstance, index, scriptsLength) {
+    if (index === -1) {
+      this._scripts.push(scriptInstance);
+      scriptInstance.__executionOrder = scriptsLength;
+      if (scriptInstance.update) {
+        this._updateList.append(scriptInstance);
+      }
+      if (scriptInstance.postUpdate) {
+        this._postUpdateList.append(scriptInstance);
+      }
+    } else {
+      this._scripts.splice(index, 0, scriptInstance);
+      scriptInstance.__executionOrder = index;
+      this._resetExecutionOrder(index + 1, scriptsLength + 1);
+      if (scriptInstance.update) {
+        this._updateList.insert(scriptInstance);
+      }
+      if (scriptInstance.postUpdate) {
+        this._postUpdateList.insert(scriptInstance);
+      }
+    }
+  }, _removeScriptInstance:function(scriptInstance) {
+    var idx = this._scripts.indexOf(scriptInstance);
+    if (idx === -1) {
+      return idx;
+    }
+    this._scripts.splice(idx, 1);
+    if (scriptInstance.update) {
+      this._updateList.remove(scriptInstance);
+    }
+    if (scriptInstance.postUpdate) {
+      this._postUpdateList.remove(scriptInstance);
+    }
+    return idx;
+  }, _resetExecutionOrder:function(startIndex, scriptsLength) {
+    for (var i = startIndex;i < scriptsLength;i++) {
+      this._scripts[i].__executionOrder = i;
+    }
   }, has:function(name) {
     var scriptType = name;
     if (typeof scriptType === "string") {
@@ -25105,15 +25598,12 @@ Object.assign(pc, function() {
     if (scriptType) {
       if (!this._scriptsIndex[scriptType.__name] || !this._scriptsIndex[scriptType.__name].instance) {
         var scriptInstance = new scriptType({app:this.system.app, entity:this.entity, enabled:args.hasOwnProperty("enabled") ? args.enabled : true, attributes:args.attributes || null});
+        var len = this._scripts.length;
         var ind = -1;
-        if (typeof args.ind === "number" && args.ind !== -1 && this._scripts.length > args.ind) {
+        if (typeof args.ind === "number" && args.ind !== -1 && len > args.ind) {
           ind = args.ind;
         }
-        if (ind === -1) {
-          this._scripts.push(scriptInstance);
-        } else {
-          this._scripts.splice(ind, 0, scriptInstance);
-        }
+        this._insertScriptInstance(scriptInstance, ind, len);
         this._scriptsIndex[scriptType.__name] = {instance:scriptInstance, onSwap:function() {
           self.swap(scriptType.__name);
         }};
@@ -25164,8 +25654,10 @@ Object.assign(pc, function() {
       scriptData.instance.enabled = false;
       scriptData.instance._destroyed = true;
       if (!this._isLoopingThroughScripts) {
-        var ind = this._scripts.indexOf(scriptData.instance);
-        this._scripts.splice(ind, 1);
+        var ind = this._removeScriptInstance(scriptData.instance);
+        if (ind >= 0) {
+          this._resetExecutionOrder(ind, this._scripts.length);
+        }
       } else {
         this._destroyedScripts.push(scriptData.instance);
       }
@@ -25197,12 +25689,88 @@ Object.assign(pc, function() {
     this._scripts[ind] = scriptInstance;
     this._scriptsIndex[scriptType.__name].instance = scriptInstance;
     this[scriptType.__name] = scriptInstance;
+    scriptInstance.__executionOrder = ind;
+    if (scriptInstanceOld.update) {
+      this._updateList.remove(scriptInstanceOld);
+    }
+    if (scriptInstanceOld.postUpdate) {
+      this._postUpdateList.remove(scriptInstanceOld);
+    }
+    if (scriptInstance.update) {
+      this._updateList.insert(scriptInstance);
+    }
+    if (scriptInstance.postUpdate) {
+      this._postUpdateList.insert(scriptInstance);
+    }
     this._scriptMethod(scriptInstance, ScriptComponent.scriptMethods.swap, scriptInstanceOld);
     this.fire("swap", scriptType.__name, scriptInstance);
     this.fire("swap:" + scriptType.__name, scriptInstance);
     return true;
+  }, resolveDuplicatedEntityReferenceProperties:function(oldScriptComponent, duplicatedIdsMap) {
+    var newScriptComponent = this.entity.script;
+    for (var scriptName in oldScriptComponent._scriptsIndex) {
+      var scriptType = this.system.app.scripts.get(scriptName);
+      if (!scriptType) {
+        continue;
+      }
+      var script = oldScriptComponent._scriptsIndex[scriptName];
+      if (!script || !script.instance) {
+        continue;
+      }
+      var newAttributesRaw = newScriptComponent[scriptName].__attributesRaw;
+      var newAttributes = newScriptComponent[scriptName].__attributes;
+      if (!newAttributesRaw && !newAttributes) {
+        continue;
+      }
+      var oldAttributes = script.instance.__attributes;
+      for (var attributeName in oldAttributes) {
+        if (!oldAttributes[attributeName]) {
+          continue;
+        }
+        var attribute = scriptType.attributes.get(attributeName);
+        if (!attribute || attribute.type !== "entity") {
+          continue;
+        }
+        if (attribute.array) {
+          var oldGuidArray = oldAttributes[attributeName];
+          var len = oldGuidArray.length;
+          if (!len) {
+            continue;
+          }
+          var newGuidArray = oldGuidArray.slice();
+          for (var i = 0;i < len;i++) {
+            var guid = newGuidArray[i] instanceof pc.Entity ? newGuidArray[i].getGuid() : newGuidArray[i];
+            if (duplicatedIdsMap[guid]) {
+              newGuidArray[i] = newAttributesRaw ? duplicatedIdsMap[guid].getGuid() : duplicatedIdsMap[guid];
+            }
+          }
+          if (newAttributesRaw) {
+            newAttributesRaw[attributeName] = newGuidArray;
+          } else {
+            newAttributes[attributeName] = newGuidArray;
+          }
+        } else {
+          var oldGuid = oldAttributes[attributeName];
+          if (oldGuid instanceof pc.Entity) {
+            oldGuid = oldGuid.getGuid();
+          } else {
+            if (typeof oldGuid !== "string") {
+              continue;
+            }
+          }
+          if (duplicatedIdsMap[oldGuid]) {
+            if (newAttributesRaw) {
+              newAttributesRaw[attributeName] = duplicatedIdsMap[oldGuid].getGuid();
+            } else {
+              newAttributes[attributeName] = duplicatedIdsMap[oldGuid];
+            }
+          }
+        }
+      }
+    }
   }, move:function(name, ind) {
-    if (ind >= this._scripts.length) {
+    var len = this._scripts.length;
+    if (ind >= len || ind < 0) {
       return false;
     }
     var scriptName = name;
@@ -25218,9 +25786,19 @@ Object.assign(pc, function() {
       return false;
     }
     this._scripts.splice(ind, 0, this._scripts.splice(indOld, 1)[0]);
+    this._resetExecutionOrder(0, len);
+    this._updateList.sort();
+    this._postUpdateList.sort();
     this.fire("move", scriptName, scriptData.instance, ind, indOld);
     this.fire("move:" + scriptName, scriptData.instance, ind, indOld);
     return true;
+  }});
+  Object.defineProperty(ScriptComponent.prototype, "enabled", {get:function() {
+    return this._enabled;
+  }, set:function(value) {
+    var oldValue = this._enabled;
+    this._enabled = value;
+    this.fire("set", "enabled", oldValue, value);
   }});
   Object.defineProperty(ScriptComponent.prototype, "scripts", {get:function() {
     return this._scripts;
@@ -25257,7 +25835,12 @@ Object.assign(pc, function() {
   return {ScriptComponent:ScriptComponent};
 }());
 Object.assign(pc, function() {
-  var _schema = ["enabled"];
+  var METHOD_INITIALIZE_ATTRIBUTES = "_onInitializeAttributes";
+  var METHOD_INITIALIZE = "_onInitialize";
+  var METHOD_POST_INITIALIZE = "_onPostInitialize";
+  var METHOD_UPDATE = "_onUpdate";
+  var METHOD_POST_UPDATE = "_onPostUpdate";
+  var executionOrderCounter = 0;
   var ScriptComponentSystem = function ScriptComponentSystem(app) {
     pc.ComponentSystem.call(this, app);
     this.id = "script";
@@ -25265,10 +25848,8 @@ Object.assign(pc, function() {
     app.systems.add(this.id, this);
     this.ComponentType = pc.ScriptComponent;
     this.DataType = pc.ScriptComponentData;
-    this.schema = _schema;
-    this._components = [];
-    this._destroyedComponents = [];
-    this._isLoopingThroughComponents = false;
+    this._components = new pc.SortedLoopArray({sortBy:"_executionOrder"});
+    this._enabledComponents = new pc.SortedLoopArray({sortBy:"_executionOrder"});
     this.preloading = true;
     this.on("beforeremove", this._onBeforeRemove, this);
     pc.ComponentSystem.on("initialize", this._onInitialize, this);
@@ -25278,10 +25859,16 @@ Object.assign(pc, function() {
   };
   ScriptComponentSystem.prototype = Object.create(pc.ComponentSystem.prototype);
   ScriptComponentSystem.prototype.constructor = ScriptComponentSystem;
-  pc.Component._buildAccessors(pc.ScriptComponent.prototype, _schema);
-  Object.assign(ScriptComponentSystem.prototype, {initializeComponentData:function(component, data, properties) {
-    this._components.push(component);
+  Object.assign(ScriptComponentSystem.prototype, {initializeComponentData:function(component, data) {
+    component._executionOrder = executionOrderCounter++;
+    this._components.append(component);
+    if (executionOrderCounter > Number.MAX_SAFE_INTEGER) {
+      this._resetExecutionOrder();
+    }
     component.enabled = data.hasOwnProperty("enabled") ? !!data.enabled : true;
+    if (component.enabled && component.entity.enabled) {
+      this._enabledComponents.append(component);
+    }
     if (data.hasOwnProperty("order") && data.hasOwnProperty("scripts")) {
       component._scriptsData = data.scripts;
       for (var i = 0;i < data.order.length;i++) {
@@ -25303,63 +25890,42 @@ Object.assign(pc, function() {
       scripts[scriptName] = {enabled:scriptInstance._enabled, attributes:attributes};
     }
     for (key in entity.script._scriptsIndex) {
-      if (key.awayting) {
+      if (key.awaiting) {
         order.splice(key.ind, 0, key);
       }
     }
     var data = {enabled:entity.script.enabled, order:order, scripts:scripts};
     return this.addComponent(clone, data);
-  }, _callComponentMethod:function(name, dt) {
-    var wasLooping = this._beginLooping();
-    for (var i = 0;i < this._components.length;i++) {
-      if (this._components[i]._destroyed || !this._components[i].entity.enabled || !this._components[i].enabled) {
-        continue;
-      }
-      this._components[i][name](dt);
+  }, _resetExecutionOrder:function() {
+    executionOrderCounter = 0;
+    for (var i = 0, len = this._components.length;i < len;i++) {
+      this._components.items[i]._executionOrder = executionOrderCounter++;
     }
-    this._endLooping(wasLooping);
-  }, _beginLooping:function() {
-    var looping = this._isLoopingThroughComponents;
-    this._isLoopingThroughComponents = true;
-    return looping;
-  }, _endLooping:function(wasLooping) {
-    this._isLoopingThroughComponents = wasLooping;
-    if (!this._isLoopingThroughComponents) {
-      var len = this._destroyedComponents.length;
-      if (len) {
-        for (var i = 0;i < len;i++) {
-          var idx = this._components.indexOf(this._destroyedComponents[i]);
-          if (idx >= 0) {
-            this._components.splice(idx, 1);
-          }
-        }
-        this._destroyedComponents.length = 0;
-      }
+  }, _callComponentMethod:function(components, name, dt) {
+    for (components.loopIndex = 0;components.loopIndex < components.length;components.loopIndex++) {
+      components.items[components.loopIndex][name](dt);
     }
   }, _onInitialize:function() {
     this.preloading = false;
-    for (var i = 0;i < this._components.length;i++) {
-      this._components[i]._onInitializeAttributes();
-    }
-    this._callComponentMethod("_onInitialize");
+    this._callComponentMethod(this._components, METHOD_INITIALIZE_ATTRIBUTES);
+    this._callComponentMethod(this._enabledComponents, METHOD_INITIALIZE);
   }, _onPostInitialize:function() {
-    this._callComponentMethod("_onPostInitialize");
+    this._callComponentMethod(this._enabledComponents, METHOD_POST_INITIALIZE);
   }, _onUpdate:function(dt) {
-    this._callComponentMethod("_onUpdate", dt);
+    this._callComponentMethod(this._enabledComponents, METHOD_UPDATE, dt);
   }, _onPostUpdate:function(dt) {
-    this._callComponentMethod("_onPostUpdate", dt);
+    this._callComponentMethod(this._enabledComponents, METHOD_POST_UPDATE, dt);
+  }, _addComponentToEnabled:function(component) {
+    this._enabledComponents.insert(component);
+  }, _removeComponentFromEnabled:function(component) {
+    this._enabledComponents.remove(component);
   }, _onBeforeRemove:function(entity, component) {
-    var ind = this._components.indexOf(component);
-    if (ind === -1) {
-      return;
+    var ind = this._components.items.indexOf(component);
+    if (ind >= 0) {
+      component._onBeforeRemove();
     }
-    component._onBeforeRemove();
-    if (!this._isLoopingThroughComponents) {
-      this._components.splice(ind, 1);
-    } else {
-      component._destroyed = true;
-      this._destroyedComponents.push(component);
-    }
+    this._removeComponentFromEnabled(component);
+    this._components.remove(component);
   }});
   return {ScriptComponentSystem:ScriptComponentSystem};
 }());
@@ -28294,12 +28860,13 @@ Object.assign(pc, function() {
   var SIMPLE_PROPERTIES = ["emitterExtents", "emitterRadius", "loop", "initialVelocity", "animSpeed", "normalMap"];
   var COMPLEX_PROPERTIES = ["numParticles", "lifetime", "rate", "rate2", "startAngle", "startAngle2", "lighting", "halfLambert", "intensity", "wrap", "wrapBounds", "depthWrite", "noFog", "sort", "stretch", "alignToMotion", "preWarm", "emitterShape", "animTilesX", "animTilesY", "animFrames", "animLoop", "colorMap", "localSpace"];
   var GRAPH_PROPERTIES = ["scaleGraph", "scaleGraph2", "colorGraph", "colorGraph2", "alphaGraph", "alphaGraph2", "velocityGraph", "velocityGraph2", "localVelocityGraph", "localVelocityGraph2", "rotationSpeedGraph", "rotationSpeedGraph2"];
-  var ASSET_PROPERTIES = ["colorMapAsset", "normalMapAsset", "mesh"];
+  var ASSET_PROPERTIES = ["colorMapAsset", "normalMapAsset", "meshAsset"];
   var depthLayer;
   var ParticleSystemComponent = function ParticleSystemComponent(system, entity) {
     pc.Component.call(this, system, entity);
     this.on("set_colorMapAsset", this.onSetColorMapAsset, this);
     this.on("set_normalMapAsset", this.onSetNormalMapAsset, this);
+    this.on("set_meshAsset", this.onSetMeshAsset, this);
     this.on("set_mesh", this.onSetMesh, this);
     this.on("set_loop", this.onSetLoop, this);
     this.on("set_blendType", this.onSetBlendType, this);
@@ -28471,47 +29038,45 @@ Object.assign(pc, function() {
   }, onNormalMapRemoved:function(asset) {
     asset.off("remove", this.onNormalMapRemoved, this);
     this.normalMapAsset = null;
-  }, onSetMesh:function(name, oldValue, newValue) {
-    var self = this;
+  }, _bindMeshAsset:function(asset) {
+    asset.on("remove", this._onMeshAssetRemoved, this);
+    asset.on("load", this._onMeshAssetLoad, this);
+  }, _unbindMeshAsset:function(asset) {
+    asset.off("remove", this._onMeshAssetRemoved, this);
+    asset.off("load", this._onMeshAssetLoad, this);
+  }, _onMeshAssetLoad:function(asset) {
+    this._onMeshChanged(asset.resource);
+  }, onSetMeshAsset:function(name, oldValue, newValue) {
     var asset;
     var assets = this.system.app.assets;
-    if (oldValue && typeof oldValue === "number") {
+    if (oldValue) {
       asset = assets.get(oldValue);
       if (asset) {
-        asset.off("remove", this.onMeshRemoved, this);
+        this._unbindMeshAsset(asset);
       }
     }
     if (newValue) {
       if (newValue instanceof pc.Asset) {
-        this.data.mesh = newValue.id;
+        this.data.meshAsset = newValue.id;
         newValue = newValue.id;
       }
-      if (typeof newValue === "number") {
-        asset = assets.get(newValue);
-        if (asset) {
-          asset.on("remove", this.onMeshRemoved, this);
-          asset.ready(function(asset) {
-            self._onMeshChanged(asset.resource);
-          });
-          if (self.enabled && self.entity.enabled) {
-            assets.load(asset);
-          }
+      asset = assets.get(newValue);
+      if (asset) {
+        this._bindMeshAsset(asset);
+        if (asset.resource) {
+          this._onMeshChanged(asset.resource);
         } else {
-          assets.once("add:" + newValue, function(asset) {
-            asset.on("remove", this.onMeshRemoved, this);
-            asset.ready(function(asset) {
-              self._onMeshChanged(asset.resource);
-            });
-            if (self.enabled && self.entity.enabled) {
-              assets.load(asset);
-            }
-          });
+          assets.load(asset);
         }
-      } else {
-        this._onMeshChanged(newValue);
       }
     } else {
       this._onMeshChanged(null);
+    }
+  }, onSetMesh:function(name, oldValue, newValue) {
+    if (!newValue || newValue instanceof pc.Asset || typeof newValue === "number") {
+      this.meshAsset = newValue;
+    } else {
+      this._onMeshChanged(newValue);
     }
   }, _onMeshChanged:function(mesh) {
     if (mesh && !(mesh instanceof pc.Mesh)) {
@@ -28527,8 +29092,8 @@ Object.assign(pc, function() {
       this.emitter.resetMaterial();
       this.rebuild();
     }
-  }, onMeshRemoved:function(asset) {
-    asset.off("remove", this.onMeshRemoved, this);
+  }, onMeshAssetRemoved:function(asset) {
+    asset.off("remove", this.onMeshAssetRemoved, this);
     this.mesh = null;
   }, onSetLoop:function(name, oldValue, newValue) {
     if (this.emitter) {
@@ -28703,12 +29268,28 @@ Object.assign(pc, function() {
       this.data.model.meshInstances = [this.emitter.meshInstance];
     }
     this.enabled = enabled;
+  }, onDestroy:function() {
+    var data = this.data;
+    if (data.model) {
+      this.entity.removeChild(data.model.getGraph());
+      data.model = null;
+    }
+    if (this.emitter) {
+      this.emitter.destroy();
+      this.emitter = null;
+    }
+    for (var i = 0;i < ASSET_PROPERTIES.length;i++) {
+      var prop = ASSET_PROPERTIES[i];
+      if (data[prop]) {
+        this[prop] = null;
+      }
+    }
   }});
   return {ParticleSystemComponent:ParticleSystemComponent};
 }());
 Object.assign(pc, function() {
-  var _schema = ["enabled", "autoPlay", "numParticles", "lifetime", "rate", "rate2", "startAngle", "startAngle2", "loop", "preWarm", "lighting", "halfLambert", "intensity", "depthWrite", "noFog", "depthSoftening", "sort", "blendType", "stretch", "alignToMotion", "emitterShape", "emitterExtents", "emitterRadius", "initialVelocity", "wrap", "wrapBounds", "localSpace", "colorMapAsset", "normalMapAsset", "mesh", "localVelocityGraph", "localVelocityGraph2", "velocityGraph", "velocityGraph2", "rotationSpeedGraph", 
-  "rotationSpeedGraph2", "scaleGraph", "scaleGraph2", "colorGraph", "colorGraph2", "alphaGraph", "alphaGraph2", "colorMap", "normalMap", "animTilesX", "animTilesY", "animNumFrames", "animSpeed", "animLoop", "layers"];
+  var _schema = ["enabled", "autoPlay", "numParticles", "lifetime", "rate", "rate2", "startAngle", "startAngle2", "loop", "preWarm", "lighting", "halfLambert", "intensity", "depthWrite", "noFog", "depthSoftening", "sort", "blendType", "stretch", "alignToMotion", "emitterShape", "emitterExtents", "emitterRadius", "initialVelocity", "wrap", "wrapBounds", "localSpace", "colorMapAsset", "normalMapAsset", "mesh", "meshAsset", "localVelocityGraph", "localVelocityGraph2", "velocityGraph", "velocityGraph2", 
+  "rotationSpeedGraph", "rotationSpeedGraph2", "scaleGraph", "scaleGraph2", "colorGraph", "colorGraph2", "alphaGraph", "alphaGraph2", "colorMap", "normalMap", "animTilesX", "animTilesY", "animNumFrames", "animSpeed", "animLoop", "layers"];
   var ParticleSystemComponentSystem = function ParticleSystemComponentSystem(app) {
     pc.ComponentSystem.call(this, app);
     this.id = "particlesystem";
@@ -28729,6 +29310,10 @@ Object.assign(pc, function() {
     properties = [];
     var types = this.propertyTypes;
     var type;
+    if (_data.mesh instanceof pc.Asset || typeof _data.mesh === "number") {
+      _data.meshAsset = _data.mesh;
+      delete _data.mesh;
+    }
     for (var prop in _data) {
       if (_data.hasOwnProperty(prop)) {
         properties.push(prop);
@@ -28846,15 +29431,7 @@ Object.assign(pc, function() {
       }
     }
   }, onRemove:function(entity, component) {
-    var data = component.data;
-    if (data.model) {
-      entity.removeChild(data.model.getGraph());
-      data.model = null;
-    }
-    if (component.emitter) {
-      component.emitter.destroy();
-      component.emitter = null;
-    }
+    component.onDestroy();
   }});
   return {ParticleSystemComponentSystem:ParticleSystemComponentSystem};
 }());
@@ -28887,6 +29464,7 @@ Object.assign(pc, function() {
     this.stretch = 0.0;
     this.alignToMotion = false;
     this.depthSoftening = 0;
+    this.meshAsset = null;
     this.mesh = null;
     this.depthWrite = false;
     this.noFog = false;
@@ -29711,12 +30289,16 @@ Object.assign(pc, function() {
       this._showModel();
     }
   }});
+  Object.defineProperty(SpriteComponent.prototype, "aabb", {get:function() {
+    if (this._meshInstance) {
+      return this._meshInstance.aabb;
+    }
+    return null;
+  }});
   return {SpriteComponent:SpriteComponent};
 }());
 Object.assign(pc, function() {
   var _schema = ["enabled"];
-  var nineSliceBasePS = ["varying vec2 vMask;", "varying vec2 vTiledUv;", "uniform vec4 innerOffset;", "uniform vec2 outerScale;", "uniform vec4 atlasRect;", "vec2 nineSlicedUv;"].join("\n");
-  var nineSliceUvPs = ["vec2 tileMask = step(vMask, vec2(0.99999));", "vec2 clampedUv = mix(innerOffset.xy*0.5, vec2(1.0) - innerOffset.zw*0.5, fract(vTiledUv));", "clampedUv = clampedUv * atlasRect.zw + atlasRect.xy;", "nineSlicedUv = vUv0 * tileMask + clampedUv * (vec2(1.0) - tileMask);"].join("\n");
   var SpriteComponentSystem = function SpriteComponentSystem(app) {
     pc.ComponentSystem.call(this, app);
     this.id = "sprite";
@@ -29753,20 +30335,10 @@ Object.assign(pc, function() {
     this.defaultMaterial.cull = pc.CULLFACE_NONE;
     this.defaultMaterial.update();
     this.default9SlicedMaterialSlicedMode = this.defaultMaterial.clone();
-    this.default9SlicedMaterialSlicedMode.chunks.basePS = pc.shaderChunks.basePS + nineSliceBasePS;
-    this.default9SlicedMaterialSlicedMode.chunks.startPS = pc.shaderChunks.startPS + "nineSlicedUv = vUv0;\n";
-    this.default9SlicedMaterialSlicedMode.chunks.emissivePS = pc.shaderChunks.emissivePS.replace("$UV", "nineSlicedUv");
-    this.default9SlicedMaterialSlicedMode.chunks.opacityPS = pc.shaderChunks.opacityPS.replace("$UV", "nineSlicedUv");
-    this.default9SlicedMaterialSlicedMode.chunks.transformVS = "#define NINESLICED\n" + pc.shaderChunks.transformVS;
-    this.default9SlicedMaterialSlicedMode.chunks.uv0VS = pc.shaderChunks.uv9SliceVS;
+    this.default9SlicedMaterialSlicedMode.nineSlicedMode = pc.SPRITE_RENDERMODE_SLICED;
     this.default9SlicedMaterialSlicedMode.update();
     this.default9SlicedMaterialTiledMode = this.defaultMaterial.clone();
-    this.default9SlicedMaterialTiledMode.chunks.basePS = pc.shaderChunks.basePS + "#define NINESLICETILED\n" + nineSliceBasePS;
-    this.default9SlicedMaterialTiledMode.chunks.startPS = pc.shaderChunks.startPS + nineSliceUvPs;
-    this.default9SlicedMaterialTiledMode.chunks.emissivePS = pc.shaderChunks.emissivePS.replace("$UV", "nineSlicedUv, -1000.0");
-    this.default9SlicedMaterialTiledMode.chunks.opacityPS = pc.shaderChunks.opacityPS.replace("$UV", "nineSlicedUv, -1000.0");
-    this.default9SlicedMaterialTiledMode.chunks.transformVS = "#define NINESLICED\n" + pc.shaderChunks.transformVS;
-    this.default9SlicedMaterialTiledMode.chunks.uv0VS = pc.shaderChunks.uv9SliceVS;
+    this.default9SlicedMaterialTiledMode.nineSlicedMode = pc.SPRITE_RENDERMODE_TILED;
     this.default9SlicedMaterialTiledMode.update();
     pc.ComponentSystem.on("update", this.onUpdate, this);
     this.on("beforeremove", this.onBeforeRemove, this);
@@ -29832,7 +30404,7 @@ Object.assign(pc, function() {
     pc.ComponentSystem.prototype.initializeComponentData.call(this, component, data, properties);
   }, cloneComponent:function(entity, clone) {
     var source = entity.sprite;
-    return this.addComponent(clone, {enabled:source.enabled, type:source.type, spriteAsset:source.spriteAsset, sprite:source.sprite, frame:source.frame, color:source.color.clone(), opacity:source.opacity, flipX:source.flipX, flipY:source.flipY, speed:source.speed, clips:source.clips, batchGroupId:source.batchGroupId});
+    return this.addComponent(clone, {enabled:source.enabled, type:source.type, spriteAsset:source.spriteAsset, sprite:source.sprite, frame:source.frame, color:source.color.clone(), opacity:source.opacity, flipX:source.flipX, flipY:source.flipY, speed:source.speed, clips:source.clips, autoPlayClip:source.autoPlayClip, batchGroupId:source.batchGroupId, drawOrder:source.drawOrder, layers:source.layers.slice(0)});
   }, onUpdate:function(dt) {
     var components = this.store;
     for (var id in components) {
@@ -29878,8 +30450,8 @@ Object.assign(pc, function() {
   Object.assign(ScreenComponent.prototype, {syncDrawOrder:function() {
     this.system.queueDrawOrderSync(this.entity.getGuid(), this._processDrawOrderSync, this);
   }, _recurseDrawOrderSync:function(e, i) {
-    if (!e instanceof pc.Entity) {
-      return;
+    if (!(e instanceof pc.Entity)) {
+      return i;
     }
     if (e.element) {
       e.element.drawOrder = i++;
@@ -29925,6 +30497,11 @@ Object.assign(pc, function() {
   }, onRemove:function() {
     this.system.app.graphicsDevice.off("resizecanvas", this._onResize, this);
     this.fire("remove");
+    this.off("set:resolution");
+    this.off("set:referenceresolution");
+    this.off("set:scaleblend");
+    this.off("set:screenspace");
+    this.off("remove");
   }});
   Object.defineProperty(ScreenComponent.prototype, "resolution", {set:function(value) {
     if (!this._screenSpace) {
@@ -30102,6 +30679,7 @@ Object.assign(pc, function() {
   var matD = new pc.Mat4;
   var ElementComponent = function ElementComponent(system, entity) {
     pc.Component.call(this, system, entity);
+    this._beingInitialized = false;
     this._anchor = new pc.Vec4;
     this._localAnchor = new pc.Vec4;
     this._pivot = new pc.Vec2;
@@ -30134,6 +30712,7 @@ Object.assign(pc, function() {
     this._batchGroupId = -1;
     this._offsetReadAt = 0;
     this._maskOffset = 0.5;
+    this._maskedBy = null;
   };
   ElementComponent.prototype = Object.create(pc.Component.prototype);
   ElementComponent.prototype.constructor = ElementComponent;
@@ -30299,22 +30878,26 @@ Object.assign(pc, function() {
       }
     }
     this.system._prerender.length = 0;
+  }, _bindScreen:function(screen) {
+    screen.on("set:resolution", this._onScreenResize, this);
+    screen.on("set:referenceresolution", this._onScreenResize, this);
+    screen.on("set:scaleblend", this._onScreenResize, this);
+    screen.on("set:screenspace", this._onScreenSpaceChange, this);
+    screen.on("remove", this._onScreenRemove, this);
+  }, _unbindScreen:function(screen) {
+    screen.off("set:resolution", this._onScreenResize, this);
+    screen.off("set:referenceresolution", this._onScreenResize, this);
+    screen.off("set:scaleblend", this._onScreenResize, this);
+    screen.off("set:screenspace", this._onScreenSpaceChange, this);
+    screen.off("remove", this._onScreenRemove, this);
   }, _updateScreen:function(screen) {
     if (this.screen && this.screen !== screen) {
-      this.screen.screen.off("set:resolution", this._onScreenResize, this);
-      this.screen.screen.off("set:referenceresolution", this._onScreenResize, this);
-      this.screen.screen.off("set:scaleblend", this._onScreenResize, this);
-      this.screen.screen.off("set:screenspace", this._onScreenSpaceChange, this);
-      this.screen.screen.off("remove", this._onScreenRemove, this);
+      this._unbindScreen(this.screen.screen);
     }
     var previousScreen = this.screen;
     this.screen = screen;
     if (this.screen) {
-      this.screen.screen.on("set:resolution", this._onScreenResize, this);
-      this.screen.screen.on("set:referenceresolution", this._onScreenResize, this);
-      this.screen.screen.on("set:scaleblend", this._onScreenResize, this);
-      this.screen.screen.on("set:screenspace", this._onScreenSpaceChange, this);
-      this.screen.screen.on("remove", this._onScreenRemove, this);
+      this._bindScreen(this.screen.screen);
     }
     this._calculateSize(this._hasSplitAnchorsX, this._hasSplitAnchorsY);
     this.fire("set:screen", this.screen, previousScreen);
@@ -30332,23 +30915,19 @@ Object.assign(pc, function() {
     var result = this._parseUpToScreen();
     this._updateMask(result.mask, depth);
   }, _setMaskedBy:function(mask) {
-    var i, mi, len;
-    var elem = this._image || this._text;
-    if (!elem) {
-      return;
-    }
+    var renderableElement = this._image || this._text;
     if (mask) {
       var ref = mask.element._image._maskRef;
       var sp = new pc.StencilParameters({ref:ref, func:pc.FUNC_EQUAL});
-      if (elem._setStencil) {
-        elem._setStencil(sp);
+      if (renderableElement && renderableElement._setStencil) {
+        renderableElement._setStencil(sp);
       }
-      elem._maskedBy = mask;
+      this._maskedBy = mask;
     } else {
-      if (elem._setStencil) {
-        elem._setStencil(null);
+      if (renderableElement && renderableElement._setStencil) {
+        renderableElement._setStencil(null);
       }
-      elem._maskedBy = null;
+      this._maskedBy = null;
     }
   }, _updateMask:function(currentMask, depth) {
     var i, l, sp, children;
@@ -30414,7 +30993,9 @@ Object.assign(pc, function() {
   }, _onScreenSpaceChange:function() {
     this.fire("screen:set:screenspace", this.screen.screen.screenSpace);
   }, _onScreenRemove:function() {
-    this._updateScreen(null);
+    if (this.screen && !this.screen._destroying) {
+      this._updateScreen(null);
+    }
   }, _calculateLocalAnchors:function() {
     var resx = 1000;
     var resy = 1000;
@@ -30522,7 +31103,8 @@ Object.assign(pc, function() {
     if (this.system.app.elementInput && this.useInput) {
       this.system.app.elementInput.removeElement(this);
     }
-    if (this.screen) {
+    if (this.screen && this.screen.screen) {
+      this._unbindScreen(this.screen.screen);
       this.screen.screen.syncDrawOrder();
     }
   }, _calculateSize:function(propagateCalculatedWidth, propagateCalculatedHeight) {
@@ -30650,14 +31232,14 @@ Object.assign(pc, function() {
   Object.defineProperty(ElementComponent.prototype, "layers", {get:function() {
     return this._layers;
   }, set:function(value) {
-    var i, layer;
+    var i, j, layer;
     if (this._addedModels.length) {
       for (i = 0;i < this._layers.length;i++) {
         layer = this.system.app.scene.layers.getLayerById(this._layers[i]);
         if (layer) {
-          this._addedModels.forEach(function(model) {
-            layer.removeMeshInstances(model.meshInstances);
-          });
+          for (j = 0;j < this._addedModels.length;j++) {
+            layer.removeMeshInstances(this._addedModels[j].meshInstances);
+          }
         }
       }
     }
@@ -30668,9 +31250,9 @@ Object.assign(pc, function() {
     for (i = 0;i < this._layers.length;i++) {
       layer = this.system.app.scene.layers.getLayerById(this._layers[i]);
       if (layer) {
-        this._addedModels.forEach(function(model) {
-          layer.addMeshInstances(model.meshInstances);
-        });
+        for (j = 0;j < this._addedModels.length;j++) {
+          layer.removeMeshInstances(this._addedModels[j].meshInstances);
+        }
       }
     }
   }});
@@ -30754,14 +31336,18 @@ Object.assign(pc, function() {
     return this._width;
   }, set:function(value) {
     this._width = value;
-    this._setCalculatedWidth(value, true);
+    if (!this._hasSplitAnchorsX) {
+      this._setCalculatedWidth(value, true);
+    }
     this.fire("set:width", this._width);
   }});
   Object.defineProperty(ElementComponent.prototype, "height", {get:function() {
     return this._height;
   }, set:function(value) {
     this._height = value;
-    this._setCalculatedHeight(value, true);
+    if (!this._hasSplitAnchorsY) {
+      this._setCalculatedHeight(value, true);
+    }
     this.fire("set:height", this._height);
   }});
   Object.defineProperty(ElementComponent.prototype, "calculatedWidth", {get:function() {
@@ -30822,6 +31408,15 @@ Object.assign(pc, function() {
   }});
   Object.defineProperty(ElementComponent.prototype, "_hasSplitAnchorsY", {get:function() {
     return Math.abs(this._anchor.data[1] - this._anchor.data[3]) > 0.001;
+  }});
+  Object.defineProperty(ElementComponent.prototype, "aabb", {get:function() {
+    if (this._image) {
+      return this._image.aabb;
+    }
+    if (this._text) {
+      return this._text.aabb;
+    }
+    return null;
   }});
   Object.defineProperty(ElementComponent.prototype, "screenCorners", {get:function() {
     if (!this._cornersDirty || !this.screen) {
@@ -30942,15 +31537,7 @@ Object.assign(pc, function() {
     this._batchGroupId = value;
   }});
   Object.defineProperty(ElementComponent.prototype, "maskedBy", {get:function() {
-    if (this._image) {
-      return this._image._maskedBy;
-    } else {
-      if (this._text) {
-        return this._text._maskedBy;
-      } else {
-        return null;
-      }
-    }
+    return this._maskedBy;
   }});
   var _define = function(name) {
     Object.defineProperty(ElementComponent.prototype, name, {get:function() {
@@ -30983,6 +31570,8 @@ Object.assign(pc, function() {
   _define("alignment");
   _define("autoWidth");
   _define("autoHeight");
+  _define("rtlReorder");
+  _define("unicodeConverter");
   _define("text");
   _define("texture");
   _define("textureAsset");
@@ -30999,8 +31588,6 @@ Object.assign(pc, function() {
 }());
 Object.assign(pc, function() {
   var _schema = ["enabled"];
-  var nineSliceBasePS = ["varying vec2 vMask;", "varying vec2 vTiledUv;", "uniform vec4 innerOffset;", "uniform vec2 outerScale;", "uniform vec4 atlasRect;", "vec2 nineSlicedUv;"].join("\n");
-  var nineSliceUvPs = ["vec2 tileMask = step(vMask, vec2(0.99999));", "vec2 clampedUv = mix(innerOffset.xy*0.5, vec2(1.0) - innerOffset.zw*0.5, fract(vTiledUv));", "clampedUv = clampedUv * atlasRect.zw + atlasRect.xy;", "nineSlicedUv = vUv0 * tileMask + clampedUv * (vec2(1.0) - tileMask);"].join("\n");
   var ElementComponentSystem = function ElementComponentSystem(app) {
     pc.ComponentSystem.call(this, app);
     this.id = "element";
@@ -31009,6 +31596,8 @@ Object.assign(pc, function() {
     this.ComponentType = pc.ElementComponent;
     this.DataType = pc.ElementComponentData;
     this.schema = _schema;
+    this._unicodeConverter = null;
+    this._rtlReorder = null;
     this._defaultTexture = new pc.Texture(app.graphicsDevice, {width:1, height:1, format:pc.PIXELFORMAT_R8_G8_B8_A8});
     var pixels = this._defaultTexture.lock();
     var pixelData = new Uint8Array(4);
@@ -31018,112 +31607,30 @@ Object.assign(pc, function() {
     pixelData[3] = 255.0;
     pixels.set(pixelData);
     this._defaultTexture.unlock();
-    this.defaultImageMaterial = new pc.StandardMaterial;
-    this.defaultImageMaterial.diffuse.set(0, 0, 0);
-    this.defaultImageMaterial.emissive.set(0.5, 0.5, 0.5);
-    this.defaultImageMaterial.emissiveMap = this._defaultTexture;
-    this.defaultImageMaterial.emissiveTint = true;
-    this.defaultImageMaterial.opacityMap = this._defaultTexture;
-    this.defaultImageMaterial.opacityMapChannel = "a";
-    this.defaultImageMaterial.opacityTint = true;
-    this.defaultImageMaterial.opacity = 0;
-    this.defaultImageMaterial.useLighting = false;
-    this.defaultImageMaterial.useGammaTonemap = false;
-    this.defaultImageMaterial.useFog = false;
-    this.defaultImageMaterial.useSkybox = false;
-    this.defaultImageMaterial.blendType = pc.BLEND_PREMULTIPLIED;
-    this.defaultImageMaterial.depthWrite = false;
-    this.defaultImageMaterial.update();
-    this.defaultImageMaskMaterial = this.defaultImageMaterial.clone();
-    this.defaultImageMaskMaterial.alphaTest = 1;
-    this.defaultImageMaskMaterial.redWrite = false;
-    this.defaultImageMaskMaterial.greenWrite = false;
-    this.defaultImageMaskMaterial.blueWrite = false;
-    this.defaultImageMaskMaterial.alphaWrite = false;
-    this.defaultImageMaskMaterial.update();
-    this.defaultImage9SlicedMaterial = this.defaultImageMaterial.clone();
-    this.defaultImage9SlicedMaterial.chunks.basePS = pc.shaderChunks.basePS + nineSliceBasePS;
-    this.defaultImage9SlicedMaterial.chunks.startPS = pc.shaderChunks.startPS + "nineSlicedUv = vUv0;\n";
-    this.defaultImage9SlicedMaterial.chunks.emissivePS = pc.shaderChunks.emissivePS.replace("$UV", "nineSlicedUv");
-    this.defaultImage9SlicedMaterial.chunks.opacityPS = pc.shaderChunks.opacityPS.replace("$UV", "nineSlicedUv");
-    this.defaultImage9SlicedMaterial.chunks.transformVS = "#define NINESLICED\n" + pc.shaderChunks.transformVS;
-    this.defaultImage9SlicedMaterial.chunks.uv0VS = pc.shaderChunks.uv9SliceVS;
-    this.defaultImage9SlicedMaterial.update();
-    this.defaultImage9TiledMaterial = this.defaultImage9SlicedMaterial.clone();
-    this.defaultImage9TiledMaterial.chunks.basePS = pc.shaderChunks.basePS + "#define NINESLICETILED\n" + nineSliceBasePS;
-    this.defaultImage9TiledMaterial.chunks.startPS = pc.shaderChunks.startPS + nineSliceUvPs;
-    this.defaultImage9TiledMaterial.chunks.emissivePS = pc.shaderChunks.emissivePS.replace("$UV", "nineSlicedUv, -1000.0");
-    this.defaultImage9TiledMaterial.chunks.opacityPS = pc.shaderChunks.opacityPS.replace("$UV", "nineSlicedUv, -1000.0");
-    this.defaultImage9TiledMaterial.update();
-    this.defaultImage9SlicedMaskMaterial = this.defaultImage9SlicedMaterial.clone();
-    this.defaultImage9SlicedMaskMaterial.alphaTest = 1;
-    this.defaultImage9SlicedMaskMaterial.redWrite = false;
-    this.defaultImage9SlicedMaskMaterial.greenWrite = false;
-    this.defaultImage9SlicedMaskMaterial.blueWrite = false;
-    this.defaultImage9SlicedMaskMaterial.alphaWrite = false;
-    this.defaultImage9SlicedMaskMaterial.update();
-    this.defaultImage9TiledMaskMaterial = this.defaultImage9TiledMaterial.clone();
-    this.defaultImage9TiledMaskMaterial.alphaTest = 1;
-    this.defaultImage9TiledMaskMaterial.redWrite = false;
-    this.defaultImage9TiledMaskMaterial.greenWrite = false;
-    this.defaultImage9TiledMaskMaterial.blueWrite = false;
-    this.defaultImage9TiledMaskMaterial.alphaWrite = false;
-    this.defaultImage9TiledMaskMaterial.update();
-    this.defaultScreenSpaceImageMaterial = this.defaultImageMaterial.clone();
-    this.defaultScreenSpaceImageMaterial.depthTest = false;
-    this.defaultScreenSpaceImageMaterial.update();
-    this.defaultScreenSpaceImage9SlicedMaterial = this.defaultImage9SlicedMaterial.clone();
-    this.defaultScreenSpaceImage9SlicedMaterial.depthTest = false;
-    this.defaultScreenSpaceImage9SlicedMaterial.update();
-    this.defaultScreenSpaceImage9TiledMaterial = this.defaultScreenSpaceImage9SlicedMaterial.clone();
-    this.defaultScreenSpaceImage9TiledMaterial.chunks.basePS = pc.shaderChunks.basePS + "#define NINESLICETILED\n" + nineSliceBasePS;
-    this.defaultScreenSpaceImage9TiledMaterial.chunks.startPS = pc.shaderChunks.startPS + nineSliceUvPs;
-    this.defaultScreenSpaceImage9TiledMaterial.chunks.emissivePS = pc.shaderChunks.emissivePS.replace("$UV", "nineSlicedUv, -1000.0");
-    this.defaultScreenSpaceImage9TiledMaterial.chunks.opacityPS = pc.shaderChunks.opacityPS.replace("$UV", "nineSlicedUv, -1000.0");
-    this.defaultScreenSpaceImage9TiledMaterial.update();
-    this.defaultScreenSpaceImageMask9SlicedMaterial = this.defaultScreenSpaceImage9SlicedMaterial.clone();
-    this.defaultScreenSpaceImageMask9SlicedMaterial.alphaTest = 1;
-    this.defaultScreenSpaceImageMask9SlicedMaterial.redWrite = false;
-    this.defaultScreenSpaceImageMask9SlicedMaterial.greenWrite = false;
-    this.defaultScreenSpaceImageMask9SlicedMaterial.blueWrite = false;
-    this.defaultScreenSpaceImageMask9SlicedMaterial.alphaWrite = false;
-    this.defaultScreenSpaceImageMask9SlicedMaterial.update();
-    this.defaultScreenSpaceImageMask9TiledMaterial = this.defaultScreenSpaceImage9TiledMaterial.clone();
-    this.defaultScreenSpaceImageMask9TiledMaterial.alphaTest = 1;
-    this.defaultScreenSpaceImageMask9TiledMaterial.redWrite = false;
-    this.defaultScreenSpaceImageMask9TiledMaterial.greenWrite = false;
-    this.defaultScreenSpaceImageMask9TiledMaterial.blueWrite = false;
-    this.defaultScreenSpaceImageMask9TiledMaterial.alphaWrite = false;
-    this.defaultScreenSpaceImageMask9TiledMaterial.update();
-    this.defaultScreenSpaceImageMaskMaterial = this.defaultScreenSpaceImageMaterial.clone();
-    this.defaultScreenSpaceImageMaskMaterial.alphaTest = 1;
-    this.defaultScreenSpaceImageMaskMaterial.redWrite = false;
-    this.defaultScreenSpaceImageMaskMaterial.greenWrite = false;
-    this.defaultScreenSpaceImageMaskMaterial.blueWrite = false;
-    this.defaultScreenSpaceImageMaskMaterial.alphaWrite = false;
-    this.defaultScreenSpaceImageMaskMaterial.update();
-    this.defaultTextMaterial = new pc.StandardMaterial;
-    this.defaultTextMaterial.msdfMap = this._defaultTexture;
-    this.defaultTextMaterial.useLighting = false;
-    this.defaultTextMaterial.useGammaTonemap = false;
-    this.defaultTextMaterial.useFog = false;
-    this.defaultTextMaterial.useSkybox = false;
-    this.defaultTextMaterial.diffuse.set(0, 0, 0);
-    this.defaultTextMaterial.emissive.set(1, 1, 1);
-    this.defaultTextMaterial.opacity = 0.5;
-    this.defaultTextMaterial.blendType = pc.BLEND_PREMULTIPLIED;
-    this.defaultTextMaterial.depthWrite = false;
-    this.defaultTextMaterial.update();
-    this.defaultScreenSpaceTextMaterial = this.defaultTextMaterial.clone();
-    this.defaultScreenSpaceTextMaterial.depthTest = false;
-    this.defaultScreenSpaceTextMaterial.update();
-    this.defaultImageMaterials = [this.defaultImageMaterial, this.defaultImageMaskMaterial, this.defaultImage9SlicedMaterial, this.defaultImage9TiledMaterial, this.defaultImage9SlicedMaskMaterial, this.defaultImage9TiledMaskMaterial, this.defaultScreenSpaceImageMaterial, this.defaultScreenSpaceImage9SlicedMaterial, this.defaultScreenSpaceImage9TiledMaterial, this.defaultScreenSpaceImageMask9SlicedMaterial, this.defaultScreenSpaceImageMask9TiledMaterial, this.defaultScreenSpaceImageMaskMaterial];
+    this.defaultImageMaterial = null;
+    this.defaultImage9SlicedMaterial = null;
+    this.defaultImage9TiledMaterial = null;
+    this.defaultImageMaskMaterial = null;
+    this.defaultImage9SlicedMaskMaterial = null;
+    this.defaultImage9TiledMaskMaterial = null;
+    this.defaultScreenSpaceImageMaterial = null;
+    this.defaultScreenSpaceImage9SlicedMaterial = null;
+    this.defaultScreenSpaceImage9TiledMaterial = null;
+    this.defaultScreenSpaceImageMask9SlicedMaterial = null;
+    this.defaultScreenSpaceImageMask9TiledMaterial = null;
+    this.defaultScreenSpaceImageMaskMaterial = null;
+    this.defaultTextMaterial = null;
+    this.defaultBitmapTextMaterial = null;
+    this.defaultScreenSpaceTextMaterial = null;
+    this.defaultScreenSpaceBitmapTextMaterial = null;
+    this.defaultImageMaterials = [];
     this.on("beforeremove", this.onRemoveComponent, this);
   };
   ElementComponentSystem.prototype = Object.create(pc.ComponentSystem.prototype);
   ElementComponentSystem.prototype.constructor = ElementComponentSystem;
   pc.Component._buildAccessors(pc.ElementComponent.prototype, _schema);
   Object.assign(ElementComponentSystem.prototype, {initializeComponentData:function(component, data, properties) {
+    component._beingInitialized = true;
     if (data.anchor !== undefined) {
       if (data.anchor instanceof pc.Vec4) {
         component.anchor.copy(data.anchor);
@@ -31141,6 +31648,7 @@ Object.assign(pc, function() {
     var splitHorAnchors = Math.abs(component.anchor.x - component.anchor.z) > 0.001;
     var splitVerAnchors = Math.abs(component.anchor.y - component.anchor.w) > 0.001;
     var _marginChange = false;
+    var color;
     if (data.margin !== undefined) {
       if (data.margin instanceof pc.Vec4) {
         component.margin.copy(data.margin);
@@ -31199,28 +31707,17 @@ Object.assign(pc, function() {
     component.type = data.type;
     if (component.type === pc.ELEMENTTYPE_IMAGE) {
       if (data.rect !== undefined) {
-        if (data.rect instanceof pc.Vec4) {
-          component.rect.copy(data.rect);
-        } else {
-          component.rect.set(data.rect[0], data.rect[1], data.rect[2], data.rect[3]);
-        }
+        component.rect = data.rect;
       }
       if (data.color !== undefined) {
-        if (data.color instanceof pc.Color) {
-          component.color.set(data.color.data[0], data.color.data[1], data.color.data[2], data.opacity !== undefined ? data.opacity : 1);
-        } else {
-          component.color.set(data.color[0], data.color[1], data.color[2], data.opacity !== undefined ? data.opacity : 1);
+        color = data.color;
+        if (!(color instanceof pc.Color)) {
+          color = new pc.Color(data.color[0], data.color[1], data.color[2]);
         }
-        component.color = component.color;
-      } else {
-        var opacity = data.opacity || 1;
-        component.color.set(1, 1, 1, opacity);
-        component.color = component.color;
+        component.color = color;
       }
       if (data.opacity !== undefined) {
         component.opacity = data.opacity;
-      } else {
-        component.opacity = 1;
       }
       if (data.textureAsset !== undefined) {
         component.textureAsset = data.textureAsset;
@@ -31257,16 +31754,21 @@ Object.assign(pc, function() {
         if (data.autoHeight !== undefined) {
           component.autoHeight = data.autoHeight;
         }
+        if (data.rtlReorder !== undefined) {
+          component.rtlReorder = data.rtlReorder;
+        }
+        if (data.unicodeConverter !== undefined) {
+          component.unicodeConverter = data.unicodeConverter;
+        }
         if (data.text !== undefined) {
           component.text = data.text;
         }
         if (data.color !== undefined) {
-          if (data.color instanceof pc.Color) {
-            component.color.set(data.color.data[0], data.color.data[1], data.color.data[2], data.opacity !== undefined ? data.opacity : 1);
-          } else {
-            component.color.set(data.color[0], data.color[1], data.color[2], data.opacity !== undefined ? data.opacity : 1);
+          color = data.color;
+          if (!(color instanceof pc.Color)) {
+            color = new pc.Color(color[0], color[1], color[2]);
           }
-          component.color = component.color;
+          component.color = color;
         }
         if (data.opacity !== undefined) {
           component.opacity = data.opacity;
@@ -31303,12 +31805,283 @@ Object.assign(pc, function() {
       component._updateScreen(result.screen);
     }
     pc.ComponentSystem.prototype.initializeComponentData.call(this, component, data, properties);
+    component._beingInitialized = false;
+    if (component.type === pc.ELEMENTTYPE_IMAGE && component._image._meshDirty) {
+      component._image._updateMesh(component._image.mesh);
+    }
   }, onRemoveComponent:function(entity, component) {
     component.onRemove();
   }, cloneComponent:function(entity, clone) {
     var source = entity.element;
-    return this.addComponent(clone, {enabled:source.enabled, width:source.width, height:source.height, anchor:source.anchor.clone(), pivot:source.pivot.clone(), margin:source.margin.clone(), alignment:source.alignment && source.alignment.clone() || source.alignment, autoWidth:source.autoWidth, autoHeight:source.autoHeight, type:source.type, rect:source.rect && source.rect.clone() || source.rect, materialAsset:source.materialAsset, material:source.material, color:source.color && source.color.clone() || 
-    source.color, opacity:source.opacity, textureAsset:source.textureAsset, texture:source.texture, spriteAsset:source.spriteAsset, sprite:source.sprite, spriteFrame:source.spriteFrame, pixelsPerUnit:source.pixelsPerUnit, text:source.text, spacing:source.spacing, lineHeight:source.lineHeight, wrapLines:source.wrapLines, layers:source.layers, fontSize:source.fontSize, fontAsset:source.fontAsset, font:source.font, useInput:source.useInput, batchGroupId:source.batchGroupId, mask:source.mask});
+    return this.addComponent(clone, {enabled:source.enabled, width:source.width, height:source.height, anchor:source.anchor.clone(), pivot:source.pivot.clone(), margin:source.margin.clone(), alignment:source.alignment && source.alignment.clone() || source.alignment, autoWidth:source.autoWidth, autoHeight:source.autoHeight, type:source.type, rect:source.rect && source.rect.clone() || source.rect, rtlReorder:source.rtlReorder, unicodeConverter:source.unicodeConverter, materialAsset:source.materialAsset, 
+    material:source.material, color:source.color && source.color.clone() || source.color, opacity:source.opacity, textureAsset:source.textureAsset, texture:source.texture, spriteAsset:source.spriteAsset, sprite:source.sprite, spriteFrame:source.spriteFrame, pixelsPerUnit:source.pixelsPerUnit, text:source.text, spacing:source.spacing, lineHeight:source.lineHeight, wrapLines:source.wrapLines, layers:source.layers, fontSize:source.fontSize, fontAsset:source.fontAsset, font:source.font, useInput:source.useInput, 
+    batchGroupId:source.batchGroupId, mask:source.mask});
+  }, getTextElementMaterial:function(screenSpace, msdf) {
+    if (screenSpace) {
+      if (msdf) {
+        if (!this.defaultScreenSpaceTextMaterial) {
+          this.defaultScreenSpaceTextMaterial = new pc.StandardMaterial;
+          this.defaultScreenSpaceTextMaterial.name = "defaultScreenSpaceTextMaterial";
+          this.defaultScreenSpaceTextMaterial.msdfMap = this._defaultTexture;
+          this.defaultScreenSpaceTextMaterial.useLighting = false;
+          this.defaultScreenSpaceTextMaterial.useGammaTonemap = false;
+          this.defaultScreenSpaceTextMaterial.useFog = false;
+          this.defaultScreenSpaceTextMaterial.useSkybox = false;
+          this.defaultScreenSpaceTextMaterial.diffuse.set(0, 0, 0);
+          this.defaultScreenSpaceTextMaterial.emissive.set(1, 1, 1);
+          this.defaultScreenSpaceTextMaterial.opacity = 0.5;
+          this.defaultScreenSpaceTextMaterial.blendType = pc.BLEND_PREMULTIPLIED;
+          this.defaultScreenSpaceTextMaterial.depthWrite = false;
+          this.defaultScreenSpaceTextMaterial.depthTest = false;
+          this.defaultScreenSpaceTextMaterial.update();
+        }
+        return this.defaultScreenSpaceTextMaterial;
+      }
+      if (!this.defaultScreenSpaceBitmapTextMaterial) {
+        this.defaultScreenSpaceBitmapTextMaterial = new pc.StandardMaterial;
+        this.defaultScreenSpaceBitmapTextMaterial.name = "defaultScreenSpaceBitmapTextMaterial";
+        this.defaultScreenSpaceBitmapTextMaterial.emissive.set(0.5, 0.5, 0.5);
+        this.defaultScreenSpaceBitmapTextMaterial.emissiveMap = this._defaultTexture;
+        this.defaultScreenSpaceBitmapTextMaterial.emissiveTint = true;
+        this.defaultScreenSpaceBitmapTextMaterial.opacity = 0.5;
+        this.defaultScreenSpaceBitmapTextMaterial.opacityMap = this._defaultTexture;
+        this.defaultScreenSpaceBitmapTextMaterial.opacityMapChannel = "a";
+        this.defaultScreenSpaceBitmapTextMaterial.useLighting = false;
+        this.defaultScreenSpaceBitmapTextMaterial.useGammaTonemap = false;
+        this.defaultScreenSpaceBitmapTextMaterial.useFog = false;
+        this.defaultScreenSpaceBitmapTextMaterial.useSkybox = false;
+        this.defaultScreenSpaceBitmapTextMaterial.diffuse.set(0, 0, 0);
+        this.defaultScreenSpaceBitmapTextMaterial.blendType = pc.BLEND_PREMULTIPLIED;
+        this.defaultScreenSpaceBitmapTextMaterial.depthWrite = false;
+        this.defaultScreenSpaceBitmapTextMaterial.depthTest = false;
+        this.defaultScreenSpaceBitmapTextMaterial.update();
+      }
+      return this.defaultScreenSpaceBitmapTextMaterial;
+    }
+    if (msdf) {
+      if (!this.defaultTextMaterial) {
+        this.defaultTextMaterial = new pc.StandardMaterial;
+        this.defaultTextMaterial.name = "defaultTextMaterial";
+        this.defaultTextMaterial.msdfMap = this._defaultTexture;
+        this.defaultTextMaterial.useLighting = false;
+        this.defaultTextMaterial.useGammaTonemap = false;
+        this.defaultTextMaterial.useFog = false;
+        this.defaultTextMaterial.useSkybox = false;
+        this.defaultTextMaterial.diffuse.set(0, 0, 0);
+        this.defaultTextMaterial.emissive.set(1, 1, 1);
+        this.defaultTextMaterial.opacity = 0.5;
+        this.defaultTextMaterial.blendType = pc.BLEND_PREMULTIPLIED;
+        this.defaultTextMaterial.depthWrite = false;
+        this.defaultTextMaterial.update();
+      }
+      return this.defaultTextMaterial;
+    }
+    if (!this.defaultBitmapTextMaterial) {
+      this.defaultBitmapTextMaterial = new pc.StandardMaterial;
+      this.defaultBitmapTextMaterial.name = "defaultBitmapTextMaterial";
+      this.defaultBitmapTextMaterial.emissive.set(0.5, 0.5, 0.5);
+      this.defaultBitmapTextMaterial.emissiveTint = true;
+      this.defaultBitmapTextMaterial.emissiveMap = this._defaultTexture;
+      this.defaultBitmapTextMaterial.opacity = 0.5;
+      this.defaultBitmapTextMaterial.opacityMap = this._defaultTexture;
+      this.defaultBitmapTextMaterial.opacityMapChannel = "a";
+      this.defaultBitmapTextMaterial.useLighting = false;
+      this.defaultBitmapTextMaterial.useGammaTonemap = false;
+      this.defaultBitmapTextMaterial.useFog = false;
+      this.defaultBitmapTextMaterial.useSkybox = false;
+      this.defaultBitmapTextMaterial.diffuse.set(0, 0, 0);
+      this.defaultBitmapTextMaterial.blendType = pc.BLEND_PREMULTIPLIED;
+      this.defaultBitmapTextMaterial.depthWrite = false;
+      this.defaultBitmapTextMaterial.update();
+    }
+    return this.defaultBitmapTextMaterial;
+  }, _createBaseImageMaterial:function() {
+    var material = new pc.StandardMaterial;
+    material.diffuse.set(0, 0, 0);
+    material.emissive.set(0.5, 0.5, 0.5);
+    material.emissiveMap = this._defaultTexture;
+    material.emissiveTint = true;
+    material.opacityMap = this._defaultTexture;
+    material.opacityMapChannel = "a";
+    material.opacityTint = true;
+    material.opacity = 0;
+    material.useLighting = false;
+    material.useGammaTonemap = false;
+    material.useFog = false;
+    material.useSkybox = false;
+    material.blendType = pc.BLEND_PREMULTIPLIED;
+    material.depthWrite = false;
+    return material;
+  }, getImageElementMaterial:function(screenSpace, mask, nineSliced, nineSliceTiled) {
+    if (screenSpace) {
+      if (mask) {
+        if (nineSliced) {
+          if (!this.defaultScreenSpaceImageMask9SlicedMaterial) {
+            this.defaultScreenSpaceImageMask9SlicedMaterial = this._createBaseImageMaterial();
+            this.defaultScreenSpaceImageMask9SlicedMaterial.name = "defaultScreenSpaceImageMask9SlicedMaterial";
+            this.defaultScreenSpaceImageMask9SlicedMaterial.nineSlicedMode = pc.SPRITE_RENDERMODE_SLICED;
+            this.defaultScreenSpaceImageMask9SlicedMaterial.depthTest = false;
+            this.defaultScreenSpaceImageMask9SlicedMaterial.alphaTest = 1;
+            this.defaultScreenSpaceImageMask9SlicedMaterial.redWrite = false;
+            this.defaultScreenSpaceImageMask9SlicedMaterial.greenWrite = false;
+            this.defaultScreenSpaceImageMask9SlicedMaterial.blueWrite = false;
+            this.defaultScreenSpaceImageMask9SlicedMaterial.alphaWrite = false;
+            this.defaultScreenSpaceImageMask9SlicedMaterial.update();
+            this.defaultImageMaterials.push(this.defaultScreenSpaceImageMask9SlicedMaterial);
+          }
+          return this.defaultScreenSpaceImageMask9SlicedMaterial;
+        } else {
+          if (nineSliceTiled) {
+            if (!this.defaultScreenSpaceImageMask9TiledMaterial) {
+              this.defaultScreenSpaceImageMask9TiledMaterial = this.defaultScreenSpaceImage9TiledMaterial.clone();
+              this.defaultScreenSpaceImageMask9TiledMaterial.name = "defaultScreenSpaceImageMask9TiledMaterial";
+              this.defaultScreenSpaceImageMask9TiledMaterial.nineSlicedMode = pc.SPRITE_RENDERMODE_TILED;
+              this.defaultScreenSpaceImageMask9TiledMaterial.depthTest = false;
+              this.defaultScreenSpaceImageMask9TiledMaterial.alphaTest = 1;
+              this.defaultScreenSpaceImageMask9TiledMaterial.redWrite = false;
+              this.defaultScreenSpaceImageMask9TiledMaterial.greenWrite = false;
+              this.defaultScreenSpaceImageMask9TiledMaterial.blueWrite = false;
+              this.defaultScreenSpaceImageMask9TiledMaterial.alphaWrite = false;
+              this.defaultScreenSpaceImageMask9TiledMaterial.update();
+              this.defaultImageMaterials.push(this.defaultScreenSpaceImageMask9TiledMaterial);
+            }
+            return this.defaultScreenSpaceImageMask9TiledMaterial;
+          } else {
+            if (!this.defaultScreenSpaceImageMaskMaterial) {
+              this.defaultScreenSpaceImageMaskMaterial = this._createBaseImageMaterial();
+              this.defaultScreenSpaceImageMaskMaterial.name = "defaultScreenSpaceImageMaskMaterial";
+              this.defaultScreenSpaceImageMaskMaterial.depthTest = false;
+              this.defaultScreenSpaceImageMaskMaterial.alphaTest = 1;
+              this.defaultScreenSpaceImageMaskMaterial.redWrite = false;
+              this.defaultScreenSpaceImageMaskMaterial.greenWrite = false;
+              this.defaultScreenSpaceImageMaskMaterial.blueWrite = false;
+              this.defaultScreenSpaceImageMaskMaterial.alphaWrite = false;
+              this.defaultScreenSpaceImageMaskMaterial.update();
+              this.defaultImageMaterials.push(this.defaultScreenSpaceImageMaskMaterial);
+            }
+            return this.defaultScreenSpaceImageMaskMaterial;
+          }
+        }
+      } else {
+        if (nineSliced) {
+          if (!this.defaultScreenSpaceImage9SlicedMaterial) {
+            this.defaultScreenSpaceImage9SlicedMaterial = this._createBaseImageMaterial();
+            this.defaultScreenSpaceImage9SlicedMaterial.name = "defaultScreenSpaceImage9SlicedMaterial";
+            this.defaultScreenSpaceImage9SlicedMaterial.nineSlicedMode = pc.SPRITE_RENDERMODE_SLICED;
+            this.defaultScreenSpaceImage9SlicedMaterial.depthTest = false;
+            this.defaultScreenSpaceImage9SlicedMaterial.update();
+            this.defaultImageMaterials.push(this.defaultScreenSpaceImage9SlicedMaterial);
+          }
+          return this.defaultScreenSpaceImage9SlicedMaterial;
+        } else {
+          if (nineSliceTiled) {
+            if (!this.defaultScreenSpaceImage9TiledMaterial) {
+              this.defaultScreenSpaceImage9TiledMaterial = this._createBaseImageMaterial();
+              this.defaultScreenSpaceImage9TiledMaterial.name = "defaultScreenSpaceImage9TiledMaterial";
+              this.defaultScreenSpaceImage9TiledMaterial.nineSlicedMode = pc.SPRITE_RENDERMODE_TILED;
+              this.defaultScreenSpaceImage9TiledMaterial.depthTest = false;
+              this.defaultScreenSpaceImage9TiledMaterial.update();
+              this.defaultImageMaterials.push(this.defaultScreenSpaceImage9TiledMaterial);
+            }
+            return this.defaultScreenSpaceImage9TiledMaterial;
+          } else {
+            if (!this.defaultScreenSpaceImageMaterial) {
+              this.defaultScreenSpaceImageMaterial = this._createBaseImageMaterial();
+              this.defaultScreenSpaceImageMaterial.name = "defaultScreenSpaceImageMaterial";
+              this.defaultScreenSpaceImageMaterial.depthTest = false;
+              this.defaultScreenSpaceImageMaterial.update();
+              this.defaultImageMaterials.push(this.defaultScreenSpaceImageMaterial);
+            }
+            return this.defaultScreenSpaceImageMaterial;
+          }
+        }
+      }
+    } else {
+      if (mask) {
+        if (nineSliced) {
+          if (!this.defaultImage9SlicedMaskMaterial) {
+            this.defaultImage9SlicedMaskMaterial = this._createBaseImageMaterial();
+            this.defaultImage9SlicedMaskMaterial.name = "defaultImage9SlicedMaskMaterial";
+            this.defaultImage9SlicedMaskMaterial.nineSlicedMode = pc.SPRITE_RENDERMODE_SLICED;
+            this.defaultImage9SlicedMaskMaterial.alphaTest = 1;
+            this.defaultImage9SlicedMaskMaterial.redWrite = false;
+            this.defaultImage9SlicedMaskMaterial.greenWrite = false;
+            this.defaultImage9SlicedMaskMaterial.blueWrite = false;
+            this.defaultImage9SlicedMaskMaterial.alphaWrite = false;
+            this.defaultImage9SlicedMaskMaterial.update();
+            this.defaultImageMaterials.push(this.defaultImage9SlicedMaskMaterial);
+          }
+          return this.defaultImage9SlicedMaskMaterial;
+        } else {
+          if (nineSliceTiled) {
+            if (!this.defaultImage9TiledMaskMaterial) {
+              this.defaultImage9TiledMaskMaterial = this._createBaseImageMaterial();
+              this.defaultImage9TiledMaskMaterial.name = "defaultImage9TiledMaskMaterial";
+              this.defaultImage9TiledMaskMaterial.nineSlicedMode = pc.SPRITE_RENDERMODE_TILED;
+              this.defaultImage9TiledMaskMaterial.alphaTest = 1;
+              this.defaultImage9TiledMaskMaterial.redWrite = false;
+              this.defaultImage9TiledMaskMaterial.greenWrite = false;
+              this.defaultImage9TiledMaskMaterial.blueWrite = false;
+              this.defaultImage9TiledMaskMaterial.alphaWrite = false;
+              this.defaultImage9TiledMaskMaterial.update();
+              this.defaultImageMaterials.push(this.defaultImage9TiledMaskMaterial);
+            }
+            return this.defaultImage9TiledMaskMaterial;
+          } else {
+            if (!this.defaultImageMaskMaterial) {
+              this.defaultImageMaskMaterial = this._createBaseImageMaterial();
+              this.defaultImageMaskMaterial.name = "defaultImageMaskMaterial";
+              this.defaultImageMaskMaterial.alphaTest = 1;
+              this.defaultImageMaskMaterial.redWrite = false;
+              this.defaultImageMaskMaterial.greenWrite = false;
+              this.defaultImageMaskMaterial.blueWrite = false;
+              this.defaultImageMaskMaterial.alphaWrite = false;
+              this.defaultImageMaskMaterial.update();
+              this.defaultImageMaterials.push(this.defaultImageMaskMaterial);
+            }
+            return this.defaultImageMaskMaterial;
+          }
+        }
+      } else {
+        if (nineSliced) {
+          if (!this.defaultImage9SlicedMaterial) {
+            this.defaultImage9SlicedMaterial = this._createBaseImageMaterial();
+            this.defaultImage9SlicedMaterial.name = "defaultImage9SlicedMaterial";
+            this.defaultImage9SlicedMaterial.nineSlicedMode = pc.SPRITE_RENDERMODE_SLICED;
+            this.defaultImage9SlicedMaterial.update();
+            this.defaultImageMaterials.push(this.defaultImage9SlicedMaterial);
+          }
+          return this.defaultImage9SlicedMaterial;
+        } else {
+          if (nineSliceTiled) {
+            if (!this.defaultImage9TiledMaterial) {
+              this.defaultImage9TiledMaterial = this._createBaseImageMaterial();
+              this.defaultImage9TiledMaterial.name = "defaultImage9TiledMaterial";
+              this.defaultImage9TiledMaterial.nineSlicedMode = pc.SPRITE_RENDERMODE_TILED;
+              this.defaultImage9TiledMaterial.update();
+              this.defaultImageMaterials.push(this.defaultImage9TiledMaterial);
+            }
+            return this.defaultImage9TiledMaterial;
+          } else {
+            if (!this.defaultImageMaterial) {
+              this.defaultImageMaterial = this._createBaseImageMaterial();
+              this.defaultImageMaterial.name = "defaultImageMaterial";
+              this.defaultImageMaterial.update();
+              this.defaultImageMaterials.push(this.defaultImageMaterial);
+            }
+            return this.defaultImageMaterial;
+          }
+        }
+      }
+    }
+  }, registerUnicodeConverter:function(func) {
+    this._unicodeConverter = func;
+  }, registerRtlReorder:function(func) {
+    this._rtlReorder = func;
+  }, getUnicodeConverter:function() {
+    return this._unicodeConverter;
+  }, getRtlReorder:function() {
+    return this._rtlReorder;
   }});
   return {ElementComponentSystem:ElementComponentSystem};
 }());
@@ -31319,8 +32092,6 @@ Object.assign(pc, function() {
   return {ElementComponentData:ElementComponentData};
 }());
 Object.assign(pc, function() {
-  var maskOffset = 0.5;
-  var maskOffsetIncrement = 0.001;
   var ImageRenderable = function(entity, mesh, material) {
     this._entity = entity;
     this._element = entity.element;
@@ -31332,6 +32103,7 @@ Object.assign(pc, function() {
     this.meshInstance.name = "ImageElement: " + entity.name;
     this.meshInstance.castShadow = false;
     this.meshInstance.receiveShadow = false;
+    this._meshDirty = false;
     this.model.meshInstances.push(this.meshInstance);
     this._entity.addChild(this.model.graph);
     this.model._entity = this._entity;
@@ -31348,6 +32120,9 @@ Object.assign(pc, function() {
     this._element = null;
   };
   ImageRenderable.prototype.setMesh = function(mesh) {
+    if (!this.meshInstance) {
+      return;
+    }
     this.mesh = mesh;
     this.meshInstance.mesh = mesh;
     this.meshInstance.visible = !!mesh;
@@ -31357,6 +32132,9 @@ Object.assign(pc, function() {
     this.forceUpdateAabb();
   };
   ImageRenderable.prototype.setMask = function(mask) {
+    if (!this.meshInstance) {
+      return;
+    }
     if (mask) {
       this.unmaskMeshInstance = new pc.MeshInstance(this.node, this.mesh, this.meshInstance.material);
       this.unmaskMeshInstance.name = "Unmask: " + this._entity.name;
@@ -31380,24 +32158,36 @@ Object.assign(pc, function() {
     }
   };
   ImageRenderable.prototype.setMaterial = function(material) {
+    if (!this.meshInstance) {
+      return;
+    }
     this.meshInstance.material = material;
     if (this.unmaskMeshInstance) {
       this.unmaskMeshInstance.material = material;
     }
   };
   ImageRenderable.prototype.setParameter = function(name, value) {
+    if (!this.meshInstance) {
+      return;
+    }
     this.meshInstance.setParameter(name, value);
     if (this.unmaskMeshInstance) {
       this.unmaskMeshInstance.setParameter(name, value);
     }
   };
   ImageRenderable.prototype.deleteParameter = function(name) {
+    if (!this.meshInstance) {
+      return;
+    }
     this.meshInstance.deleteParameter(name);
     if (this.unmaskMeshInstance) {
       this.unmaskMeshInstance.deleteParameter(name);
     }
   };
   ImageRenderable.prototype.setUnmaskDrawOrder = function() {
+    if (!this.meshInstance) {
+      return;
+    }
     var getLastChild = function(e) {
       var last;
       var c = e.getChildren();
@@ -31414,12 +32204,10 @@ Object.assign(pc, function() {
         var child = getLastChild(last);
         if (child) {
           return child;
-        } else {
-          return last;
         }
-      } else {
-        return null;
+        return last;
       }
+      return null;
     };
     if (this.unmaskMeshInstance) {
       var lastChild = getLastChild(this._entity);
@@ -31431,33 +32219,51 @@ Object.assign(pc, function() {
     }
   };
   ImageRenderable.prototype.setDrawOrder = function(drawOrder) {
+    if (!this.meshInstance) {
+      return;
+    }
     this.meshInstance.drawOrder = drawOrder;
   };
   ImageRenderable.prototype.setCull = function(cull) {
+    if (!this.meshInstance) {
+      return;
+    }
     this.meshInstance.cull = cull;
     if (this.unmaskMeshInstance) {
       this.unmaskMeshInstance.cull = cull;
     }
   };
   ImageRenderable.prototype.setScreenSpace = function(screenSpace) {
+    if (!this.meshInstance) {
+      return;
+    }
     this.meshInstance.screenSpace = screenSpace;
     if (this.unmaskMeshInstance) {
       this.unmaskMeshInstance.screenSpace = screenSpace;
     }
   };
   ImageRenderable.prototype.setLayer = function(layer) {
+    if (!this.meshInstance) {
+      return;
+    }
     this.meshInstance.layer = layer;
     if (this.unmaskMeshInstance) {
       this.unmaskMeshInstance.layer = layer;
     }
   };
   ImageRenderable.prototype.forceUpdateAabb = function(mask) {
+    if (!this.meshInstance) {
+      return;
+    }
     this.meshInstance._aabbVer = -1;
     if (this.unmaskMeshInstance) {
       this.unmaskMeshInstance._aabbVer = -1;
     }
   };
   ImageRenderable.prototype.setAabbFunc = function(fn) {
+    if (!this.meshInstance) {
+      return;
+    }
     this.meshInstance._updateAabbFunc = fn;
     if (this.unmaskMeshInstance) {
       this.unmaskMeshInstance._updateAabbFunc = fn;
@@ -31476,10 +32282,8 @@ Object.assign(pc, function() {
     this._spriteFrame = 0;
     this._pixelsPerUnit = null;
     this._rect = new pc.Vec4(0, 0, 1, 1);
-    this._color = new pc.Color(1, 1, 1, 1);
     this._mask = false;
     this._maskRef = 0;
-    this._maskedBy = null;
     this._positions = [];
     this._normals = [];
     this._uvs = [];
@@ -31489,6 +32293,9 @@ Object.assign(pc, function() {
     this._atlasRect = new pc.Vec4;
     this._defaultMesh = this._createMesh();
     this._renderable = new ImageRenderable(this._entity, this._defaultMesh, this._material);
+    this._color = new pc.Color(1, 1, 1, 1);
+    this._renderable.setParameter("material_emissive", this._color.data3);
+    this._renderable.setParameter("material_opacity", 1);
     this._updateAabbFunc = this._updateAabb.bind(this);
     this._onScreenChange(this._element.screen);
     this._element.on("resize", this._onParentResizeOrPivotChange, this);
@@ -31536,78 +32343,14 @@ Object.assign(pc, function() {
   }, _use9Slicing:function() {
     return this.sprite && (this.sprite.renderMode === pc.SPRITE_RENDERMODE_SLICED || this.sprite.renderMode === pc.SPRITE_RENDERMODE_TILED);
   }, _updateMaterial:function(screenSpace) {
-    if (screenSpace) {
-      if (!this._hasUserMaterial()) {
-        if (this._mask) {
-          if (this.sprite) {
-            if (this.sprite.renderMode === pc.SPRITE_RENDERMODE_SLICED) {
-              this._material = this._system.defaultScreenSpaceImageMask9SlicedMaterial;
-            } else {
-              if (this.sprite.renderMode === pc.SPRITE_RENDERMODE_TILED) {
-                this._material = this._system.defaultScreenSpaceImageMask9TiledMaterial;
-              } else {
-                this._material = this._system.defaultScreenSpaceImageMaskMaterial;
-              }
-            }
-          } else {
-            this._material = this._system.defaultScreenSpaceImageMaskMaterial;
-          }
-        } else {
-          if (this.sprite) {
-            if (this.sprite.renderMode === pc.SPRITE_RENDERMODE_SLICED) {
-              this._material = this._system.defaultScreenSpaceImage9SlicedMaterial;
-            } else {
-              if (this.sprite.renderMode === pc.SPRITE_RENDERMODE_TILED) {
-                this._material = this._system.defaultScreenSpaceImage9TiledMaterial;
-              } else {
-                this._material = this._system.defaultScreenSpaceImageMaterial;
-              }
-            }
-          } else {
-            this._material = this._system.defaultScreenSpaceImageMaterial;
-          }
-        }
-      }
-      if (this._renderable) {
-        this._renderable.setCull(false);
-      }
-    } else {
-      if (!this._hasUserMaterial()) {
-        if (this._mask) {
-          if (this.sprite) {
-            if (this.sprite.renderMode === pc.SPRITE_RENDERMODE_SLICED) {
-              this._material = this._system.defaultImage9SlicedMaskMaterial;
-            } else {
-              if (this.sprite.renderMode === pc.SPRITE_RENDERMODE_TILED) {
-                this._material = this._system.defaultImage9TiledMaskMaterial;
-              } else {
-                this._material = this._system.defaultImageMaskMaterial;
-              }
-            }
-          } else {
-            this._material = this._system.defaultImageMaskMaterial;
-          }
-        } else {
-          if (this.sprite) {
-            if (this.sprite.renderMode === pc.SPRITE_RENDERMODE_SLICED) {
-              this._material = this._system.defaultImage9SlicedMaterial;
-            } else {
-              if (this.sprite.renderMode === pc.SPRITE_RENDERMODE_TILED) {
-                this._material = this._system.defaultImage9TiledMaterial;
-              } else {
-                this._material = this._system.defaultImageMaterial;
-              }
-            }
-          } else {
-            this._material = this._system.defaultImageMaterial;
-          }
-        }
-      }
-      if (this._renderable) {
-        this._renderable.setCull(true);
-      }
+    var mask = !!this._mask;
+    var nineSliced = !!(this.sprite && this.sprite.renderMode === pc.SPRITE_RENDERMODE_SLICED);
+    var nineTiled = !!(this.sprite && this.sprite.renderMode === pc.SPRITE_RENDERMODE_TILED);
+    if (!this._hasUserMaterial()) {
+      this._material = this._system.getImageElementMaterial(screenSpace, mask, nineSliced, nineTiled);
     }
     if (this._renderable) {
+      this._renderable.setCull(!screenSpace);
       this._renderable.setMaterial(this._material);
       this._renderable.setScreenSpace(screenSpace);
       this._renderable.setLayer(screenSpace ? pc.scene.LAYER_HUD : pc.scene.LAYER_WORLD);
@@ -31653,11 +32396,8 @@ Object.assign(pc, function() {
     var i;
     var w = this._element.calculatedWidth;
     var h = this._element.calculatedHeight;
-    if (this._element.screen) {
-      this._updateMaterial(this._element.screen.screen.screenSpace);
-    } else {
-      this._updateMaterial();
-    }
+    var screenSpace = this._isScreenSpace();
+    this._updateMaterial(screenSpace);
     if (this._renderable) {
       this._renderable.forceUpdateAabb();
     }
@@ -31741,6 +32481,22 @@ Object.assign(pc, function() {
         this._renderable.setAabbFunc(null);
       }
     }
+    this._meshDirty = false;
+  }, _updateSprite:function() {
+    var nineSlice = false;
+    var mesh = null;
+    if (this._sprite && this._sprite.atlas) {
+      mesh = this._sprite.meshes[this.spriteFrame];
+      nineSlice = this._sprite.renderMode === pc.SPRITE_RENDERMODE_SLICED || this._sprite.renderMode === pc.SPRITE_RENDERMODE_TILED;
+    }
+    this.mesh = nineSlice ? mesh : this._defaultMesh;
+    if (this.mesh) {
+      if (!this._element._beingInitialized) {
+        this._updateMesh(this.mesh);
+      } else {
+        this._meshDirty = true;
+      }
+    }
   }, _updateAabb:function(aabb) {
     aabb.center.set(0, 0, 0);
     aabb.halfExtents.set(this._outerScale.x * 0.5, this._outerScale.y * 0.5, 0.001);
@@ -31748,7 +32504,7 @@ Object.assign(pc, function() {
     return aabb;
   }, _toggleMask:function() {
     this._element._dirtifyMask();
-    var screenSpace = this._element.screen ? this._element.screen.screen.screenSpace : false;
+    var screenSpace = this._isScreenSpace();
     this._updateMaterial(screenSpace);
     this._renderable.setMask(!!this._mask);
   }, _onMaterialLoad:function(asset) {
@@ -31841,10 +32597,13 @@ Object.assign(pc, function() {
       }
     }
   }, _onSpriteMeshesChange:function() {
-    this.spriteFrame = this.spriteFrame;
+    if (this._sprite) {
+      this._spriteFrame = pc.math.clamp(this._spriteFrame, 0, this._sprite.frameKeys.length - 1);
+    }
+    this._updateSprite();
   }, _onSpritePpuChange:function() {
     if (this.sprite.renderMode !== pc.SPRITE_RENDERMODE_SIMPLE && this._pixelsPerUnit === null) {
-      this.spriteFrame = this.spriteFrame;
+      this._updateSprite();
     }
   }, _onAtlasTextureChange:function() {
     if (this.sprite && this.sprite.atlas && this.sprite.atlas.texture) {
@@ -31864,6 +32623,11 @@ Object.assign(pc, function() {
   }, _onSpriteAssetChange:function(asset) {
     this._onSpriteAssetLoad(asset);
   }, _onSpriteAssetRemove:function(asset) {
+  }, _isScreenSpace:function() {
+    if (this._element.screen && this._element.screen.screen) {
+      return this._element.screen.screen.screenSpace;
+    }
+    return false;
   }, onEnable:function() {
     this._element.addModelToLayers(this._renderable.model);
   }, onDisable:function() {
@@ -31884,6 +32648,9 @@ Object.assign(pc, function() {
   Object.defineProperty(ImageElement.prototype, "color", {get:function() {
     return this._color;
   }, set:function(value) {
+    if (this._color.data[0] === value.data[0] && this._color.data[1] === value.data[1] && this._color.data[2] === value.data[2]) {
+      return;
+    }
     this._color.data[0] = value.data[0];
     this._color.data[1] = value.data[1];
     this._color.data[2] = value.data[2];
@@ -31895,6 +32662,9 @@ Object.assign(pc, function() {
   Object.defineProperty(ImageElement.prototype, "opacity", {get:function() {
     return this._color.data[3];
   }, set:function(value) {
+    if (value === this._color.data[3]) {
+      return;
+    }
     this._color.data[3] = value;
     this._renderable.setParameter("material_opacity", value);
     if (this._element) {
@@ -31904,22 +32674,40 @@ Object.assign(pc, function() {
   Object.defineProperty(ImageElement.prototype, "rect", {get:function() {
     return this._rect;
   }, set:function(value) {
+    var x, y, z, w;
     if (value instanceof pc.Vec4) {
-      this._rect.set(value.x, value.y, value.z, value.w);
+      x = value.x;
+      y = value.y;
+      z = value.z;
+      w = value.w;
     } else {
-      this._rect.set(value[0], value[1], value[2], value[3]);
+      x = value[0];
+      y = value[1];
+      z = value[2];
+      w = value[3];
     }
+    if (x === this._rect.x && y === this._rect.y && z === this._rect.z && w === this._rect.w) {
+      return;
+    }
+    this._rect.set(x, y, z, w);
     if (this._renderable.mesh) {
-      this._updateMesh(this._renderable.mesh);
+      if (!this._element._beingInitialized) {
+        this._updateMesh(this._renderable.mesh);
+      } else {
+        this._meshDirty = true;
+      }
     }
   }});
   Object.defineProperty(ImageElement.prototype, "material", {get:function() {
     return this._material;
   }, set:function(value) {
     if (!value) {
-      var screenSpace = this._element.screen ? this._element.screen.screen.screenSpace : false;
-      value = screenSpace ? this._system.defaultScreenSpaceImageMaterial : this._system.defaultImageMaterial;
-      value = this._mask ? this._system.defaultScreenSpaceImageMaskMaterial : this._system.defaultImageMaskMaterial;
+      var screenSpace = this._isScreenSpace();
+      if (this.mask) {
+        value = screenSpace ? this._system.defaultScreenSpaceImageMaskMaterial : this._system.defaultImageMaskMaterial;
+      } else {
+        value = screenSpace ? this._system.defaultScreenSpaceImageMaterial : this._system.defaultImageMaterial;
+      }
     }
     this._material = value;
     if (value) {
@@ -31943,6 +32731,7 @@ Object.assign(pc, function() {
     }
     if (this._materialAsset !== _id) {
       if (this._materialAsset) {
+        assets.off("add:" + this._materialAsset, this._onMaterialAdded, this);
         var _prev = assets.get(this._materialAsset);
         if (_prev) {
           _prev.off("load", this._onMaterialLoad, this);
@@ -31988,6 +32777,7 @@ Object.assign(pc, function() {
     }
     if (this._textureAsset !== _id) {
       if (this._textureAsset) {
+        assets.off("add:" + this._textureAsset, this._onTextureAdded, this);
         var _prev = assets.get(this._textureAsset);
         if (_prev) {
           _prev.off("load", this._onTextureLoad, this);
@@ -32019,6 +32809,7 @@ Object.assign(pc, function() {
     }
     if (this._spriteAsset !== _id) {
       if (this._spriteAsset) {
+        assets.off("add:" + this._spriteAsset, this._onSpriteAssetAdded, this);
         var _prev = assets.get(this._spriteAsset);
         if (_prev) {
           this._unbindSpriteAsset(_prev);
@@ -32044,6 +32835,9 @@ Object.assign(pc, function() {
   Object.defineProperty(ImageElement.prototype, "sprite", {get:function() {
     return this._sprite;
   }, set:function(value) {
+    if (this._sprite === value) {
+      return;
+    }
     if (this._sprite) {
       this._unbindSprite(this._sprite);
     }
@@ -32058,26 +32852,24 @@ Object.assign(pc, function() {
       this._renderable.deleteParameter("texture_emissiveMap");
       this._renderable.deleteParameter("texture_opacityMap");
     }
-    this.spriteFrame = this.spriteFrame;
+    if (this._sprite) {
+      this._spriteFrame = pc.math.clamp(this._spriteFrame, 0, this._sprite.frameKeys.length - 1);
+    }
+    this._updateSprite();
   }});
   Object.defineProperty(ImageElement.prototype, "spriteFrame", {get:function() {
     return this._spriteFrame;
   }, set:function(value) {
+    var oldValue = this._spriteFrame;
     if (this._sprite) {
       this._spriteFrame = pc.math.clamp(value, 0, this._sprite.frameKeys.length - 1);
     } else {
       this._spriteFrame = value;
     }
-    var nineSlice = false;
-    var mesh = null;
-    if (this._sprite && this._sprite.atlas) {
-      mesh = this._sprite.meshes[this.spriteFrame];
-      nineSlice = this._sprite.renderMode === pc.SPRITE_RENDERMODE_SLICED || this._sprite.renderMode === pc.SPRITE_RENDERMODE_TILED;
+    if (this._spriteFrame === oldValue) {
+      return;
     }
-    this.mesh = nineSlice ? mesh : this._defaultMesh;
-    if (this.mesh) {
-      this._updateMesh(this.mesh);
-    }
+    this._updateSprite();
     if (this._element) {
       this._element.fire("set:spriteFrame", value);
     }
@@ -32108,8 +32900,14 @@ Object.assign(pc, function() {
     }
     this._pixelsPerUnit = value;
     if (this._sprite && (this._sprite.renderMode === pc.SPRITE_RENDERMODE_SLICED || this._sprite.renderMode === pc.SPRITE_RENDERMODE_TILED)) {
-      this.spriteFrame = this.spriteFrame;
+      this._updateSprite();
     }
+  }});
+  Object.defineProperty(ImageElement.prototype, "aabb", {get:function() {
+    if (this._renderable.meshInstance) {
+      return this._renderable.meshInstance.aabb;
+    }
+    return null;
   }});
   return {ImageElement:ImageElement};
 }());
@@ -32138,9 +32936,13 @@ Object.assign(pc, function() {
     this._entity.addChild(this._node);
     this._meshInfo = [];
     this._material = null;
+    this._aabbDirty = true;
+    this._aabb = new pc.BoundingBox;
     this._noResize = false;
     this._currentMaterialType = null;
     this._maskedMaterialSrc = null;
+    this._rtlReorder = false;
+    this._unicodeConverter = false;
     this._onScreenChange(this._element.screen);
     element.on("resize", this._onParentResize, this);
     this._element.on("set:screen", this._onScreenChange, this);
@@ -32157,6 +32959,7 @@ Object.assign(pc, function() {
       this._model.destroy();
       this._model = null;
     }
+    this.fontAsset = null;
     this._element.off("resize", this._onParentResize, this);
     this._element.off("set:screen", this._onScreenChange, this);
     this._element.off("screen:set:screenspace", this._onScreenSpaceChange, this);
@@ -32196,15 +32999,25 @@ Object.assign(pc, function() {
     if (text === undefined) {
       text = this._text;
     }
-    var textLength = text.length;
+    var symbols = pc.string.getSymbols(text);
+    if (this.rtlReorder) {
+      var rtlReorderFunc = this._system.app.systems.element.getRtlReorder();
+      if (rtlReorderFunc) {
+        symbols = rtlReorderFunc(symbols);
+      } else {
+        console.warn("Element created with rtlReorder option but no rtlReorder function registered");
+      }
+    }
+    var textLength = symbols.length;
     if (textLength === 0) {
       textLength = 1;
       text = " ";
+      symbols = [text];
     }
     var charactersPerTexture = {};
     for (i = 0;i < textLength;i++) {
-      var code = text.charCodeAt(i);
-      var info = this._font.data.chars[code];
+      var char = symbols[i];
+      var info = this._font.data.chars[char];
       if (!info) {
         continue;
       }
@@ -32257,6 +33070,7 @@ Object.assign(pc, function() {
         }
         var mesh = pc.createMesh(this._system.app.graphicsDevice, meshInfo.positions, {uvs:meshInfo.uvs, normals:meshInfo.normals, indices:meshInfo.indices});
         var mi = new pc.MeshInstance(this._node, mesh, this._material);
+        mi.name = "Text Element: " + this._entity.name;
         mi.castShadow = false;
         mi.receiveShadow = false;
         mi.drawOrder = this._drawOrder;
@@ -32264,7 +33078,7 @@ Object.assign(pc, function() {
           mi.cull = false;
         }
         mi.screenSpace = screenSpace;
-        mi.setParameter("texture_msdfMap", this._font.textures[i]);
+        this._setTextureParams(mi, this._font.textures[i]);
         mi.setParameter("material_emissive", this._color.data3);
         mi.setParameter("material_opacity", this._color.data[3]);
         mi.setParameter("font_sdfIntensity", this._font.intensity);
@@ -32274,13 +33088,13 @@ Object.assign(pc, function() {
         this._model.meshInstances.push(mi);
       }
     }
-    if (this._maskedBy) {
-      this._element._setMaskedBy(this._maskedBy);
+    if (this._element.maskedBy) {
+      this._element._setMaskedBy(this._element.maskedBy);
     }
     if (removedModel && this._element.enabled && this._entity.enabled) {
       this._element.addModelToLayers(this._model);
     }
-    this._updateMeshes(text);
+    this._updateMeshes(symbols);
   }, _removeMeshInstance:function(meshInstance) {
     var ib;
     var iblen;
@@ -32311,13 +33125,9 @@ Object.assign(pc, function() {
     }
   }, _updateMaterial:function(screenSpace) {
     var cull;
-    if (screenSpace) {
-      this._material = this._system.defaultScreenSpaceTextMaterial;
-      cull = false;
-    } else {
-      this._material = this._system.defaultTextMaterial;
-      cull = true;
-    }
+    var msdf = this._font && this._font.type === pc.FONT_MSDF;
+    this._material = this._system.getTextElementMaterial(screenSpace, msdf);
+    cull = !screenSpace;
     if (this._model) {
       for (var i = 0, len = this._model.meshInstances.length;i < len;i++) {
         var mi = this._model.meshInstances[i];
@@ -32326,14 +33136,14 @@ Object.assign(pc, function() {
         mi.screenSpace = screenSpace;
       }
     }
-  }, _updateMeshes:function(text) {
+  }, _updateMeshes:function(symbols) {
     var json = this._font.data;
     var self = this;
     this.width = 0;
     this.height = 0;
     this._lineWidths = [];
     this._lineContents = [];
-    var l = text.length;
+    var l = symbols.length;
     var _x = 0;
     var _xMinusTrailingWhitespace = 0;
     var _y = 0;
@@ -32353,9 +33163,9 @@ Object.assign(pc, function() {
     var fontMaxY = 0;
     var scale = 1;
     var MAGIC = 32;
-    var char, charCode, data, i, quad;
-    for (charCode in json.chars) {
-      data = json.chars[charCode];
+    var char, charId, data, i, quad;
+    for (charId in json.chars) {
+      data = json.chars[charId];
       scale = data.height / MAGIC * this._fontSize / data.height;
       if (data.bounds) {
         fontMinY = Math.min(fontMinY, data.bounds[1] * scale);
@@ -32368,7 +33178,8 @@ Object.assign(pc, function() {
     }
     function breakLine(lineBreakIndex, lineBreakX) {
       self._lineWidths.push(lineBreakX);
-      self._lineContents.push(text.substring(lineStartIndex, lineBreakIndex));
+      var substring = symbols.slice(lineStartIndex, lineBreakIndex).join("");
+      self._lineContents.push(substring);
       _x = 0;
       _y -= self._lineHeight;
       lines++;
@@ -32378,15 +33189,14 @@ Object.assign(pc, function() {
       lineStartIndex = lineBreakIndex;
     }
     for (i = 0;i < l;i++) {
-      char = text.charAt(i);
-      charCode = text.charCodeAt(i);
+      char = symbols[i];
       var x = 0;
       var y = 0;
       var advance = 0;
       var quadsize = 1;
       var glyphMinX = 0;
       var glyphWidth = 0;
-      data = json.chars[charCode];
+      data = json.chars[char];
       if (data && data.scale) {
         var size = (data.width + data.height) / 2;
         scale = size / MAGIC * this._fontSize / size;
@@ -32424,9 +33234,19 @@ Object.assign(pc, function() {
           breakLine(i, _xMinusTrailingWhitespace);
         } else {
           var backtrack = Math.max(i - wordStartIndex, 0);
+          if (this._meshInfo.length <= 1) {
+            meshInfo.lines[lines - 1] -= backtrack;
+            meshInfo.quad -= backtrack;
+          } else {
+            for (var j = wordStartIndex;j < i;j++) {
+              var backChar = symbols[j];
+              var backCharData = json.chars[backChar];
+              var backMeshInfo = this._meshInfo[backCharData && backCharData.map || 0];
+              backMeshInfo.lines[lines - 1] -= 1;
+              backMeshInfo.quad -= 1;
+            }
+          }
           i -= backtrack + 1;
-          meshInfo.lines[lines - 1] -= backtrack;
-          meshInfo.quad -= backtrack;
           breakLine(wordStartIndex, wordStartX);
           continue;
         }
@@ -32457,7 +33277,7 @@ Object.assign(pc, function() {
         wordStartIndex = i + 1;
       }
       numCharsThisLine++;
-      var uv = this._getUv(charCode);
+      var uv = this._getUv(char);
       meshInfo.uvs[quad * 4 * 2 + 0] = uv[0];
       meshInfo.uvs[quad * 4 * 2 + 1] = uv[1];
       meshInfo.uvs[quad * 4 * 2 + 2] = uv[2];
@@ -32511,6 +33331,7 @@ Object.assign(pc, function() {
       this._meshInfo[i].meshInstance.mesh.aabb.compute(this._meshInfo[i].positions);
       this._meshInfo[i].meshInstance._aabbVer = -1;
     }
+    this._aabbDirty = true;
   }, _onFontAdded:function(asset) {
     this._system.app.assets.off("add:" + asset.id, this._onFontAdded, this);
     if (asset.id === this._fontAsset) {
@@ -32546,6 +33367,20 @@ Object.assign(pc, function() {
       }
     }
   }, _onFontRemove:function(asset) {
+  }, _setTextureParams:function(mi, texture) {
+    if (this._font) {
+      if (this._font.type === pc.FONT_MSDF) {
+        mi.deleteParameter("texture_emissiveMap");
+        mi.deleteParameter("texture_opacityMap");
+        mi.setParameter("texture_msdfMap", texture);
+      } else {
+        if (this._font.type === pc.FONT_BITMAP) {
+          mi.deleteParameter("texture_msdfMap");
+          mi.setParameter("texture_emissiveMap", texture);
+          mi.setParameter("texture_opacityMap", texture);
+        }
+      }
+    }
   }, _getPxRange:function(font) {
     var keys = Object.keys(this._font.data.chars);
     for (var i = 0;i < keys.length;i++) {
@@ -32558,8 +33393,9 @@ Object.assign(pc, function() {
   }, _getUv:function(char) {
     var data = this._font.data;
     if (!data.chars[char]) {
-      if (data.chars[32]) {
-        return this._getUv(32);
+      var space = " ";
+      if (data.chars[space]) {
+        return this._getUv(space);
       }
       return [0, 0, 1, 1];
     }
@@ -32595,6 +33431,14 @@ Object.assign(pc, function() {
     return this._text;
   }, set:function(value) {
     var str = value.toString();
+    if (this.unicodeConverter) {
+      var unicodeConverterFunc = this._system.getUnicodeConverter();
+      if (unicodeConverterFunc) {
+        str = unicodeConverterFunc(str);
+      } else {
+        console.warn("Element created with unicodeConverter option but no unicodeConverter function registered");
+      }
+    }
     if (this._text !== str) {
       if (this._font) {
         this._updateText(str);
@@ -32605,6 +33449,9 @@ Object.assign(pc, function() {
   Object.defineProperty(TextElement.prototype, "color", {get:function() {
     return this._color;
   }, set:function(value) {
+    if (this._color.data[0] === value.data[0] && this._color.data[1] === value.data[1] && this._color.data[2] === value.data[2]) {
+      return;
+    }
     this._color.data[0] = value.data[0];
     this._color.data[1] = value.data[1];
     this._color.data[2] = value.data[2];
@@ -32618,6 +33465,9 @@ Object.assign(pc, function() {
   Object.defineProperty(TextElement.prototype, "opacity", {get:function() {
     return this._color.data[3];
   }, set:function(value) {
+    if (this._color.data[3] === value) {
+      return;
+    }
     this._color.data[3] = value;
     if (this._model) {
       for (var i = 0, len = this._model.meshInstances.length;i < len;i++) {
@@ -32675,6 +33525,7 @@ Object.assign(pc, function() {
     }
     if (this._fontAsset !== _id) {
       if (this._fontAsset) {
+        assets.off("add:" + this._fontAsset, this._onFontAdded, this);
         var _prev = assets.get(this._fontAsset);
         if (_prev) {
           _prev.off("load", this._onFontLoad, this);
@@ -32698,9 +33549,17 @@ Object.assign(pc, function() {
   }, set:function(value) {
     var i;
     var len;
+    var previousFontType;
+    if (this._font) {
+      previousFontType = this._font.type;
+    }
     this._font = value;
     if (!value) {
       return;
+    }
+    if (value.type !== previousFontType) {
+      var screenSpace = this._element.screen && this._element.screen.screen.screenSpace;
+      this._updateMaterial(screenSpace);
     }
     for (i = 0, len = this._font.textures.length;i < len;i++) {
       if (!this._meshInfo[i]) {
@@ -32711,7 +33570,7 @@ Object.assign(pc, function() {
           mi.setParameter("font_sdfIntensity", this._font.intensity);
           mi.setParameter("font_pxrange", this._getPxRange(this._font));
           mi.setParameter("font_textureWidth", this._font.data.info.maps[i].width);
-          mi.setParameter("texture_msdfMap", this._font.textures[i]);
+          this._setTextureParams(mi, this._font.textures[i]);
         }
       }
     }
@@ -32757,6 +33616,42 @@ Object.assign(pc, function() {
     if (value && Math.abs(this._element.anchor.y - this._element.anchor.w) < 0.0001) {
       this._element.height = this.height;
     }
+  }});
+  Object.defineProperty(TextElement.prototype, "rtlReorder", {get:function() {
+    return this._rtlReorder;
+  }, set:function(value) {
+    if (this._rtlReorder !== value) {
+      this._rtlReorder = value;
+      if (this._font) {
+        this._updateText();
+      }
+    }
+  }});
+  Object.defineProperty(TextElement.prototype, "unicodeConverter", {get:function() {
+    return this._unicodeConverter;
+  }, set:function(value) {
+    if (this._unicodeConverter !== value) {
+      this._unicodeConverter = value;
+      this.text = this._text;
+    }
+  }});
+  Object.defineProperty(TextElement.prototype, "aabb", {get:function() {
+    if (this._aabbDirty) {
+      var initialized = false;
+      for (var i = 0;i < this._meshInfo.length;i++) {
+        if (!this._meshInfo[i].meshInstance) {
+          continue;
+        }
+        if (!initialized) {
+          this._aabb.copy(this._meshInfo[i].meshInstance.aabb);
+          initialized = true;
+        } else {
+          this._aabb.add(this._meshInfo[i].meshInstance.aabb);
+        }
+      }
+      this._aabbDirty = false;
+    }
+    return this._aabb;
   }});
   return {TextElement:TextElement};
 }());
@@ -32844,13 +33739,14 @@ Object.assign(pc, function() {
     }
     return null;
   }, _determineInputPosition:function(event) {
+    var devicePixelRatio = this._app.graphicsDevice.maxPixelRatio;
     if (typeof event.x !== "undefined" && typeof event.y !== "undefined") {
-      _inputScreenPosition.x = event.x;
-      _inputScreenPosition.y = event.y;
+      _inputScreenPosition.x = event.x * devicePixelRatio;
+      _inputScreenPosition.y = event.y * devicePixelRatio;
     } else {
       if (event.changedTouches) {
-        _inputScreenPosition.x = event.changedTouches[0].x;
-        _inputScreenPosition.y = event.changedTouches[0].y;
+        _inputScreenPosition.x = event.changedTouches[0].x * devicePixelRatio;
+        _inputScreenPosition.y = event.changedTouches[0].y * devicePixelRatio;
       } else {
         console.warn("Could not determine position from input event");
       }
@@ -33041,55 +33937,59 @@ Object.assign(pc, function() {
   }, _onMouseEnter:function(event) {
     this._isHovering = true;
     this._updateVisualState();
-    this.fire("mouseenter", event);
+    this._fireIfActive("mouseenter", event);
   }, _onMouseLeave:function(event) {
     this._isHovering = false;
     this._isPressed = false;
     this._updateVisualState();
-    this.fire("mouseleave", event);
+    this._fireIfActive("mouseleave", event);
   }, _onMouseDown:function(event) {
     this._isPressed = true;
     this._updateVisualState();
-    this.fire("mousedown", event);
+    this._fireIfActive("mousedown", event);
   }, _onMouseUp:function(event) {
     this._isPressed = false;
     this._updateVisualState();
-    this.fire("mouseup", event);
+    this._fireIfActive("mouseup", event);
   }, _onTouchStart:function(event) {
     this._isPressed = true;
     this._updateVisualState();
-    this.fire("touchstart", event);
+    this._fireIfActive("touchstart", event);
   }, _onTouchEnd:function(event) {
     event.event.preventDefault();
     this._isPressed = false;
     this._updateVisualState();
-    this.fire("touchend", event);
+    this._fireIfActive("touchend", event);
   }, _onTouchLeave:function(event) {
     this._isPressed = false;
     this._updateVisualState();
-    this.fire("touchleave", event);
+    this._fireIfActive("touchleave", event);
   }, _onTouchCancel:function(event) {
     this._isPressed = false;
     this._updateVisualState();
-    this.fire("touchcancel", event);
+    this._fireIfActive("touchcancel", event);
   }, _onClick:function(event) {
-    this.fire("click", event);
+    this._fireIfActive("click", event);
+  }, _fireIfActive:function(name, event) {
+    if (this.data.active) {
+      this.fire(name, event);
+    }
   }, _updateVisualState:function(force) {
     var oldVisualState = this._visualState;
     var newVisualState = this._determineVisualState();
     if ((oldVisualState !== newVisualState || force) && this.enabled) {
       this._visualState = newVisualState;
       if (oldVisualState === VisualState.HOVER) {
-        this.fire("hoverend");
+        this._fireIfActive("hoverend");
       }
       if (oldVisualState === VisualState.PRESSED) {
-        this.fire("pressedend");
+        this._fireIfActive("pressedend");
       }
       if (newVisualState === VisualState.HOVER) {
-        this.fire("hoverstart");
+        this._fireIfActive("hoverstart");
       }
       if (newVisualState === VisualState.PRESSED) {
-        this.fire("pressedstart");
+        this._fireIfActive("pressedstart");
       }
       switch(this.transitionMode) {
         case pc.BUTTON_TRANSITION_MODE_TINT:
@@ -33179,6 +34079,7 @@ Object.assign(pc, function() {
       this._updateTintTween();
     }
   }, onEnable:function() {
+    this._imageReference.onParentComponentEnable();
     this._toggleHitElementListeners("on");
     this._forceReapplyVisualState();
   }, onDisable:function() {
@@ -33246,8 +34147,14 @@ Object.assign(pc, function() {
     this._scrollbarReferences = {};
     this._scrollbarReferences[pc.ORIENTATION_HORIZONTAL] = new pc.EntityReference(this, "horizontalScrollbarEntity", {"scrollbar#set:value":this._onSetHorizontalScrollbarValue, "scrollbar#gain":this._onHorizontalScrollbarGain});
     this._scrollbarReferences[pc.ORIENTATION_VERTICAL] = new pc.EntityReference(this, "verticalScrollbarEntity", {"scrollbar#set:value":this._onSetVerticalScrollbarValue, "scrollbar#gain":this._onVerticalScrollbarGain});
+    this._prevContentSizes = {};
+    this._prevContentSizes[pc.ORIENTATION_HORIZONTAL] = null;
+    this._prevContentSizes[pc.ORIENTATION_VERTICAL] = null;
     this._scroll = new pc.Vec2;
     this._velocity = new pc.Vec3;
+    this._dragStartPosition = new pc.Vec3;
+    this._disabledContentInput = false;
+    this._disabledContentInputEntities = [];
     this._toggleLifecycleListeners("on", system);
     this._toggleElementListeners("on");
   };
@@ -33280,28 +34187,42 @@ Object.assign(pc, function() {
   }, _onContentElementGain:function() {
     this._destroyDragHelper();
     this._contentDragHelper = new pc.ElementDragHelper(this._contentReference.entity.element);
+    this._contentDragHelper.on("drag:start", this._onContentDragStart, this);
     this._contentDragHelper.on("drag:end", this._onContentDragEnd, this);
     this._contentDragHelper.on("drag:move", this._onContentDragMove, this);
+    this._prevContentSizes[pc.ORIENTATION_HORIZONTAL] = null;
+    this._prevContentSizes[pc.ORIENTATION_VERTICAL] = null;
     this._syncAll();
   }, _onContentElementLose:function() {
     this._destroyDragHelper();
+  }, _onContentDragStart:function() {
+    if (this._contentReference.entity && this.enabled && this.entity.enabled) {
+      this._dragStartPosition.copy(this._contentReference.entity.getLocalPosition());
+    }
   }, _onContentDragEnd:function() {
     this._prevContentDragPosition = null;
+    this._enableContentInput();
   }, _onContentDragMove:function(position) {
     if (this._contentReference.entity && this.enabled && this.entity.enabled) {
+      this._wasDragged = true;
       this._setScrollFromContentPosition(position);
       this._setVelocityFromContentPositionDelta(position);
+      if (!this._disabledContentInput) {
+        var dx = position.x - this._dragStartPosition.x;
+        var dy = position.y - this._dragStartPosition.y;
+        if (Math.abs(dx) > this.dragThreshold || Math.abs(dy) > this.dragThreshold) {
+          this._disableContentInput();
+        }
+      }
     }
   }, _onSetContentOrViewportSize:function() {
     this._syncAll();
   }, _onSetHorizontalScrollbarValue:function(scrollValueX) {
     if (!this._scrollbarUpdateFlags[pc.ORIENTATION_HORIZONTAL] && this.enabled && this.entity.enabled) {
-      this._velocity.set(0, 0, 0);
       this._onSetScroll(scrollValueX, null);
     }
   }, _onSetVerticalScrollbarValue:function(scrollValueY) {
     if (!this._scrollbarUpdateFlags[pc.ORIENTATION_VERTICAL] && this.enabled && this.entity.enabled) {
-      this._velocity.set(0, 0, 0);
       this._onSetScroll(null, scrollValueY);
     }
   }, _onSetHorizontalScrollingEnabled:function() {
@@ -33314,7 +34235,10 @@ Object.assign(pc, function() {
   }, _onVerticalScrollbarGain:function() {
     this._syncScrollbarEnabledState(pc.ORIENTATION_VERTICAL);
     this._syncScrollbarPosition(pc.ORIENTATION_VERTICAL);
-  }, _onSetScroll:function(x, y) {
+  }, _onSetScroll:function(x, y, resetVelocity) {
+    if (resetVelocity !== false) {
+      this._velocity.set(0, 0, 0);
+    }
     var hasChanged = false;
     hasChanged |= this._updateAxis(x, "x", pc.ORIENTATION_HORIZONTAL);
     hasChanged |= this._updateAxis(y, "y", pc.ORIENTATION_VERTICAL);
@@ -33323,7 +34247,7 @@ Object.assign(pc, function() {
     }
   }, _updateAxis:function(scrollValue, axis, orientation) {
     var hasChanged = scrollValue !== null && Math.abs(scrollValue - this._scroll[axis]) > 1e-5;
-    if (hasChanged) {
+    if (hasChanged || this._isDragging() || scrollValue === 0) {
       this._scroll[axis] = this._determineNewScrollValue(scrollValue, axis, orientation);
       this._syncContentPosition(orientation);
       this._syncScrollbarPosition(orientation);
@@ -33357,10 +34281,22 @@ Object.assign(pc, function() {
     var sign = this._getSign(orientation);
     var contentEntity = this._contentReference.entity;
     if (contentEntity) {
+      var prevContentSize = this._prevContentSizes[orientation];
+      var currContentSize = this._getContentSize(orientation);
+      if (prevContentSize !== null && Math.abs(prevContentSize - currContentSize) > 1e-4) {
+        var prevMaxOffset = this._getMaxOffset(orientation, prevContentSize);
+        var currMaxOffset = this._getMaxOffset(orientation, currContentSize);
+        if (currMaxOffset === 0) {
+          this._scroll[axis] = 1;
+        } else {
+          this._scroll[axis] = pc.math.clamp(this._scroll[axis] * prevMaxOffset / currMaxOffset, 0, 1);
+        }
+      }
       var offset = this._scroll[axis] * this._getMaxOffset(orientation);
       var contentPosition = contentEntity.getLocalPosition();
       contentPosition[axis] = offset * sign;
       contentEntity.setLocalPosition(contentPosition);
+      this._prevContentSizes[orientation] = currContentSize;
     }
   }, _syncScrollbarPosition:function(orientation) {
     var axis = this._getAxis(orientation);
@@ -33391,10 +34327,22 @@ Object.assign(pc, function() {
   }, _contentIsLargerThanViewport:function(orientation) {
     return this._getContentSize(orientation) > this._getViewportSize(orientation);
   }, _contentPositionToScrollValue:function(contentPosition) {
-    return _tempScrollValue.set(contentPosition.x / this._getMaxOffset(pc.ORIENTATION_HORIZONTAL), contentPosition.y / -this._getMaxOffset(pc.ORIENTATION_VERTICAL));
-  }, _getMaxOffset:function(orientation) {
+    var maxOffsetH = this._getMaxOffset(pc.ORIENTATION_HORIZONTAL);
+    var maxOffsetV = this._getMaxOffset(pc.ORIENTATION_VERTICAL);
+    if (maxOffsetH === 0) {
+      _tempScrollValue.x = 0;
+    } else {
+      _tempScrollValue.x = contentPosition.x / maxOffsetH;
+    }
+    if (maxOffsetV === 0) {
+      _tempScrollValue.y = 0;
+    } else {
+      _tempScrollValue.y = contentPosition.y / -maxOffsetV;
+    }
+    return _tempScrollValue;
+  }, _getMaxOffset:function(orientation, contentSize) {
+    contentSize = contentSize === undefined ? this._getContentSize(orientation) : contentSize;
     var viewportSize = this._getViewportSize(orientation);
-    var contentSize = this._getContentSize(orientation);
     if (contentSize < viewportSize) {
       return -this._getViewportSize(orientation);
     }
@@ -33504,7 +34452,33 @@ Object.assign(pc, function() {
     }
   }, _setScrollFromContentPosition:function(position) {
     var scrollValue = this._contentPositionToScrollValue(position);
-    this._onSetScroll(scrollValue.x, scrollValue.y);
+    if (this._isDragging()) {
+      scrollValue = this._applyScrollValueTension(scrollValue);
+    }
+    this._onSetScroll(scrollValue.x, scrollValue.y, false);
+  }, _applyScrollValueTension:function(scrollValue) {
+    var max;
+    var overshoot;
+    var factor = 1;
+    max = this._getMaxScrollValue(pc.ORIENTATION_HORIZONTAL);
+    overshoot = this._toOvershoot(scrollValue.x, pc.ORIENTATION_HORIZONTAL);
+    if (overshoot > 0) {
+      scrollValue.x = max + factor * Math.log10(1 + overshoot);
+    } else {
+      if (overshoot < 0) {
+        scrollValue.x = -factor * Math.log10(1 - overshoot);
+      }
+    }
+    max = this._getMaxScrollValue(pc.ORIENTATION_VERTICAL);
+    overshoot = this._toOvershoot(scrollValue.y, pc.ORIENTATION_VERTICAL);
+    if (overshoot > 0) {
+      scrollValue.y = max + factor * Math.log10(1 + overshoot);
+    } else {
+      if (overshoot < 0) {
+        scrollValue.y = -factor * Math.log10(1 - overshoot);
+      }
+    }
+    return scrollValue;
   }, _isDragging:function() {
     return this._contentDragHelper && this._contentDragHelper.isDragging;
   }, _setScrollbarComponentsEnabled:function(enabled) {
@@ -33518,7 +34492,41 @@ Object.assign(pc, function() {
     if (this._contentDragHelper) {
       this._contentDragHelper.enabled = enabled;
     }
+  }, _enableContentInput:function() {
+    while (this._disabledContentInputEntities.length) {
+      var e = this._disabledContentInputEntities.pop();
+      if (e.element) {
+        e.element.useInput = true;
+      }
+    }
+    this._disabledContentInput = false;
+  }, _disableContentInput:function() {
+    var self = this;
+    var _disableInput = function(e) {
+      if (e.element && e.element.useInput) {
+        self._disabledContentInputEntities.push(e);
+        e.element.useInput = false;
+      }
+      var children = e.children;
+      var i, l;
+      for (i = 0, l = children.length;i < l;i++) {
+        _disableInput(children[i]);
+      }
+    };
+    var contentEntity = this._contentReference.entity;
+    if (contentEntity) {
+      var children = contentEntity.children;
+      var i, l = children.length;
+      for (i = 0;i < l;i++) {
+        _disableInput(children[i]);
+      }
+    }
+    this._disabledContentInput = true;
   }, onEnable:function() {
+    this._viewportReference.onParentComponentEnable();
+    this._contentReference.onParentComponentEnable();
+    this._scrollbarReferences[pc.ORIENTATION_HORIZONTAL].onParentComponentEnable();
+    this._scrollbarReferences[pc.ORIENTATION_VERTICAL].onParentComponentEnable();
     this._setScrollbarComponentsEnabled(true);
     this._setContentDraggingEnabled(true);
     this._syncAll();
@@ -33538,8 +34546,9 @@ Object.assign(pc, function() {
   return {ScrollViewComponent:ScrollViewComponent};
 }());
 Object.assign(pc, function() {
-  var _schema = [{name:"enabled", type:"boolean"}, {name:"horizontal", type:"boolean"}, {name:"vertical", type:"boolean"}, {name:"scrollMode", type:"number"}, {name:"bounceAmount", type:"number"}, {name:"friction", type:"number"}, {name:"horizontalScrollbarVisibility", type:"number"}, {name:"verticalScrollbarVisibility", type:"number"}, {name:"viewportEntity", type:"entity"}, {name:"contentEntity", type:"entity"}, {name:"horizontalScrollbarEntity", type:"entity"}, {name:"verticalScrollbarEntity", 
-  type:"entity"}];
+  var _schema = [{name:"enabled", type:"boolean"}, {name:"horizontal", type:"boolean"}, {name:"vertical", type:"boolean"}, {name:"scrollMode", type:"number"}, {name:"bounceAmount", type:"number"}, {name:"friction", type:"number"}, {name:"dragThreshold", type:"number"}, {name:"horizontalScrollbarVisibility", type:"number"}, {name:"verticalScrollbarVisibility", type:"number"}, {name:"viewportEntity", type:"entity"}, {name:"contentEntity", type:"entity"}, {name:"horizontalScrollbarEntity", type:"entity"}, 
+  {name:"verticalScrollbarEntity", type:"entity"}];
+  var DEFAULT_DRAG_THRESHOLD = 10;
   var ScrollViewComponentSystem = function ScrollViewComponentSystem(app) {
     pc.ComponentSystem.call(this, app);
     this.id = "scrollview";
@@ -33554,6 +34563,9 @@ Object.assign(pc, function() {
   ScrollViewComponentSystem.prototype.constructor = ScrollViewComponentSystem;
   pc.Component._buildAccessors(pc.ScrollViewComponent.prototype, _schema);
   Object.assign(ScrollViewComponentSystem.prototype, {initializeComponentData:function(component, data, properties) {
+    if (data.dragThreshold === undefined) {
+      data.dragThreshold = DEFAULT_DRAG_THRESHOLD;
+    }
     pc.ComponentSystem.prototype.initializeComponentData.call(this, component, data, _schema);
   }, _onRemoveComponent:function(entity, component) {
     component.onRemove();
@@ -33650,6 +34662,7 @@ Object.assign(pc, function() {
       this._handleDragHelper.enabled = enabled;
     }
   }, onEnable:function() {
+    this._handleReference.onParentComponentEnable();
     this._setHandleDraggingEnabled(true);
   }, onDisable:function() {
     this._setHandleDraggingEnabled(false);
@@ -33804,6 +34817,7 @@ Object.assign(pc, function() {
 }());
 Object.assign(pc, function() {
   var _schema = ["enabled"];
+  var MAX_ITERATIONS = 100;
   var LayoutGroupComponentSystem = function LayoutGroupComponentSystem(app) {
     pc.ComponentSystem.call(this, app);
     this.id = "layoutgroup";
@@ -33879,14 +34893,21 @@ Object.assign(pc, function() {
     if (this._reflowQueue.length === 0) {
       return;
     }
-    this._reflowQueue.sort(function(componentA, componentB) {
-      return componentA.entity.graphDepth < componentB.entity.graphDepth;
-    });
+    var iterationCount = 0;
     while (this._reflowQueue.length > 0) {
-      this._reflowQueue[0].reflow();
-      this._reflowQueue.shift();
+      var queue = this._reflowQueue.slice();
+      this._reflowQueue.length = 0;
+      queue.sort(function(componentA, componentB) {
+        return componentA.entity.graphDepth > componentB.entity.graphDepth;
+      });
+      for (var i = 0;i < queue.length;++i) {
+        queue[i].reflow();
+      }
+      if (++iterationCount >= MAX_ITERATIONS) {
+        console.warn("Max reflow iterations limit reached, bailing.");
+        break;
+      }
     }
-    this._reflowQueue = [];
   }, _onRemoveComponent:function(entity, component) {
     component.onRemove();
   }});
@@ -34393,8 +35414,9 @@ Object.assign(pc, function() {
 }());
 Object.assign(pc, function() {
   pc.FONT_MSDF = "msdf";
+  pc.FONT_BITMAP = "bitmap";
   var Font = function(textures, data) {
-    this.type = pc.FONT_MSDF;
+    this.type = data ? data.type || pc.FONT_MSDF : pc.FONT_MSDF;
     this.em = 1;
     this.textures = textures;
     this.intensity = 0.0;
@@ -34424,6 +35446,204 @@ Object.assign(pc, function() {
     }
   }});
   return {FONT_MSDF:pc.FONT_MSDF, Font:Font};
+}());
+Object.assign(pc, function() {
+  var MAX_TEXTURE_SIZE = 4096;
+  var DEFAULT_TEXTURE_SIZE = 2048;
+  var CanvasFont = function(app, options) {
+    this.type = "bitmap";
+    this.app = app;
+    this.intensity = 0;
+    options = options || {};
+    this.fontWeight = options.fontWeight || "normal";
+    this.fontSize = parseInt(options.fontSize, 10);
+    this.glyphSize = this.fontSize;
+    this.fontName = options.fontName || "Arial";
+    this.color = options.color || new pc.Color(1, 1, 1);
+    this._customGetCharScale = options.getCharScale || null;
+    var w = options.width > MAX_TEXTURE_SIZE ? MAX_TEXTURE_SIZE : options.width || DEFAULT_TEXTURE_SIZE;
+    var h = options.height > MAX_TEXTURE_SIZE ? MAX_TEXTURE_SIZE : options.height || DEFAULT_TEXTURE_SIZE;
+    var canvas = document.createElement("canvas");
+    canvas.height = h;
+    canvas.width = w;
+    var texture = new pc.Texture(this.app.graphicsDevice, {format:pc.PIXELFORMAT_R8_G8_B8_A8, autoMipmap:true});
+    texture.setSource(canvas);
+    texture.minFilter = pc.FILTER_LINEAR_MIPMAP_LINEAR;
+    texture.magFilter = pc.FILTER_LINEAR;
+    texture.addressU = pc.ADDRESS_CLAMP_TO_EDGE;
+    texture.addressV = pc.ADDRESS_CLAMP_TO_EDGE;
+    this.textures = [texture];
+    this.chars = "";
+    this.data = {};
+  };
+  CanvasFont.prototype.createTextures = function(text) {
+    var _chars = this._normalizeCharsSet(text);
+    if (_chars.length !== this.chars.length) {
+      this._renderAtlas(_chars);
+      return;
+    }
+    for (var i = 0;i < _chars.length;i++) {
+      if (_chars[i] !== this.chars[i]) {
+        this._renderAtlas(_chars);
+        return;
+      }
+    }
+  };
+  CanvasFont.prototype.updateTextures = function(text) {
+    var _chars = this._normalizeCharsSet(text);
+    var newCharsSet = [];
+    for (var i = 0;i < _chars.length;i++) {
+      var char = _chars[i];
+      if (!this.data.chars[char]) {
+        newCharsSet.push(char);
+      }
+    }
+    if (newCharsSet.length > 0) {
+      this._renderAtlas(this.chars.concat(newCharsSet));
+    }
+  };
+  CanvasFont.prototype.destroy = function() {
+    for (var i = 0;i < this.textures.length;i++) {
+      this.textures[i].destroy();
+    }
+    this.chars = null;
+    this.color = null;
+    this.data = null;
+    this.fontName = null;
+    this.fontSize = null;
+    this.glyphSize = null;
+    this.intensity = null;
+    this.textures = null;
+    this.type = null;
+    this.fontWeight = null;
+  };
+  CanvasFont.prototype._renderAtlas = function(charsArray) {
+    this.chars = charsArray;
+    var numTextures = 1;
+    var canvas = this.textures[numTextures - 1].getSource();
+    var ctx = canvas.getContext("2d", {alpha:true});
+    var w = ctx.canvas.width;
+    var h = ctx.canvas.height;
+    var color = this.color.toString(false);
+    var a = this.color.a;
+    this.color.a = 1 / 255;
+    var transparent = this.color.toString(true);
+    this.color.a = a;
+    var TEXT_ALIGN = "center";
+    var TEXT_BASELINE = "bottom";
+    ctx.fillStyle = transparent;
+    ctx.fillRect(0, 0, w, h);
+    ctx.font = this.fontWeight + " " + this.fontSize.toString() + 'px "' + this.fontName + '"';
+    ctx.textAlign = TEXT_ALIGN;
+    ctx.textBaseline = TEXT_BASELINE;
+    this.data = this._createJson(this.chars, this.fontName, w, h);
+    var sx = this.glyphSize;
+    var sy = this.glyphSize;
+    var halfWidth = sx / 2;
+    var _x = halfWidth;
+    var _y = sy;
+    var i;
+    var symbols = pc.string.getSymbols(this.chars.join(""));
+    var prevNumTextures = this.textures.length;
+    for (i = 0;i < symbols.length;i++) {
+      var ch = symbols[i];
+      var code = pc.string.getCodePoint(symbols[i]);
+      var fs = this._getCharScale(code) * this.fontSize;
+      ctx.font = this.fontWeight + " " + fs.toString() + 'px "' + this.fontName + '"';
+      ctx.textAlign = TEXT_ALIGN;
+      ctx.textBaseline = TEXT_BASELINE;
+      ctx.fillStyle = color;
+      ctx.fillText(ch, _x, _y);
+      var width = ctx.measureText(ch).width;
+      var xoffset = (sx - width) / 2;
+      var yoffset = 0;
+      var xadvance = width;
+      this._addChar(this.data, ch, code, _x - halfWidth, _y - sy, sx, sy, xoffset, yoffset, xadvance, numTextures - 1, w, h);
+      _x += sx;
+      if (_x + halfWidth > w) {
+        _x = halfWidth;
+        _y += sy;
+        if (_y > h) {
+          this.textures[numTextures - 1].upload();
+          numTextures++;
+          _y = sy;
+          if (numTextures > prevNumTextures) {
+            canvas = document.createElement("canvas");
+            canvas.height = h;
+            canvas.width = w;
+            ctx = canvas.getContext("2d", {alpha:true});
+            ctx.fillStyle = transparent;
+            ctx.fillRect(0, 0, w, h);
+            var texture = new pc.Texture(this.app.graphicsDevice, {format:pc.PIXELFORMAT_R8_G8_B8_A8, autoMipmap:true});
+            texture.setSource(canvas);
+            texture.minFilter = pc.FILTER_LINEAR_MIPMAP_LINEAR;
+            texture.magFilter = pc.FILTER_LINEAR;
+            texture.addressU = pc.ADDRESS_CLAMP_TO_EDGE;
+            texture.addressV = pc.ADDRESS_CLAMP_TO_EDGE;
+            this.textures.push(texture);
+          } else {
+            canvas = this.textures[numTextures - 1].getSource();
+            ctx = canvas.getContext("2d", {alpha:true});
+            ctx.fillStyle = transparent;
+            ctx.fillRect(0, 0, w, h);
+          }
+        }
+      }
+    }
+    this.textures[numTextures - 1].upload();
+    if (numTextures < prevNumTextures) {
+      for (i = numTextures;i < prevNumTextures;i++) {
+        this.textures[i].destroy();
+      }
+      this.textures.splice(numTextures);
+    }
+  };
+  CanvasFont.prototype._createJson = function(chars, fontName, width, height) {
+    var base = {"version":3, "intensity":this.intensity, "info":{"face":fontName, "width":width, "height":height, "maps":[{"width":width, "height":height}]}, "chars":{}};
+    return base;
+  };
+  CanvasFont.prototype._getCharScale = function(code) {
+    if (this._customGetCharScale) {
+      var scale = this._customGetCharScale(code);
+      if (scale >= 0) {
+        return scale;
+      }
+    }
+    if (code >= 192 && code <= 221) {
+      return 0.875;
+    } else {
+      if (code >= 126976 && code <= 129535) {
+        return 0.875;
+      }
+    }
+    return 1.0;
+  };
+  CanvasFont.prototype._addChar = function(json, char, charCode, x, y, w, h, xoffset, yoffset, xadvance, mapNum, mapW, mapH) {
+    if (json.info.maps.length < mapNum + 1) {
+      json.info.maps.push({"width":mapW, "height":mapH});
+    }
+    var scale = this._getCharScale(charCode) * this.fontSize / 32;
+    json.chars[char] = {"id":charCode, "letter":char, "x":x, "y":y, "width":w, "height":h, "xadvance":xadvance / scale, "xoffset":xoffset / scale, "yoffset":yoffset / scale, "scale":scale, "range":1, "map":mapNum, "bounds":[0, 0, w / scale, h / scale]};
+  };
+  CanvasFont.prototype._normalizeCharsSet = function(text) {
+    var unicodeConverterFunc = this.app.systems.element.getUnicodeConverter();
+    if (unicodeConverterFunc) {
+      text = unicodeConverterFunc(text);
+    }
+    var set = {};
+    var symbols = pc.string.getSymbols(text);
+    var i;
+    for (i = 0;i < symbols.length;i++) {
+      var ch = symbols[i];
+      if (set[ch]) {
+        continue;
+      }
+      set[ch] = ch;
+    }
+    var chars = Object.keys(set);
+    return chars.sort();
+  };
+  return {CanvasFont:CanvasFont};
 }());
 Object.assign(pc, function() {
   var ZoneComponent = function ZoneComponent(system, entity) {
@@ -34512,16 +35732,17 @@ Object.assign(pc, function() {
     if (name instanceof pc.Application) {
       app = name;
     }
-    this._guid = pc.guid.create();
     this._batchHandle = null;
     this.c = {};
     this._app = app;
     if (!app) {
       this._app = pc.Application.getApplication();
       if (!this._app) {
-        console.error("Couldn't find current application");
+        throw new Error("Couldn't find current application");
       }
     }
+    this.setGuid(pc.guid.create());
+    this._destroying = false;
     pc.events.attach(this);
   };
   Entity.prototype = Object.create(pc.GraphNode.prototype);
@@ -34550,7 +35771,10 @@ Object.assign(pc, function() {
     return this._guid;
   };
   Entity.prototype.setGuid = function(guid) {
+    var index = this._app._entityIndex;
+    delete index[this._guid];
     this._guid = guid;
+    index[this._guid] = this;
   };
   Entity.prototype._notifyHierarchyStateChanged = function(node, enabled) {
     var enableFirst = false;
@@ -34612,18 +35836,15 @@ Object.assign(pc, function() {
     if (this._guid === guid) {
       return this;
     }
-    for (var i = 0;i < this._children.length;i++) {
-      if (this._children[i].findByGuid) {
-        var found = this._children[i].findByGuid(guid);
-        if (found !== null) {
-          return found;
-        }
-      }
+    var e = this._app._entityIndex[guid];
+    if (e && (e === this || e.isDescendantOf(this))) {
+      return e;
     }
     return null;
   };
   Entity.prototype.destroy = function() {
     var name;
+    this._destroying = true;
     for (name in this.c) {
       this.c[name].enabled = false;
     }
@@ -34649,11 +35870,13 @@ Object.assign(pc, function() {
     if (this._callbackActive) {
       this._callbackActive = null;
     }
+    delete this._app._entityIndex[this._guid];
+    this._destroying = false;
   };
   Entity.prototype.clone = function() {
     var duplicatedIdsMap = {};
     var c = this._cloneRecursively(duplicatedIdsMap);
-    duplicatedIdsMap[this.getGuid()] = c.getGuid();
+    duplicatedIdsMap[this.getGuid()] = c;
     resolveDuplicatedEntityReferenceProperties(this, this, c, duplicatedIdsMap);
     return c;
   };
@@ -34671,40 +35894,45 @@ Object.assign(pc, function() {
       if (oldChild instanceof pc.Entity) {
         var newChild = oldChild._cloneRecursively(duplicatedIdsMap);
         c.addChild(newChild);
-        duplicatedIdsMap[oldChild.getGuid()] = newChild.getGuid();
+        duplicatedIdsMap[oldChild.getGuid()] = newChild;
       }
     }
     return c;
   };
   function resolveDuplicatedEntityReferenceProperties(oldSubtreeRoot, oldEntity, newEntity, duplicatedIdsMap) {
+    var i, len;
     if (oldEntity instanceof pc.Entity) {
       var components = oldEntity.c;
-      Object.keys(components).forEach(function(componentName) {
+      for (var componentName in components) {
         var component = components[componentName];
         var entityProperties = component.system.getPropertiesOfType("entity");
-        entityProperties.forEach(function(propertyDescriptor) {
+        for (i = 0, len = entityProperties.length;i < len;i++) {
+          var propertyDescriptor = entityProperties[i];
           var propertyName = propertyDescriptor.name;
           var oldEntityReferenceId = component[propertyName];
           var entityIsWithinOldSubtree = !!oldSubtreeRoot.findByGuid(oldEntityReferenceId);
           if (entityIsWithinOldSubtree) {
-            var newEntityReferenceId = duplicatedIdsMap[oldEntityReferenceId];
+            var newEntityReferenceId = duplicatedIdsMap[oldEntityReferenceId].getGuid();
             if (newEntityReferenceId) {
               newEntity.c[componentName][propertyName] = newEntityReferenceId;
             } else {
               console.warn("Could not find corresponding entity id when resolving duplicated entity references");
             }
           }
-        });
-      });
+        }
+      }
+      if (components.script && !newEntity._app.useLegacyScriptAttributeCloning) {
+        newEntity.script.resolveDuplicatedEntityReferenceProperties(components.script, duplicatedIdsMap);
+      }
       var _old = oldEntity.children.filter(function(e) {
         return e instanceof pc.Entity;
       });
       var _new = newEntity.children.filter(function(e) {
         return e instanceof pc.Entity;
       });
-      _old.forEach(function(oldChild, index) {
-        resolveDuplicatedEntityReferenceProperties(oldSubtreeRoot, oldChild, _new[index], duplicatedIdsMap);
-      });
+      for (i = 0, len = _old.length;i < len;i++) {
+        resolveDuplicatedEntityReferenceProperties(oldSubtreeRoot, _old[i], _new[i], duplicatedIdsMap);
+      }
     }
   }
   return {Entity:Entity};
@@ -34789,6 +36017,10 @@ Object.assign(pc, function() {
     }
   }, _onPostInitialize:function() {
     this._updateEntityReference();
+  }, onParentComponentEnable:function() {
+    if (!this._entity) {
+      this._updateEntityReference();
+    }
   }, _onSceneLoaded:function() {
     this._updateEntityReference();
   }, _updateEntityReference:function() {
@@ -34799,7 +36031,9 @@ Object.assign(pc, function() {
       nextEntityGuid = nextEntity.getGuid();
       this._parentComponent.data[this._entityPropertyName] = nextEntityGuid;
     } else {
-      nextEntity = nextEntityGuid ? this._parentComponent.system.app.root.findByGuid(nextEntityGuid) : null;
+      var root = this._parentComponent.system.app.root;
+      var isOnSceneGraph = this._parentComponent.entity.isDescendantOf(root);
+      nextEntity = isOnSceneGraph && nextEntityGuid ? root.findByGuid(nextEntityGuid) : null;
     }
     var hasChanged = this._entity !== nextEntity;
     if (hasChanged) {
@@ -34890,6 +36124,69 @@ Object.assign(pc, function() {
     return this._entity;
   }});
   return {EntityReference:EntityReference};
+}());
+Object.assign(pc, function() {
+  var SortedLoopArray = function(args) {
+    this._sortBy = args.sortBy;
+    this.items = [];
+    this.length = 0;
+    this.loopIndex = -1;
+    this._sortHandler = this._doSort.bind(this);
+  };
+  SortedLoopArray.prototype._binarySearch = function(item) {
+    var left = 0;
+    var right = this.items.length - 1;
+    var search = item[this._sortBy];
+    var middle;
+    var current;
+    while (left <= right) {
+      middle = Math.floor((left + right) / 2);
+      current = this.items[middle][this._sortBy];
+      if (current <= search) {
+        left = middle + 1;
+      } else {
+        if (current > search) {
+          right = middle - 1;
+        }
+      }
+    }
+    return left;
+  };
+  SortedLoopArray.prototype._doSort = function(a, b) {
+    var sortBy = this._sortBy;
+    return a[sortBy] - b[sortBy];
+  };
+  SortedLoopArray.prototype.insert = function(item) {
+    var index = this._binarySearch(item);
+    this.items.splice(index, 0, item);
+    this.length++;
+    if (this.loopIndex >= index) {
+      this.loopIndex++;
+    }
+  };
+  SortedLoopArray.prototype.append = function(item) {
+    this.items.push(item);
+    this.length++;
+  };
+  SortedLoopArray.prototype.remove = function(item) {
+    var idx = this.items.indexOf(item);
+    if (idx < 0) {
+      return;
+    }
+    this.items.splice(idx, 1);
+    this.length--;
+    if (this.loopIndex >= idx) {
+      this.loopIndex--;
+    }
+  };
+  SortedLoopArray.prototype.sort = function() {
+    var current = this.loopIndex >= 0 ? this.items[this.loopIndex] : null;
+    this.items.sort(this._sortHandler);
+    if (current !== null) {
+      this.loopIndex = this.items.indexOf(current);
+    }
+  };
+  return {SortedLoopArray:SortedLoopArray};
 }());
 Object.assign(pc, function() {
   var ResourceLoader = function() {
@@ -35291,32 +36588,18 @@ Object.assign(pc, function() {
   return {JsonHandler:JsonHandler};
 }());
 Object.assign(pc, function() {
-  var PARAMETER_TYPES = {ambient:"vec3", ambientTnumber:"boolean", aoMap:"texture", aoVertexColor:"boolean", aoVertexColorChannel:"string", aoMapChannel:"string", aoMapUv:"number", aoMapTiling:"vec2", aoMapOffset:"vec2", occludeSpecular:"boolean", diffuse:"vec3", diffuseMap:"texture", diffuseTint:"boolean", diffuseVertexColor:"boolean", diffuseVertexColorChannel:"string", diffuseMapChannel:"string", diffuseMapUv:"number", diffuseMapTiling:"vec2", diffuseMapOffset:"vec2", diffuseMapTnumber:"boolean", 
-  specular:"vec3", specularVertexColor:"boolean", specularVertexColorChannel:"string", specularMapChannel:"string", specularMapUv:"number", specularMap:"texture", specularTint:"boolean", specularMapTiling:"vec2", specularMapOffset:"vec2", specularMapTnumber:"boolean", specularAntialias:"boolean", useMetalness:"boolean", metalnessMap:"texture", metalnessVertexColor:"boolean", metalnessVertexColorChannel:"string", metalnessMapChannel:"string", metalnessMapUv:"number", metalnessMapTiling:"vec2", metalnessMapOffset:"vec2", 
-  metalnessMapTnumber:"boolean", metalness:"number", conserveEnergy:"boolean", shininess:"number", glossMap:"texture", glossVertexColor:"boolean", glossVertexColorChannel:"string", glossMapChannel:"string", glossMapUv:"number", glossMapTiling:"vec2", glossMapOffset:"vec2", fresnelModel:"number", fresnelFactor:"float", emissive:"vec3", emissiveMap:"texture", emissiveVertexColor:"boolean", emissiveVertexColorChannel:"string", emissiveMapChannel:"string", emissiveMapUv:"number", emissiveMapTiling:"vec2", 
-  emissiveMapOffset:"vec2", emissiveTint:"boolean", emissiveIntensity:"number", normalMap:"texture", normalMapTiling:"vec2", normalMapOffset:"vec2", normalMapUv:"number", bumpMapFactor:"number", heightMap:"texture", heightMapChannel:"string", heightMapUv:"number", heightMapTiling:"vec2", heightMapOffset:"vec2", heightMapFactor:"number", alphaTest:"number", opacity:"number", opacityMap:"texture", opacityVertexColor:"boolean", opacityVertexColorChannel:"string", opacityMapChannel:"string", opacityMapUv:"number", 
-  opacityMapTiling:"vec2", opacityMapOffset:"vec2", reflectivity:"number", refraction:"number", refractionIndex:"number", sphereMap:"texture", cubeMap:"cubemap", cubeMapProjection:"number", cubeMapProjectionBox:"boundingbox", lightMap:"texture", lightVertexColor:"boolean", lightVertexColorChannel:"string", lightMapChannel:"string", lightMapUv:"number", lightMapTiling:"vec2", lightMapOffset:"vec2", depthTest:"boolean", depthWrite:"boolean", depthBias:"number", slopeDepthBias:"number", cull:"number", 
-  blendType:"number", shadingModel:"number"};
-  var placeholders = {};
-  var placeholdersMapping = {aoMap:"white", diffuseMap:"gray", specularMap:"gray", metalnessMap:"black", glossMap:"gray", emissiveMap:"gray", normalMap:"normal", heightMap:"gray", opacityMap:"gray", sphereMap:"gray", lightMap:"white"};
-  var onCubemapAssetLoad = function(asset, attribute, newValue, oldValue) {
-    var props = ["cubeMap", "prefilteredCubeMap128", "prefilteredCubeMap64", "prefilteredCubeMap32", "prefilteredCubeMap16", "prefilteredCubeMap8", "prefilteredCubeMap4"];
-    for (var i = 0;i < props.length;i++) {
-      if (this[props[i]] !== asset.resources[i]) {
-        this[props[i]] = asset.resources[i];
-      }
-    }
-    this.update();
-  };
+  var PLACEHOLDER_MAP = {aoMap:"white", diffuseMap:"gray", specularMap:"gray", metalnessMap:"black", glossMap:"gray", emissiveMap:"gray", normalMap:"normal", heightMap:"gray", opacityMap:"gray", sphereMap:"gray", lightMap:"white"};
   var MaterialHandler = function(app) {
     this._assets = app.assets;
     this._device = app.graphicsDevice;
-    this._createPlaceholders();
+    this._placeholderTextures = null;
+    this._parser = new pc.JsonStandardMaterialParser;
   };
   Object.assign(MaterialHandler.prototype, {load:function(url, callback) {
     pc.http.get(url, function(err, response) {
       if (!err) {
         if (callback) {
+          response._engine = true;
           callback(null, response);
         }
       } else {
@@ -35326,208 +36609,154 @@ Object.assign(pc, function() {
       }
     });
   }, open:function(url, data) {
-    var material = new pc.StandardMaterial;
-    if (!data.parameters) {
-      this._createParameters(data);
+    var material = this._parser.parse(data);
+    if (data._engine) {
+      material._data = data;
+      delete data._engine;
     }
-    material.init(data);
-    material._data = data;
     return material;
   }, _createPlaceholders:function() {
+    this._placeholderTextures = {};
     var textures = {white:[255, 255, 255, 255], gray:[128, 128, 128, 255], black:[0, 0, 0, 255], normal:[128, 128, 255, 255]};
     for (var key in textures) {
       if (!textures.hasOwnProperty(key)) {
         continue;
       }
-      var texture = placeholders[key] = new pc.Texture(this._device, {width:2, height:2, format:pc.PIXELFORMAT_R8_G8_B8_A8});
-      var pixels = texture.lock();
+      this._placeholderTextures[key] = new pc.Texture(this._device, {width:2, height:2, format:pc.PIXELFORMAT_R8_G8_B8_A8});
+      var pixels = this._placeholderTextures[key].lock();
       for (var i = 0;i < 4;i++) {
         for (var c = 0;c < 4;c++) {
           pixels[i * 4 + c] = textures[key][c];
         }
       }
-      texture.unlock();
+      this._placeholderTextures[key].unlock();
     }
-  }, _createParameters:function(data) {
-    var parameters = [];
-    if (!data.shadingModel) {
-      data.shadingModel = data.shader === "blinn" ? pc.SPECULAR_BLINN : pc.SPECULAR_PHONG;
-    }
-    var shader = data.shader;
-    delete data.shader;
-    for (var key in data) {
-      if (!data.hasOwnProperty(key)) {
-        continue;
-      }
-      parameters.push({name:key, type:PARAMETER_TYPES[key], data:data[key]});
-    }
-    data.shader = shader;
-    data.parameters = parameters;
   }, patch:function(asset, assets) {
-    if (asset.data.shader === undefined) {
-      asset.data = asset.resource._data;
+    if (asset.resource._data) {
+      asset._data = asset.resource._data;
       delete asset.resource._data;
     }
-    this._updateStandardMaterial(asset, asset.data, assets);
-    asset.off("change", this._onAssetChange, this);
-    asset.on("change", this._onAssetChange, this);
+    asset.data.name = asset.name;
+    asset.resource.name = asset.name;
+    this._bindAndAssignAssets(asset, assets);
+    asset.off("unload", this._onAssetUnload, this);
     asset.on("unload", this._onAssetUnload, this);
-  }, _onAssetChange:function(asset, attribute, value) {
-    if (attribute === "data") {
-      this._updateStandardMaterial(asset, value, this._assets);
-    }
   }, _onAssetUnload:function(asset) {
     delete asset.data.parameters;
     delete asset.data.chunks;
     delete asset.data.name;
-  }, _updateStandardMaterial:function(asset, data, assets) {
-    var material = asset.resource;
+  }, _assignTexture:function(parameterName, materialAsset, texture) {
+    materialAsset.data[parameterName] = texture;
+    materialAsset.resource[parameterName] = texture;
+  }, _assignPlaceholderTexture:function(parameterName, materialAsset) {
+    if (!this._placeholderTextures) {
+      this._createPlaceholders();
+    }
+    var placeholder = PLACEHOLDER_MAP[parameterName];
+    var texture = this._placeholderTextures[placeholder];
+    materialAsset.resource[parameterName] = texture;
+  }, _onTextureLoad:function(parameterName, materialAsset, textureAsset) {
+    this._assignTexture(parameterName, materialAsset, textureAsset.resource);
+    materialAsset.resource.update();
+  }, _onTextureAdd:function(parameterName, materialAsset, textureAsset) {
+    this._assets.load(textureAsset);
+  }, _onTextureRemove:function(parameterName, materialAsset, textureAsset) {
+    var material = materialAsset.resource;
+    if (material[parameterName] === textureAsset.resource) {
+      this._assignTexture(parameterName, materialAsset, null);
+      material.update();
+    }
+  }, _assignCubemap:function(parameterName, materialAsset, textures) {
+    materialAsset.data[parameterName] = textures[0];
+    if (textures.length === 7) {
+      materialAsset.data.prefilteredCubeMap128 = textures[1];
+      materialAsset.data.prefilteredCubeMap64 = textures[2];
+      materialAsset.data.prefilteredCubeMap32 = textures[3];
+      materialAsset.data.prefilteredCubeMap16 = textures[4];
+      materialAsset.data.prefilteredCubeMap8 = textures[5];
+      materialAsset.data.prefilteredCubeMap4 = textures[6];
+    }
+  }, _onCubemapLoad:function(parameterName, materialAsset, cubemapAsset) {
+    this._assignCubemap(parameterName, materialAsset, cubemapAsset.resources);
+    materialAsset.resource.initialize(materialAsset.data);
+  }, _onCubemapAdd:function(parameterName, materialAsset, cubemapAsset) {
+    if (materialAsset.data.shadingModel === pc.SPECULAR_PHONG) {
+      materialAsset.loadFaces = true;
+    }
+    this._assets.load(cubemapAsset);
+  }, _onCubemapRemove:function(parameterName, materialAsset, cubemapAsset) {
+    var material = materialAsset.resource;
+    if (material[parameterName] === cubemapAsset.resource) {
+      this._assignCubemap(parameterName, materialAsset, [null, null, null, null, null, null, null]);
+      material.update();
+    }
+  }, _bindAndAssignAssets:function(materialAsset, assets) {
+    var data = this._parser.migrate(materialAsset.data);
+    var material = materialAsset.resource;
+    var pathMapping = data.mappingFormat === "path";
+    var TEXTURES = pc.StandardMaterial.TEXTURE_PARAMETERS;
     var dir;
-    if (asset.file) {
-      dir = pc.path.getDirectory(asset.getFileUrl());
+    if (pathMapping) {
+      dir = pc.path.getDirectory(materialAsset.getFileUrl());
     }
-    data.name = asset.name;
-    if (!data.parameters) {
-      this._createParameters(data);
-    }
-    var pathMapping = data.mapping_format === "path";
-    data.chunks = asset.resource.chunks;
-    data.parameters.forEach(function(param, i) {
-      var id;
-      if (param.type === "texture") {
-        if (!material._assetHandlers) {
-          material._assetHandlers = {};
+    var i, name, assetReference;
+    for (i = 0;i < TEXTURES.length;i++) {
+      name = TEXTURES[i];
+      assetReference = material._assetReferences[name];
+      if (data[name] && !(data[name] instanceof pc.Texture)) {
+        if (!assetReference) {
+          assetReference = new pc.AssetReference(name, materialAsset, assets, {load:this._onTextureLoad, add:this._onTextureAdd, remove:this._onTextureRemove}, this);
+          material._assetReferences[name] = assetReference;
         }
-        var handler = material._assetHandlers[param.name];
-        if (param.data && !(param.data instanceof pc.Texture)) {
-          if (pathMapping) {
-            asset = assets.getByUrl(pc.path.join(dir, param.data));
-          } else {
-            id = param.data;
-            asset = assets.get(param.data);
-          }
-          if (handler) {
-            assets.off("load:" + handler.id, handler.bind);
-            assets.off("add:" + handler.id, handler.add);
-            assets.off("remove:" + handler.id, handler.remove);
-            if (handler.url) {
-              assets.off("add:url:" + handler.url, handler.add);
-              assets.off("remove:url:" + handler.url, handler.remove);
-            }
-            material._assetHandlers[param.name] = null;
-          }
-          handler = material._assetHandlers[param.name] = {id:id, url:pathMapping ? pc.path.join(dir, param.data) : "", bind:function(asset) {
-            data.parameters[i].data = asset.resource;
-            material[data.parameters[i].name] = asset.resource;
-            material.update();
-          }, add:function(asset) {
-            assets.load(asset);
-          }, remove:function(asset) {
-            if (material[data.parameters[i].name] === asset.resource) {
-              data.parameters[i].data = null;
-              material[data.parameters[i].name] = null;
-              material.update();
-            }
-          }};
-          if (id) {
-            assets.on("load:" + id, handler.bind);
-            assets.on("remove:" + id, handler.remove);
-          } else {
-            if (pathMapping) {
-              assets.on("load:url:" + pc.path.join(dir, param.data), handler.bind);
-              assets.on("remove:url:" + pc.path.join(dir, param.data), handler.remove);
-            }
-          }
-          if (asset) {
-            if (asset.resource) {
-              handler.bind(asset);
-            } else {
-              if (placeholdersMapping[data.parameters[i].name]) {
-                var texture = placeholders[placeholdersMapping[data.parameters[i].name]];
-                if (texture) {
-                  data.parameters[i].data = texture;
-                  material[data.parameters[i].name] = texture;
-                }
-              }
-            }
-            assets.load(asset);
-          } else {
-            if (id) {
-              assets.once("add:" + id, handler.add);
-            } else {
-              if (pathMapping) {
-                assets.once("add:url:" + handler.url, handler.add);
-              }
-            }
-          }
+        if (pathMapping) {
+          assetReference.url = pc.path.join(dir, data[name]);
         } else {
-          if (handler && !param.data) {
-            assets.off("load:" + handler.id, handler.bind);
-            assets.off("add:" + handler.id, handler.add);
-            assets.off("remove:" + handler.id, handler.remove);
-            if (handler.url) {
-              assets.off("add:url:" + handler.url, handler.add);
-              assets.off("remove:url:" + handler.url, handler.remove);
-            }
-            material._assetHandlers[param.name] = null;
+          assetReference.id = data[name];
+        }
+        if (assetReference.asset) {
+          if (assetReference.asset.resource) {
+            this._assignTexture(name, materialAsset, assetReference.asset.resource);
+          } else {
+            this._assignPlaceholderTexture(name, materialAsset);
           }
+          assets.load(assetReference.asset);
         }
       } else {
-        if (param.type === "cubemap" && param.data && !(param.data instanceof pc.Texture)) {
+        if (assetReference) {
           if (pathMapping) {
-            asset = assets.getByUrl(pc.path.join(dir, param.data));
+            assetReference.url = null;
           } else {
-            id = param.data;
-            asset = assets.get(param.data);
+            assetReference.id = null;
           }
-          var onReady = function(asset) {
-            param.data = asset.resource;
-            if (asset.resources.length > 1) {
-              data.parameters.push({name:"prefilteredCubeMap128", data:asset.resources[1]});
-              data.parameters.push({name:"prefilteredCubeMap64", data:asset.resources[2]});
-              data.parameters.push({name:"prefilteredCubeMap32", data:asset.resources[3]});
-              data.parameters.push({name:"prefilteredCubeMap16", data:asset.resources[4]});
-              data.parameters.push({name:"prefilteredCubeMap8", data:asset.resources[5]});
-              data.parameters.push({name:"prefilteredCubeMap4", data:asset.resources[6]});
-            }
-            material.init(data);
-            asset.off("load", onCubemapAssetLoad, material);
-            asset.on("load", onCubemapAssetLoad, material);
-          };
-          var onAdd = function(asset) {
-            if (data.shadingModel === pc.SPECULAR_PHONG) {
-              asset.loadFaces = true;
-            }
-            asset.ready(onReady);
-            assets.load(asset);
-          };
-          if (asset) {
-            onAdd(asset);
-          } else {
-            if (id) {
-              assets.once("add:" + id, onAdd);
-            } else {
-              if (pathMapping) {
-                assets.once("add:url:" + pc.path.join(dir, param.data), function(asset) {
-                  asset.ready(function(asset) {
-                    data.parameters[i].data = asset.resource;
-                    material.init(data);
-                    asset.off("load", onCubemapAssetLoad, material);
-                    asset.on("load", onCubemapAssetLoad, material);
-                  });
-                  assets.load(asset);
-                });
-              }
-            }
-          }
+        } else {
         }
       }
-    });
-    material.init(data);
+    }
+    var CUBEMAPS = pc.StandardMaterial.CUBEMAP_PARAMETERS;
+    for (i = 0;i < CUBEMAPS.length;i++) {
+      name = CUBEMAPS[i];
+      assetReference = material._assetReferences[name];
+      if (data[name] && !(data[name] instanceof pc.Texture)) {
+        if (!assetReference) {
+          assetReference = new pc.AssetReference(name, materialAsset, assets, {load:this._onCubemapLoad, add:this._onCubemapAdd, remove:this._onCubemapRemove}, this);
+          material._assetReferences[name] = assetReference;
+        }
+        if (pathMapping) {
+          assetReference.url = data[name];
+        } else {
+          assetReference.id = data[name];
+        }
+        if (assetReference.asset) {
+          if (assetReference.asset.resource) {
+            this._assignCubemap(name, materialAsset, assetReference.asset.resources);
+          }
+          assets.load(assetReference.asset);
+        }
+      }
+    }
+    material.initialize(data);
   }});
-  return {MaterialHandler:MaterialHandler, getMaterialParamType:function(name) {
-    return PARAMETER_TYPES[name];
-  }};
+  return {MaterialHandler:MaterialHandler};
 }());
 Object.assign(pc, function() {
   var ModelHandler = function(device) {
@@ -35717,6 +36946,163 @@ Object.assign(pc, function() {
   return {BinaryHandler:BinaryHandler};
 }());
 Object.assign(pc, function() {
+  var DDSD_CAPS = 1;
+  var DDSD_HEIGHT = 2;
+  var DDSD_WIDTH = 4;
+  var DDSD_PITCH = 8;
+  var DDSD_PIXELFORMAT = 4096;
+  var DDSD_MIPMAPCOUNT = 131072;
+  var DDSD_LINEARSIZE = 524288;
+  var DDSD_DEPTH = 8388608;
+  var DDSCAPS2_CUBEMAP = 512;
+  var DDSCAPS2_CUBEMAP_POSITIVEX = 1024;
+  var DDSCAPS2_CUBEMAP_NEGATIVEX = 2048;
+  var DDSCAPS2_CUBEMAP_POSITIVEY = 4096;
+  var DDSCAPS2_CUBEMAP_NEGATIVEY = 8192;
+  var DDSCAPS2_CUBEMAP_POSITIVEZ = 16384;
+  var DDSCAPS2_CUBEMAP_NEGATIVEZ = 32768;
+  var DDS_CUBEMAP_ALLFACES = DDSCAPS2_CUBEMAP | DDSCAPS2_CUBEMAP_POSITIVEX | DDSCAPS2_CUBEMAP_NEGATIVEX | DDSCAPS2_CUBEMAP_POSITIVEY | DDSCAPS2_CUBEMAP_NEGATIVEY | DDSCAPS2_CUBEMAP_POSITIVEZ | DDSCAPS2_CUBEMAP_NEGATIVEZ;
+  var DDPF_ALPHAPIXELS = 1;
+  var DDPF_ALPHA = 2;
+  var DDPF_FOURCC = 4;
+  var DDPF_RGB = 64;
+  var DDPF_YUV = 512;
+  var DDPF_LUMINANCE = 131072;
+  var makeFourCC = function(str) {
+    return str.charCodeAt(0) + (str.charCodeAt(1) << 8) + (str.charCodeAt(2) << 16) + (str.charCodeAt(3) << 24);
+  };
+  var DDS_MAGIC = makeFourCC("DDS ");
+  var FCC_DXT1 = makeFourCC("DXT1");
+  var FCC_DXT5 = makeFourCC("DXT5");
+  var FCC_DX10 = makeFourCC("DX10");
+  var FCC_FP32 = 116;
+  var FCC_ETC1 = makeFourCC("ETC1");
+  var FCC_PVRTC_2BPP_RGB_1 = makeFourCC("P231");
+  var FCC_PVRTC_2BPP_RGBA_1 = makeFourCC("P241");
+  var FCC_PVRTC_4BPP_RGB_1 = makeFourCC("P431");
+  var FCC_PVRTC_4BPP_RGBA_1 = makeFourCC("P441");
+  var fccToFormat = {};
+  fccToFormat[FCC_FP32] = pc.PIXELFORMAT_RGBA32F;
+  fccToFormat[FCC_DXT1] = pc.PIXELFORMAT_DXT1;
+  fccToFormat[FCC_DXT5] = pc.PIXELFORMAT_DXT5;
+  fccToFormat[FCC_ETC1] = pc.PIXELFORMAT_ETC1;
+  fccToFormat[FCC_PVRTC_2BPP_RGB_1] = pc.PIXELFORMAT_PVRTC_2BPP_RGB_1;
+  fccToFormat[FCC_PVRTC_2BPP_RGBA_1] = pc.PIXELFORMAT_PVRTC_2BPP_RGBA_1;
+  fccToFormat[FCC_PVRTC_4BPP_RGB_1] = pc.PIXELFORMAT_PVRTC_4BPP_RGB_1;
+  fccToFormat[FCC_PVRTC_4BPP_RGBA_1] = pc.PIXELFORMAT_PVRTC_4BPP_RGBA_1;
+  var DdsParser = function(arrayBuffer) {
+    var headerU32 = new Uint32Array(arrayBuffer, 0, 32);
+    var magic = headerU32[0];
+    if (magic !== DDS_MAGIC) {
+      return null;
+    }
+    var header = {size:headerU32[1], flags:headerU32[2], height:headerU32[3], width:headerU32[4], pitchOrLinearSize:headerU32[5], depth:headerU32[6], mipMapCount:Math.max(headerU32[7], 1), ddspf:{size:headerU32[19], flags:headerU32[20], fourCc:headerU32[21], rgbBitCount:headerU32[22], rBitMask:headerU32[23], gBitMask:headerU32[24], bBitMask:headerU32[25], aBitMask:headerU32[26]}, caps:headerU32[27], caps2:headerU32[28], caps3:headerU32[29], caps4:headerU32[30]};
+    if (header.size !== 124) {
+      return null;
+    }
+    var offset = 4 + header.size;
+    var isFcc = header.ddspf.flags & DDPF_FOURCC;
+    var fcc = header.ddspf.fourCc;
+    if (isFcc && fcc === FCC_DX10) {
+      headerU32 = new Uint32Array(arrayBuffer, 128, 5);
+      offset += 20;
+    }
+    var isCubeMap = header.caps2 === DDS_CUBEMAP_ALLFACES;
+    var numFaces = isCubeMap ? 6 : 1;
+    var numMips = header.flags & DDSD_MIPMAPCOUNT ? header.mipMapCount : 1;
+    var levels = [];
+    if (isCubeMap) {
+      for (var mipCnt = 0;mipCnt < numMips;mipCnt++) {
+        levels.push([]);
+      }
+    }
+    for (var face = 0;face < numFaces;face++) {
+      var mipWidth = header.width;
+      var mipHeight = header.height;
+      for (var mip = 0;mip < numMips;mip++) {
+        var mipSize;
+        if (fcc === FCC_DXT1 || fcc === FCC_DXT5 || fcc === FCC_ETC1) {
+          var bytesPerBlock = fcc === FCC_DXT5 ? 16 : 8;
+          mipSize = Math.floor((mipWidth + 3) / 4) * Math.floor((mipHeight + 3) / 4) * bytesPerBlock;
+        } else {
+          if (fcc === FCC_PVRTC_2BPP_RGB_1 || fcc === FCC_PVRTC_2BPP_RGBA_1) {
+            mipSize = Math.max(mipWidth, 16) * Math.max(mipHeight, 8) / 4;
+          } else {
+            if (fcc === FCC_PVRTC_4BPP_RGB_1 || fcc === FCC_PVRTC_4BPP_RGBA_1) {
+              mipSize = Math.max(mipWidth, 8) * Math.max(mipHeight, 8) / 2;
+            } else {
+              mipSize = mipWidth * mipHeight * 4;
+            }
+          }
+        }
+        var mipData = fcc === FCC_FP32 ? new Float32Array(arrayBuffer, offset, mipSize) : new Uint8Array(arrayBuffer, offset, mipSize);
+        if (isCubeMap) {
+          levels[mip][face] = mipData;
+        } else {
+          levels.push(mipData);
+        }
+        offset += fcc === FCC_FP32 ? mipSize * 4 : mipSize;
+        mipWidth = Math.max(mipWidth * 0.5, 1);
+        mipHeight = Math.max(mipHeight * 0.5, 1);
+      }
+    }
+    this.format = fccToFormat[fcc] || pc.PIXELFORMAT_R8_G8_B8_A8;
+    this.width = header.width;
+    this.height = header.height;
+    this.levels = levels;
+    this.cubemap = isCubeMap;
+  };
+  return {DdsParser:DdsParser};
+}());
+Object.assign(pc, function() {
+  var IDENTIFIER = [1481919403, 3140563232, 169478669];
+  var KNOWN_FORMATS = {33776:pc.PIXELFORMAT_DXT1, 33778:pc.PIXELFORMAT_DXT3, 33779:pc.PIXELFORMAT_DXT5, 36196:pc.PIXELFORMAT_ETC1, 37492:pc.PIXELFORMAT_ETC2_RGB, 37496:pc.PIXELFORMAT_ETC2_RGBA, 35840:pc.PIXELFORMAT_PVRTC_4BPP_RGB_1, 35841:pc.PIXELFORMAT_PVRTC_2BPP_RGB_1, 35842:pc.PIXELFORMAT_PVRTC_4BPP_RGBA_1, 35843:pc.PIXELFORMAT_PVRTC_2BPP_RGBA_1};
+  var KtxParser = function(arrayBuffer) {
+    var headerU32 = new Uint32Array(arrayBuffer, 0, 16);
+    if (IDENTIFIER[0] !== headerU32[0] || IDENTIFIER[1] !== headerU32[1] || IDENTIFIER[2] !== headerU32[2]) {
+      return null;
+    }
+    var header = {endianness:headerU32[3], glType:headerU32[4], glTypeSize:headerU32[5], glFormat:headerU32[6], glInternalFormat:headerU32[7], glBaseInternalFormat:headerU32[8], pixelWidth:headerU32[9], pixelHeight:headerU32[10], pixelDepth:headerU32[11], numberOfArrayElements:headerU32[12], numberOfFaces:headerU32[13], numberOfMipmapLevels:headerU32[14], bytesOfKeyValueData:headerU32[15]};
+    if (header.pixelDepth > 1) {
+      return null;
+    }
+    if (header.numberOfArrayElements > 1) {
+      return null;
+    }
+    if (header.glFormat !== 0) {
+      return null;
+    }
+    if (!KNOWN_FORMATS[header.glInternalFormat]) {
+      return null;
+    }
+    var offset = 16 * 4 + header.bytesOfKeyValueData;
+    var levels = [];
+    for (var mipmapLevel = 0;mipmapLevel < (header.numberOfMipmapLevels || 1);mipmapLevel++) {
+      var imageSizeInBytes = (new Uint32Array(arrayBuffer.slice(offset, offset + 4)))[0];
+      offset += 4;
+      var faceSizeInBytes = imageSizeInBytes / (header.numberOfFaces || 1);
+      if (header.numberOfFaces > 1) {
+        levels.push([]);
+      }
+      for (var face = 0;face < header.numberOfFaces;face++) {
+        var mipData = new Uint8Array(arrayBuffer, offset, faceSizeInBytes);
+        if (header.numberOfFaces > 1) {
+          levels[mipmapLevel].push(mipData);
+        } else {
+          levels.push(mipData);
+        }
+        offset += faceSizeInBytes;
+      }
+      offset += 3 - (offset + 3) % 4;
+    }
+    this.format = KNOWN_FORMATS[header.glInternalFormat];
+    this.width = header.pixelWidth;
+    this.height = header.pixelHeight;
+    this.levels = levels;
+  };
+  return {KtxParser:KtxParser};
+}());
+Object.assign(pc, function() {
   var JSON_ADDRESS_MODE = {"repeat":pc.ADDRESS_REPEAT, "clamp":pc.ADDRESS_CLAMP_TO_EDGE, "mirror":pc.ADDRESS_MIRRORED_REPEAT};
   var JSON_FILTER_MODE = {"nearest":pc.FILTER_NEAREST, "linear":pc.FILTER_LINEAR, "nearest_mip_nearest":pc.FILTER_NEAREST_MIPMAP_NEAREST, "linear_mip_nearest":pc.FILTER_LINEAR_MIPMAP_NEAREST, "nearest_mip_linear":pc.FILTER_NEAREST_MIPMAP_LINEAR, "linear_mip_linear":pc.FILTER_LINEAR_MIPMAP_LINEAR};
   function arrayBufferCopy(src, dst, dstByteOffset, numBytes) {
@@ -35732,6 +37118,137 @@ Object.assign(pc, function() {
       dst[dstByteOffset + i] = src[i];
     }
   }
+  var _legacyDdsLoader = function(url, data, graphicsDevice) {
+    var ext = pc.path.getExtension(url).toLowerCase();
+    if (ext === ".crn") {
+      var srcSize = data.byteLength;
+      var bytes = new Uint8Array(data);
+      var src = Module._malloc(srcSize);
+      arrayBufferCopy(bytes, Module.HEAPU8, src, srcSize);
+      var dst = Module._crn_decompress_get_data(src, srcSize);
+      var dstSize = Module._crn_decompress_get_size(src, srcSize);
+      data = Module.HEAPU8.buffer.slice(dst, dst + dstSize);
+    }
+    var header = new Uint32Array(data, 0, 128 / 4);
+    var width = header[4];
+    var height = header[3];
+    var mips = Math.max(header[7], 1);
+    var isFourCc = header[20] === 4;
+    var fcc = header[21];
+    var bpp = header[22];
+    var isCubemap = header[28] === 65024;
+    var FCC_DXT1 = 827611204;
+    var FCC_DXT5 = 894720068;
+    var FCC_FP32 = 116;
+    var FCC_ETC1 = 826496069;
+    var FCC_PVRTC_2BPP_RGB_1 = 825438800;
+    var FCC_PVRTC_2BPP_RGBA_1 = 825504336;
+    var FCC_PVRTC_4BPP_RGB_1 = 825439312;
+    var FCC_PVRTC_4BPP_RGBA_1 = 825504848;
+    var compressed = false;
+    var floating = false;
+    var etc1 = false;
+    var pvrtc2 = false;
+    var pvrtc4 = false;
+    var format = null;
+    var texture;
+    if (isFourCc) {
+      if (fcc === FCC_DXT1) {
+        format = pc.PIXELFORMAT_DXT1;
+        compressed = true;
+      } else {
+        if (fcc === FCC_DXT5) {
+          format = pc.PIXELFORMAT_DXT5;
+          compressed = true;
+        } else {
+          if (fcc === FCC_FP32) {
+            format = pc.PIXELFORMAT_RGBA32F;
+            floating = true;
+          } else {
+            if (fcc === FCC_ETC1) {
+              format = pc.PIXELFORMAT_ETC1;
+              compressed = true;
+              etc1 = true;
+            } else {
+              if (fcc === FCC_PVRTC_2BPP_RGB_1 || fcc === FCC_PVRTC_2BPP_RGBA_1) {
+                format = fcc === FCC_PVRTC_2BPP_RGB_1 ? pc.PIXELFORMAT_PVRTC_2BPP_RGB_1 : pc.PIXELFORMAT_PVRTC_2BPP_RGBA_1;
+                compressed = true;
+                pvrtc2 = true;
+              } else {
+                if (fcc === FCC_PVRTC_4BPP_RGB_1 || fcc === FCC_PVRTC_4BPP_RGBA_1) {
+                  format = fcc === FCC_PVRTC_4BPP_RGB_1 ? pc.PIXELFORMAT_PVRTC_4BPP_RGB_1 : pc.PIXELFORMAT_PVRTC_4BPP_RGBA_1;
+                  compressed = true;
+                  pvrtc4 = true;
+                }
+              }
+            }
+          }
+        }
+      }
+    } else {
+      if (bpp === 32) {
+        format = pc.PIXELFORMAT_R8_G8_B8_A8;
+      }
+    }
+    if (!format) {
+      texture = new pc.Texture(graphicsDevice, {width:4, height:4, format:pc.PIXELFORMAT_R8_G8_B8});
+      return texture;
+    }
+    var texOptions = {width:width, height:height, format:format, cubemap:isCubemap};
+    texture = new pc.Texture(graphicsDevice, texOptions);
+    if (isCubemap) {
+      texture.addressU = pc.ADDRESS_CLAMP_TO_EDGE;
+      texture.addressV = pc.ADDRESS_CLAMP_TO_EDGE;
+    }
+    var offset = 128;
+    var faces = isCubemap ? 6 : 1;
+    var mipSize;
+    var DXT_BLOCK_WIDTH = 4;
+    var DXT_BLOCK_HEIGHT = 4;
+    var blockSize = fcc === FCC_DXT1 ? 8 : 16;
+    var numBlocksAcross, numBlocksDown, numBlocks;
+    for (var face = 0;face < faces;face++) {
+      var mipWidth = width;
+      var mipHeight = height;
+      for (var i = 0;i < mips;i++) {
+        if (compressed) {
+          if (etc1) {
+            mipSize = Math.floor((mipWidth + 3) / 4) * Math.floor((mipHeight + 3) / 4) * 8;
+          } else {
+            if (pvrtc2) {
+              mipSize = Math.max(mipWidth, 16) * Math.max(mipHeight, 8) / 4;
+            } else {
+              if (pvrtc4) {
+                mipSize = Math.max(mipWidth, 8) * Math.max(mipHeight, 8) / 2;
+              } else {
+                numBlocksAcross = Math.floor((mipWidth + DXT_BLOCK_WIDTH - 1) / DXT_BLOCK_WIDTH);
+                numBlocksDown = Math.floor((mipHeight + DXT_BLOCK_HEIGHT - 1) / DXT_BLOCK_HEIGHT);
+                numBlocks = numBlocksAcross * numBlocksDown;
+                mipSize = numBlocks * blockSize;
+              }
+            }
+          }
+        } else {
+          mipSize = mipWidth * mipHeight * 4;
+        }
+        var mipBuff = floating ? new Float32Array(data, offset, mipSize) : new Uint8Array(data, offset, mipSize);
+        if (!isCubemap) {
+          texture._levels[i] = mipBuff;
+        } else {
+          if (!texture._levels[i]) {
+            texture._levels[i] = [];
+          }
+          texture._levels[i][face] = mipBuff;
+        }
+        offset += floating ? mipSize * 4 : mipSize;
+        mipWidth = Math.max(mipWidth * 0.5, 1);
+        mipHeight = Math.max(mipHeight * 0.5, 1);
+      }
+    }
+    texture.name = url;
+    texture.upload();
+    return texture;
+  };
   var TextureHandler = function(device, assets, loader) {
     this._device = device;
     this._assets = assets;
@@ -35746,7 +37263,7 @@ Object.assign(pc, function() {
     var image;
     var urlWithoutParams = url.indexOf("?") >= 0 ? url.split("?")[0] : url;
     var ext = pc.path.getExtension(urlWithoutParams).toLowerCase();
-    if (ext === ".dds" || ext === ".crn") {
+    if (ext === ".dds" || ext === ".ktx") {
       var options = {cache:true, responseType:"arraybuffer"};
       pc.http.get(url, options, function(err, response) {
         if (!err) {
@@ -35802,130 +37319,28 @@ Object.assign(pc, function() {
       texture.setSource(img);
     } else {
       if (data instanceof ArrayBuffer) {
-        if (ext === ".crn") {
-          var srcSize = data.byteLength;
-          var bytes = new Uint8Array(data);
-          var src = Module._malloc(srcSize);
-          arrayBufferCopy(bytes, Module.HEAPU8, src, srcSize);
-          var dst = Module._crn_decompress_get_data(src, srcSize);
-          var dstSize = Module._crn_decompress_get_size(src, srcSize);
-          data = Module.HEAPU8.buffer.slice(dst, dst + dstSize);
-        }
-        var header = new Uint32Array(data, 0, 128 / 4);
-        var width = header[4];
-        var height = header[3];
-        var mips = Math.max(header[7], 1);
-        var isFourCc = header[20] === 4;
-        var fcc = header[21];
-        var bpp = header[22];
-        var isCubemap = header[28] === 65024;
-        var FCC_DXT1 = 827611204;
-        var FCC_DXT5 = 894720068;
-        var FCC_FP32 = 116;
-        var FCC_ETC1 = 826496069;
-        var FCC_PVRTC_2BPP_RGB_1 = 825438800;
-        var FCC_PVRTC_2BPP_RGBA_1 = 825504336;
-        var FCC_PVRTC_4BPP_RGB_1 = 825439312;
-        var FCC_PVRTC_4BPP_RGBA_1 = 825504848;
-        var compressed = false;
-        var floating = false;
-        var etc1 = false;
-        var pvrtc2 = false;
-        var pvrtc4 = false;
-        if (isFourCc) {
-          if (fcc === FCC_DXT1) {
-            format = pc.PIXELFORMAT_DXT1;
-            compressed = true;
-          } else {
-            if (fcc === FCC_DXT5) {
-              format = pc.PIXELFORMAT_DXT5;
-              compressed = true;
-            } else {
-              if (fcc === FCC_FP32) {
-                format = pc.PIXELFORMAT_RGBA32F;
-                floating = true;
-              } else {
-                if (fcc === FCC_ETC1) {
-                  format = pc.PIXELFORMAT_ETC1;
-                  compressed = true;
-                  etc1 = true;
-                } else {
-                  if (fcc === FCC_PVRTC_2BPP_RGB_1 || fcc === FCC_PVRTC_2BPP_RGBA_1) {
-                    format = fcc === FCC_PVRTC_2BPP_RGB_1 ? pc.PIXELFORMAT_PVRTC_2BPP_RGB_1 : pc.PIXELFORMAT_PVRTC_2BPP_RGBA_1;
-                    compressed = true;
-                    pvrtc2 = true;
-                  } else {
-                    if (fcc === FCC_PVRTC_4BPP_RGB_1 || fcc === FCC_PVRTC_4BPP_RGBA_1) {
-                      format = fcc === FCC_PVRTC_4BPP_RGB_1 ? pc.PIXELFORMAT_PVRTC_4BPP_RGB_1 : pc.PIXELFORMAT_PVRTC_4BPP_RGBA_1;
-                      compressed = true;
-                      pvrtc4 = true;
-                    }
-                  }
-                }
-              }
-            }
-          }
+        var LEGACY = true;
+        if (LEGACY) {
+          texture = _legacyDdsLoader(url, data, this._device);
         } else {
-          if (bpp === 32) {
-            format = pc.PIXELFORMAT_R8_G8_B8_A8;
+          var textureData;
+          switch(ext) {
+            case ".dds":
+              textureData = new pc.DdsParser(data);
+              break;
+            case ".ktx":
+              textureData = new pc.KtxParser(data);
+              break;
+            case ".pvr":
+              console.warn("PVR container not supported.");
+              break;
           }
-        }
-        if (!format) {
-          texture = new pc.Texture(this._device, {width:4, height:4, format:pc.PIXELFORMAT_R8_G8_B8});
-          return texture;
-        }
-        var texOptions = {width:width, height:height, format:format, cubemap:isCubemap};
-        texture = new pc.Texture(this._device, texOptions);
-        if (isCubemap) {
-          texture.addressU = pc.ADDRESS_CLAMP_TO_EDGE;
-          texture.addressV = pc.ADDRESS_CLAMP_TO_EDGE;
-        }
-        var offset = 128;
-        var faces = isCubemap ? 6 : 1;
-        var mipSize;
-        var DXT_BLOCK_WIDTH = 4;
-        var DXT_BLOCK_HEIGHT = 4;
-        var blockSize = fcc === FCC_DXT1 ? 8 : 16;
-        var numBlocksAcross, numBlocksDown, numBlocks;
-        for (var face = 0;face < faces;face++) {
-          var mipWidth = width;
-          var mipHeight = height;
-          for (var i = 0;i < mips;i++) {
-            if (compressed) {
-              if (etc1) {
-                mipSize = Math.floor((mipWidth + 3) / 4) * Math.floor((mipHeight + 3) / 4) * 8;
-              } else {
-                if (pvrtc2) {
-                  mipSize = Math.max(mipWidth, 16) * Math.max(mipHeight, 8) / 4;
-                } else {
-                  if (pvrtc4) {
-                    mipSize = Math.max(mipWidth, 8) * Math.max(mipHeight, 8) / 2;
-                  } else {
-                    numBlocksAcross = Math.floor((mipWidth + DXT_BLOCK_WIDTH - 1) / DXT_BLOCK_WIDTH);
-                    numBlocksDown = Math.floor((mipHeight + DXT_BLOCK_HEIGHT - 1) / DXT_BLOCK_HEIGHT);
-                    numBlocks = numBlocksAcross * numBlocksDown;
-                    mipSize = numBlocks * blockSize;
-                  }
-                }
-              }
-            } else {
-              mipSize = mipWidth * mipHeight * 4;
-            }
-            var mipBuff = floating ? new Float32Array(data, offset, mipSize) : new Uint8Array(data, offset, mipSize);
-            if (!isCubemap) {
-              texture._levels[i] = mipBuff;
-            } else {
-              if (!texture._levels[i]) {
-                texture._levels[i] = [];
-              }
-              texture._levels[i][face] = mipBuff;
-            }
-            offset += floating ? mipSize * 4 : mipSize;
-            mipWidth = Math.max(mipWidth * 0.5, 1);
-            mipHeight = Math.max(mipHeight * 0.5, 1);
+          if (!textureData) {
+            return new pc.Texture(this._device, {width:4, height:4, format:pc.PIXELFORMAT_R8_G8_B8});
           }
+          texture = new pc.Texture(this._device, {addressU:textureData.cubemap ? pc.ADDRESS_CLAMP_TO_EDGE : pc.ADDRESS_REPEAT, addressV:textureData.cubemap ? pc.ADDRESS_CLAMP_TO_EDGE : pc.ADDRESS_REPEAT, width:textureData.width, height:textureData.height, format:textureData.format, cubemap:textureData.cubemap, levels:textureData.levels});
+          texture.upload();
         }
-        texture.upload();
       }
     }
     return texture;
@@ -36097,6 +37512,24 @@ Object.assign(pc, function() {
   return {FolderHandler:FolderHandler};
 }());
 Object.assign(pc, function() {
+  function upgradeDataSchema(data) {
+    if (data.version < 3) {
+      if (data.version < 2) {
+        data.info.maps = data.info.maps || [{width:data.info.width, height:data.info.height}];
+      }
+      data.chars = Object.keys(data.chars || {}).reduce(function(newChars, key) {
+        var existing = data.chars[key];
+        var newKey = existing.letter !== undefined ? existing.letter : pc.string.fromCodePoint(key);
+        if (data.version < 2) {
+          existing.map = existing.map || 0;
+        }
+        newChars[newKey] = existing;
+        return newChars;
+      }, {});
+      data.version = 3;
+    }
+    return data;
+  }
   var FontHandler = function(loader) {
     this._loader = loader;
   };
@@ -36104,27 +37537,28 @@ Object.assign(pc, function() {
     var self = this;
     if (pc.path.getExtension(url) === ".json") {
       pc.http.get(url, function(err, response) {
+        var data = upgradeDataSchema(response);
         if (!err) {
-          self._loadTextures(url.replace(".json", ".png"), response, function(err, textures) {
+          self._loadTextures(url.replace(".json", ".png"), data, function(err, textures) {
             if (err) {
               return callback(err);
             }
-            callback(null, {data:response, textures:textures});
+            callback(null, {data:data, textures:textures});
           });
         } else {
           callback(pc.string.format("Error loading font resource: {0} [{1}]", url, err));
         }
       });
     } else {
+      if (asset && asset.data) {
+        asset.data = upgradeDataSchema(asset.data);
+      }
       this._loadTextures(url, asset && asset.data, callback);
     }
   }, _loadTextures:function(url, data, callback) {
-    var numTextures = 1;
+    var numTextures = data.info.maps.length;
     var numLoaded = 0;
     var error = null;
-    if (data && data.version >= 2) {
-      numTextures = data.info.maps.length;
-    }
     var textures = new Array(numTextures);
     var loader = this._loader;
     var loadTexture = function(index) {
@@ -36354,7 +37788,6 @@ Object.assign(pc, function() {
           console.warn("Could not find textureatlas with url: " + sprite.__data.textureAtlasAsset);
         }
       }
-      delete sprite.__data;
     }
     sprite.startUpdate();
     sprite.renderMode = asset.data.renderMode;
@@ -36772,16 +38205,7 @@ Object.assign(pc, function() {
       var formatDesc = [];
       for (attributeName in vertexData) {
         attribute = vertexData[attributeName];
-        var attribType = attribute.type;
-        if (!this._device.supportsUnsignedByte) {
-          if (attribType === "uint8") {
-            attribType = "float32";
-          }
-          if (attribType === "int8") {
-            attribType = "float32";
-          }
-        }
-        formatDesc.push({semantic:attributeMap[attributeName], components:attribute.components, type:JSON_VERTEX_ELEMENT_TYPE[attribType], normalize:attributeMap[attributeName] === pc.SEMANTIC_COLOR});
+        formatDesc.push({semantic:attributeMap[attributeName], components:attribute.components, type:JSON_VERTEX_ELEMENT_TYPE[attribute.type], normalize:attributeMap[attributeName] === pc.SEMANTIC_COLOR});
       }
       var vertexFormat = new pc.VertexFormat(this._device, formatDesc);
       var numVertices = vertexData.position.data.length / vertexData.position.components;
@@ -36923,7 +38347,7 @@ Object.assign(pc, function() {
     var r = data.rotation;
     var s = data.scale;
     entity.name = data.name;
-    entity._guid = data.resource_id;
+    entity.setGuid(data.resource_id);
     entity.setLocalPosition(p[0], p[1], p[2]);
     entity.setLocalEulerAngles(r[0], r[1], r[2]);
     entity.setLocalScale(s[0], s[1], s[2]);
@@ -36959,6 +38383,61 @@ Object.assign(pc, function() {
     return entity;
   }});
   return {SceneParser:SceneParser};
+}());
+Object.assign(pc, function() {
+  var JsonStandardMaterialParser = function() {
+    this._validator = null;
+  };
+  JsonStandardMaterialParser.prototype.parse = function(input) {
+    var migrated = this.migrate(input);
+    var validated = this._validate(migrated);
+    var material = new pc.StandardMaterial;
+    material.initialize(validated);
+    return material;
+  };
+  JsonStandardMaterialParser.prototype.migrate = function(data) {
+    if (data.shadingModel === undefined) {
+      if (data.shader === "blinn") {
+        data.shadingModel = pc.SPECULAR_BLINN;
+      } else {
+        data.shadingModel = pc.SPECULAR_PHONG;
+      }
+    }
+    if (data.shader) {
+      delete data.shader;
+    }
+    if (data.mapping_format) {
+      data.mappingFormat = data.mapping_format;
+      delete data.mapping_format;
+    }
+    var i;
+    var RENAMED_PROPERTIES = [["bumpMapFactor", "bumpiness"], ["aoUvSet", "aoMapUv"], ["aoMapVertexColor", "aoVertexColor"], ["diffuseMapVertexColor", "diffuseVertexColor"], ["emissiveMapVertexColor", "emissiveVertexColor"], ["specularMapVertexColor", "specularVertexColor"], ["metalnessMapVertexColor", "metalnessVertexColor"], ["opacityMapVertexColor", "opacityVertexColor"], ["glossMapVertexColor", "glossVertexColor"], ["lightMapVertexColor", "lightVertexColor"], ["diffuseMapTint", "diffuseTint"], 
+    ["specularMapTint", "specularTint"], ["emissiveMapTint", "emissiveTint"], ["metalnessMapTint", "metalnessTint"]];
+    for (i = 0;i < RENAMED_PROPERTIES.length;i++) {
+      var _old = RENAMED_PROPERTIES[i][0];
+      var _new = RENAMED_PROPERTIES[i][1];
+      if (data[_old] !== undefined && !(data[_new] !== undefined)) {
+        data[_new] = data[_old];
+        delete data[_old];
+      }
+    }
+    var DEPRECATED_PROPERTIES = ["fresnelFactor", "shadowSampleType"];
+    for (i = 0;i < DEPRECATED_PROPERTIES.length;i++) {
+      var name = DEPRECATED_PROPERTIES[i];
+      if (data.hasOwnProperty(name)) {
+        delete data[name];
+      }
+    }
+    return data;
+  };
+  JsonStandardMaterialParser.prototype._validate = function(data) {
+    if (!this._validator) {
+      this._validator = new pc.StandardMaterialValidator;
+    }
+    this._validator.validate(data);
+    return data;
+  };
+  return {JsonStandardMaterialParser:JsonStandardMaterialParser};
 }());
 Object.assign(pc, function() {
   var assetIdCounter = 0;
@@ -37225,21 +38704,22 @@ Object.assign(pc, function() {
     }
   }, remove:function(asset) {
     var idx = this._cache[asset.id];
+    var url = asset.file ? asset.file.url : null;
     if (idx !== undefined) {
       this._assets.splice(idx, 1);
       delete this._cache[asset.id];
       this._names = {};
+      this._urls = [];
       for (var i = 0, l = this._assets.length;i < l;i++) {
-        var asset = this._assets[i];
-        this._cache[asset.id] = i;
-        if (!this._names[asset.name]) {
-          this._names[asset.name] = [];
+        var a = this._assets[i];
+        this._cache[a.id] = i;
+        if (!this._names[a.name]) {
+          this._names[a.name] = [];
         }
-        this._names[asset.name].push(i);
-      }
-      var url = asset.file ? asset.file.url : null;
-      if (url) {
-        delete this._urls[url];
+        this._names[a.name].push(i);
+        if (a.file) {
+          this._urls[a.file.url] = i;
+        }
       }
       this._tags.removeItem(asset);
       asset.tags.off("add", this._onTagAdd, this);
@@ -37251,9 +38731,8 @@ Object.assign(pc, function() {
         this.fire("remove:url:" + url, asset);
       }
       return true;
-    } else {
-      return false;
     }
+    return false;
   }, get:function(id) {
     var idx = this._cache[id];
     return this._assets[idx];
@@ -37360,8 +38839,8 @@ Object.assign(pc, function() {
       self._loadModel(asset, callback);
       return;
     }
-    asset.once("load", function(asset) {
-      callback(null, asset);
+    asset.once("load", function(loadedAsset) {
+      callback(null, loadedAsset);
     });
     asset.once("error", function(err) {
       callback(err);
@@ -37373,14 +38852,14 @@ Object.assign(pc, function() {
     var dir = pc.path.getDirectory(url);
     var basename = pc.path.getBasename(url);
     var ext = pc.path.getExtension(url);
-    var _loadAsset = function(asset) {
-      asset.once("load", function(asset) {
-        callback(null, asset);
+    var _loadAsset = function(assetToLoad) {
+      asset.once("load", function(loadedAsset) {
+        callback(null, loadedAsset);
       });
       asset.once("error", function(err) {
         callback(err);
       });
-      self.load(asset);
+      self.load(assetToLoad);
     };
     if (ext === ".json") {
       var mappingUrl = pc.path.join(dir, basename.replace(".json", ".mapping.json"));
@@ -37390,7 +38869,7 @@ Object.assign(pc, function() {
           _loadAsset(asset);
           return;
         }
-        self._loadMaterials(dir, data, function(err, materials) {
+        self._loadMaterials(dir, data, function(e, materials) {
           asset.data = data;
           _loadAsset(asset);
         });
@@ -37403,9 +38882,9 @@ Object.assign(pc, function() {
     var i;
     var count = mapping.mapping.length;
     var materials = [];
-    var done = function(err, materials) {
-      self._loadTextures(materials, function(err, textures) {
-        callback(null, materials);
+    var done = function(err, loadedMaterials) {
+      self._loadTextures(loadedMaterials, function(e, textures) {
+        callback(null, loadedMaterials);
       });
     };
     if (count === 0) {
@@ -37421,35 +38900,39 @@ Object.assign(pc, function() {
     for (i = 0;i < mapping.mapping.length;i++) {
       var path = mapping.mapping[i].path;
       if (path) {
-        self.loadFromUrl(pc.path.join(dir, path), "material", onLoadAsset);
+        path = pc.path.join(dir, path);
+        self.loadFromUrl(path, "material", onLoadAsset);
       } else {
         count--;
       }
     }
-  }, _loadTextures:function(materials, callback) {
+  }, _loadTextures:function(materialAssets, callback) {
     var self = this;
-    var i, j;
+    var i;
     var used = {};
     var urls = [];
     var textures = [];
     var count = 0;
-    for (i = 0;i < materials.length;i++) {
-      if (materials[i].data.parameters) {
-        var params = materials[i].data.parameters;
-        for (j = 0;j < params.length;j++) {
-          if (params[j].type === "texture") {
-            var url = materials[i].getFileUrl();
-            var dir = pc.path.getDirectory(url);
-            url = pc.path.join(dir, params[j].data);
-            if (!used[url]) {
-              used[url] = true;
-              urls.push(url);
-              count++;
-            }
+    for (i = 0;i < materialAssets.length;i++) {
+      var materialData = materialAssets[i].data;
+      if (materialData.mappingFormat !== "path") {
+        console.warn("Skipping: " + materialAssets[i].name + ', material files must be mappingFormat: "path" to be loaded from URL');
+        continue;
+      }
+      var url = materialAssets[i].getFileUrl();
+      var dir = pc.path.getDirectory(url);
+      var textureUrl;
+      for (var pi = 0;pi < pc.StandardMaterial.TEXTURE_PARAMETERS.length;pi++) {
+        var paramName = pc.StandardMaterial.TEXTURE_PARAMETERS[pi];
+        if (materialData[paramName]) {
+          var texturePath = materialData[paramName];
+          textureUrl = pc.path.join(dir, texturePath);
+          if (!used[textureUrl]) {
+            used[textureUrl] = true;
+            urls.push(textureUrl);
+            count++;
           }
         }
-      } else {
-        console.warn("Update material asset loader to support new material format");
       }
     }
     if (!count) {
@@ -37507,21 +38990,100 @@ Object.assign(pc, function() {
   }});
   return {AssetRegistry:AssetRegistry};
 }());
-Function.prototype.extendsFrom = function(Super) {
-  var Self, Func;
-  var Temp = function() {
+Object.assign(pc, function() {
+  var AssetReference = function(propertyName, parent, registry, callbacks, scope) {
+    this.propertyName = propertyName;
+    this.parent = parent;
+    this._scope = scope;
+    this._registry = registry;
+    this.id = null;
+    this.url = null;
+    this.asset = null;
+    this._onAssetLoad = callbacks.load;
+    this._onAssetAdd = callbacks.add;
+    this._onAssetRemove = callbacks.remove;
   };
-  Self = this;
-  Func = function() {
-    Super.apply(this, arguments);
-    Self.apply(this, arguments);
-    this.constructor = Self;
+  AssetReference.prototype._bind = function() {
+    if (this.id) {
+      if (this._onAssetLoad) {
+        this._registry.on("load:" + this.id, this._onLoad, this);
+      }
+      if (this._onAssetAdd) {
+        this._registry.once("add:" + this.id, this._onAdd, this);
+      }
+      if (this._onAssetRemove) {
+        this._registry.on("remove:" + this.id, this._onRemove, this);
+      }
+    }
+    if (this.url) {
+      if (this._onAssetLoad) {
+        this._registry.on("load:url:" + this.url, this._onLoad, this);
+      }
+      if (this._onAssetAdd) {
+        this._registry.once("add:url:" + this.url, this._onAdd, this);
+      }
+      if (this._onAssetRemove) {
+        this._registry.on("remove:url:" + this.url, this._onRemove, this);
+      }
+    }
   };
-  Func._super = Super.prototype;
-  Temp.prototype = Super.prototype;
-  Func.prototype = new Temp;
-  return Func;
-};
+  AssetReference.prototype._unbind = function() {
+    if (this.id) {
+      if (this._onAssetLoad) {
+        this._registry.off("load:" + this.id, this._onLoad, this);
+      }
+      if (this._onAssetAdd) {
+        this._registry.off("add:" + this.id, this._onAdd, this);
+      }
+      if (this._onAssetRemove) {
+        this._registry.off("remove:" + this.id, this._onRemove, this);
+      }
+    }
+    if (this.url) {
+      if (this._onAssetLoad) {
+        this._registry.off("load:" + this.url, this._onLoad, this);
+      }
+      if (this._onAssetAdd) {
+        this._registry.off("add:" + this.url, this._onAdd, this);
+      }
+      if (this._onAssetRemove) {
+        this._registry.off("remove:" + this.url, this._onRemove, this);
+      }
+    }
+  };
+  AssetReference.prototype._onLoad = function(asset) {
+    this._onAssetLoad.call(this._scope, this.propertyName, this.parent, asset);
+  };
+  AssetReference.prototype._onAdd = function(asset) {
+    this._onAssetAdd.call(this._scope, this.propertyName, this.parent, asset);
+  };
+  AssetReference.prototype._onRemove = function(asset) {
+    this._onAssetRemove.call(this._scope, this.propertyName, this.parent, asset);
+  };
+  Object.defineProperty(AssetReference.prototype, "id", {get:function() {
+    return this._id;
+  }, set:function(value) {
+    if (this.url) {
+      throw Error("Can't set id and url");
+    }
+    this._unbind();
+    this._id = value;
+    this.asset = this._registry.get(this._id);
+    this._bind();
+  }});
+  Object.defineProperty(AssetReference.prototype, "url", {get:function() {
+    return this._url;
+  }, set:function(value) {
+    if (this.id) {
+      throw Error("Can't set id and url");
+    }
+    this._unbind();
+    this._url = value;
+    this.asset = this._registry.getByUrl(this._url);
+    this._bind();
+  }});
+  return {AssetReference:AssetReference};
+}());
 Object.assign(pc, function() {
   return {inherits:function(Self, Super) {
     var Temp = function() {
@@ -37540,8 +39102,7 @@ pc.anim = {Animation:pc.Animation, Key:pc.Key, Node:pc.Node, Skeleton:pc.Skeleto
 pc.asset = {ASSET_ANIMATION:"animation", ASSET_AUDIO:"audio", ASSET_IMAGE:"image", ASSET_JSON:"json", ASSET_MODEL:"model", ASSET_MATERIAL:"material", ASSET_TEXT:"text", ASSET_TEXTURE:"texture", ASSET_CUBEMAP:"cubemap", ASSET_SCRIPT:"script"};
 pc.audio = {AudioManager:pc.SoundManager, Channel:pc.Channel, Channel3d:pc.Channel3d, Listener:pc.Listener, Sound:pc.Sound};
 pc.fw = {Application:pc.Application, Component:pc.Component, ComponentData:pc.ComponentData, ComponentSystem:pc.ComponentSystem, Entity:pc.Entity, FillMode:{NONE:pc.FILLMODE_NONE, FILL_WINDOW:pc.FILLMODE_FILL_WINDOW, KEEP_ASPECT:pc.FILLMODE_KEEP_ASPECT}, ResolutionMode:{AUTO:pc.RESOLUTION_AUTO, FIXED:pc.RESOLUTION_FIXED}};
-Object.assign(pc.gfx, {drawQuadWithShader:pc.drawQuadWithShader, precalculatedTangents:pc.precalculatedTangents, programlib:pc.programlib, shaderChunks:pc.shaderChunks, ContextCreationError:pc.ContextCreationError, Device:pc.GraphicsDevice, IndexBuffer:pc.IndexBuffer, ProgramLibrary:pc.ProgramLibrary, RenderTarget:pc.RenderTarget, ScopeId:pc.ScopeId, Shader:pc.Shader, ShaderInput:pc.ShaderInput, Texture:pc.Texture, UnsupportedBrowserError:pc.UnsupportedBrowserError, VertexBuffer:pc.VertexBuffer, 
-VertexFormat:pc.VertexFormat, VertexIterator:pc.VertexIterator});
+Object.assign(pc.gfx, {drawQuadWithShader:pc.drawQuadWithShader, programlib:pc.programlib, shaderChunks:pc.shaderChunks, ContextCreationError:pc.ContextCreationError, Device:pc.GraphicsDevice, IndexBuffer:pc.IndexBuffer, ProgramLibrary:pc.ProgramLibrary, RenderTarget:pc.RenderTarget, ScopeId:pc.ScopeId, Shader:pc.Shader, ShaderInput:pc.ShaderInput, Texture:pc.Texture, UnsupportedBrowserError:pc.UnsupportedBrowserError, VertexBuffer:pc.VertexBuffer, VertexFormat:pc.VertexFormat, VertexIterator:pc.VertexIterator});
 (function() {
   function UnsupportedBrowserError(message) {
     this.name = "UnsupportedBrowserError";
@@ -38538,6 +40099,34 @@ Object.assign(pc, function() {
     this._removeModelsFromBatchGroup(this.rootNode, id);
     delete this._batchGroups[id];
   };
+  BatchManager.prototype.markGroupDirty = function(id) {
+    if (this._dirtyGroups.indexOf(id) < 0) {
+      this._dirtyGroups.push(id);
+    }
+  };
+  BatchManager.prototype.getGroupByName = function(name) {
+    var groups = this._batchGroups;
+    for (var group in groups) {
+      if (!groups.hasOwnProperty(group)) {
+        continue;
+      }
+      if (groups[group].name === name) {
+        return groups[group];
+      }
+    }
+    return null;
+  };
+  BatchManager.prototype.getBatches = function(batchGroupId) {
+    var results = [];
+    var len = this._batchList.length;
+    for (var i = 0;i < len;i++) {
+      var batch = this._batchList[i];
+      if (batch.batchGroupId === batchGroupId) {
+        results.push(batch);
+      }
+    }
+    return results;
+  };
   BatchManager.prototype._removeModelsFromBatchGroup = function(node, id) {
     if (!node.enabled) {
       return;
@@ -38626,11 +40215,6 @@ Object.assign(pc, function() {
       this._collectAndRemoveModels(node._children[i], groupMeshInstances, groupIds);
     }
   };
-  BatchManager.prototype.markGroupDirty = function(id) {
-    if (this._dirtyGroups.indexOf(id) < 0) {
-      this._dirtyGroups.push(id);
-    }
-  };
   BatchManager.prototype._registerEntities = function(batch, meshInstances) {
     var node;
     var ents = [];
@@ -38698,18 +40282,6 @@ Object.assign(pc, function() {
         this._registerEntities(batch, lists[i]);
       }
     }
-  };
-  BatchManager.prototype.getGroupByName = function(name) {
-    var groups = this._batchGroups;
-    for (var group in groups) {
-      if (!groups.hasOwnProperty(group)) {
-        continue;
-      }
-      if (groups[group].name === name) {
-        return groups[group];
-      }
-    }
-    return null;
   };
   function paramsIdentical(a, b) {
     if (a && !b) {
