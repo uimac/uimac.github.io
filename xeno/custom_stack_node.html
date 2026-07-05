@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>XenolithGraph 複合スタック（完全インメモリパッチ版）</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #0b0b0b;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      color: #eeeeee;
+    }
+    #editor-container {
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+    #loading {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 1.2rem;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+      z-index: 10;
+    }
+    .loaded #loading { opacity: 0; }
+    #guide {
+      position: absolute;
+      bottom: 20px;
+      left: 20px;
+      background: rgba(22, 22, 22, 0.95);
+      border: 1px solid #c8963e;
+      padding: 15px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      max-width: 440px;
+      z-index: 100;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
+    }
+    #guide h2 { margin-top: 0; font-size: 1.1rem; color: #FCB400; border-bottom: 1px solid #444; padding-bottom: 5px; }
+    #guide ul { margin: 0; padding-left: 20px; line-height: 1.5; }
+    #guide li { margin-bottom: 8px; }
+    .accent { color: #FCB400; font-weight: bold; }
+    .copyright {
+      position: absolute;
+      bottom: 20px;
+      right: 20px;
+      font-size: 0.75rem;
+      color: rgba(255, 255, 255, 0.35);
+      z-index: 100;
+      pointer-events: none;
+    }
+  </style>
+
+  <script>
+    // ─── 完全インメモリパッチシステム (CORS/file:// 完全対応) ───
+    // unpkgの layout.js と widget-renderer.js をそれぞれフェッチしてメモリ上で書き換え、
+    // importmap を用いてCDN上の絶対パス自体を Blob URL にリダイレクトします。
+
+    const BASE = 'https://unpkg.com/@xenolithengine/graph-render-pixi@0.7.0-beta.3/dist/';
+
+    async function initPatch() {
+      try {
+        console.log('パッチ処理を開始...');
+
+        // 1. layout.js のロードとパッチ
+        const layoutRes = await fetch(BASE + 'layout.js');
+        let layoutCode = await layoutRes.text();
+        
+        layoutCode = layoutCode.replace(
+          /function naturalWidth\(node, title, tokens, measure, isPinConnected\) \{/g,
+          `function naturalWidth(node, title, tokens, measure, isPinConnected) {
+    if (node && node.render && typeof node.render.width === 'number') {
+        return node.render.width;
+    }`
+        );
+
+        layoutCode = layoutCode.replace(
+          /const ctrlW = \(w\.type === 'custom' && w\.height !== undefined\) \? w\.height : tokens\.widget\.controlMinWidth;/g,
+          'const ctrlW = tokens.widget.controlMinWidth;'
+        );
+
+        // 【パッチ】行高さ計算時 (pinRowHeights) にカスタムウィジェットが接続されていても非表示判定とせず、
+        // 常に存在するものとして高さ (32px) を反映させる
+        const beforeLayoutReplace = layoutCode;
+        layoutCode = layoutCode.replace(
+          /const visible = \(widgetVisibility\(w\) === 'always' \|\| !\(isPinConnected\?\.([\s\S]*?)\)\) && widgetIsVisible\(w, node\);/g,
+          `const visible = w.type === 'custom' ? true : ((widgetVisibility(w) === 'always' || !(isPinConnected?.(bind))) && widgetIsVisible(w, node));`
+        );
+
+        if (beforeLayoutReplace === layoutCode) {
+          console.warn('警告: layout.js の行高さパッチが適用されませんでした。');
+        } else {
+          console.log('layout.js の行高さパッチ適用成功！');
+        }
+
+        const layoutBlobUrl = URL.createObjectURL(new Blob([layoutCode], { type: 'application/javascript' }));
+        console.log('layout.js パッチ適用完了:', layoutBlobUrl);
+
+        // 2. widget-renderer.js のロードとパッチ
+        const widgetRes = await fetch(BASE + 'widget-renderer.js');
+        let widgetCode = await widgetRes.text();
+        
+        widgetCode = widgetCode.replace(
+          /const wantsSquare = w\.type === 'custom' && w\.height !== undefined;/g,
+          'const wantsSquare = false;'
+        );
+        
+        widgetCode = widgetCode.replace(
+          /const visible = \(widgetVisibility\(w\) === 'always' \|\| !\(ctx\?\.isPinConnected\(bindKey\)\)\) && widgetIsVisible\(w, node\);/g,
+          `const visible = w.type === 'custom' ? true : ((widgetVisibility(w) === 'always' || !(ctx?.isPinConnected(bindKey))) && widgetIsVisible(w, node));`
+        );
+
+        // 【デバッグ用】widgetHitにログを追加
+        widgetCode = widgetCode.replace(
+          /widgetHit\(localX, localY\) \{/g,
+          `widgetHit(localX, localY) {
+            console.log('【デバッグ】widgetHit検知:', localX, localY);`
+        );
+
+        widgetCode = widgetCode.replace(
+          /if \(localX >= rect\.x && localX <= rect\.x \+ rect\.width && localY >= rect\.y && localY <= rect\.y \+ rect\.height\) \{/g,
+          `if (localX >= rect.x && localX <= rect.x + rect.width && localY >= rect.y && localY <= rect.y + rect.height) {
+                console.log('【デバッグ】widgetHit一致！:', rect.id);`
+        );
+
+        // 改行コードの差異（\r\n vs \n）に依存しない正規表現で else ブロックを全幅に書き換える
+        const beforeReplace = widgetCode;
+        widgetCode = widgetCode.replace(
+          /else\s*\{\s*wX\s*=\s*Math\.floor\(width\s*\/\s*2\);\s*wW\s*=\s*width\s*-\s*wX\s*-\s*padX;\s*\}/g,
+          `else {
+            wX = padX;
+            wW = width - padX * 2;
+          }`
+        );
+
+        if (beforeReplace === widgetCode) {
+          console.warn('警告: widget-renderer.js の幅拡張パッチが適用されませんでした。');
+        } else {
+          console.log('widget-renderer.js の幅拡張パッチ適用成功！');
+        }
+
+        widgetCode = widgetCode.replace(
+          /from\s*['"]\.\/layout\.js['"]/g,
+          `from '${BASE}layout.js'`
+        );
+        const widgetBlobUrl = URL.createObjectURL(new Blob([widgetCode], { type: 'application/javascript' }));
+        console.log('widget-renderer.js パッチ適用完了:', widgetBlobUrl);
+
+        // 3. 動的 importmap の構築と注入
+        const im = document.createElement('script');
+        im.type = 'importmap';
+        im.textContent = JSON.stringify({
+          imports: {
+            "pixi.js": "https://unpkg.com/pixi.js@8.6.0/dist/pixi.min.mjs",
+            "@xenolithengine/graph-core": "https://unpkg.com/@xenolithengine/graph-core@0.7.0-beta.3/dist/index.js",
+            "@xenolithengine/graph-theme-xen": "https://unpkg.com/@xenolithengine/graph-theme-xen@0.7.0-beta.3/dist/index.js",
+            "@xenolithengine/graph-render-pixi": BASE + "index.js",
+            "@xenolithengine/graph-editor": "https://unpkg.com/@xenolithengine/graph-editor@0.7.0-beta.3/dist/index.js",
+            // ─── 依存関係のリダイレクト ───
+            "https://unpkg.com/@xenolithengine/graph-render-pixi@0.7.0-beta.3/dist/layout.js": layoutBlobUrl,
+            "https://unpkg.com/@xenolithengine/graph-render-pixi@0.7.0-beta.3/dist/widget-renderer.js": widgetBlobUrl
+          }
+        });
+        document.head.appendChild(im);
+        console.log('importmap 注入完了');
+
+        // 4. メインアプリケーションの起動
+        startApp();
+      } catch (e) {
+        console.error('パッチ失敗:', e);
+        document.getElementById('loading').textContent = 'パッチのフェッチまたは適用中にエラーが発生しました。';
+      }
+    }
+
+    // メインアプリケーションを動的に差し込み起動する関数
+    function startApp() {
+      const ms = document.createElement('script');
+      ms.type = 'module';
+      ms.textContent = `
+        import { XenolithEditor } from '@xenolithengine/graph-editor';
+        import { xenTheme } from '@xenolithengine/graph-render-pixi';
+
+        const customTheme = JSON.parse(JSON.stringify(xenTheme));
+
+        const compositeStackSchema = {
+          type: 'CompositeStack',
+          title: '複合スタック',
+          category: 'macro',
+          pins: [
+            { id: 'in_a', kind: 'data', direction: 'in', type: 'object', label: '' },
+            { id: 'out_a', kind: 'data', direction: 'out', type: 'object', label: '' },
+            { id: 'in_b', kind: 'data', direction: 'in', type: 'string', label: '' },
+            { id: 'out_b', kind: 'data', direction: 'out', type: 'object', label: '' },
+          ],
+          widgets: [
+            { id: 'in_a', type: 'custom', renderer: 'subAWidget', key: 'in_a', label: '', height: 32 },
+            { id: 'in_b', type: 'custom', renderer: 'subBWidget', key: 'in_b', label: '', height: 32 },
+          ]
+        };
+
+        const noteSchema = {
+          type: 'Note', title: 'Note', category: 'logic',
+          pins: [
+            { id: 'in', kind: 'data', direction: 'in', type: 'object', multiple: true },
+            { id: 'out', kind: 'data', direction: 'out', type: 'object', multiple: true },
+          ]
+        };
+
+        const demoGraph = {
+          version: 'xenolith.v1',
+          nodes: [
+            { id: 'src-node', type: 'Note', position: { x: 60, y: 240 },
+              render: { title: 'データ供給元', category: 'data' },
+              pins: [{ id: 'src-out', kind: 'data', direction: 'out', type: 'object', multiple: true }] },
+            { id: 'composite-stack-1', type: 'CompositeStack', position: { x: 300, y: 120 },
+              render: { title: '複合スタック (1ノード)', category: 'macro', width: 260 },
+              // 初期値としてSub Aを選択状態にする
+              state: { in_a: true, in_b: false },
+              pins: [
+                { id: 'in_a', kind: 'data', direction: 'in', type: 'object', label: '', multiple: true },
+                { id: 'out_a', kind: 'data', direction: 'out', type: 'object', label: '', multiple: true },
+                { id: 'in_b', kind: 'data', direction: 'in', type: 'string', label: '', multiple: true },
+                { id: 'out_b', kind: 'data', direction: 'out', type: 'object', multiple: true },
+              ] },
+            { id: 'filter-node', type: 'Note', position: { x: 720, y: 200 },
+              render: { title: '外部フィルター', category: 'logic' },
+              pins: [
+                { id: 'f-in', kind: 'data', direction: 'in', type: 'object', multiple: true },
+                { id: 'f-out', kind: 'data', direction: 'out', type: 'string', multiple: true },
+              ] },
+            { id: 'dest-node', type: 'Note', position: { x: 720, y: 360 },
+              render: { title: 'データ受取先', category: 'logic' },
+              pins: [{ id: 'dest-in', kind: 'data', direction: 'in', type: 'object', multiple: true }] },
+          ],
+          edges: [
+            { id: 'e1', from: { node: 'src-node', pin: 'src-out' }, to: { node: 'composite-stack-1', pin: 'in_a' }, opts: { animated: true } },
+            { id: 'e2', from: { node: 'composite-stack-1', pin: 'out_a' }, to: { node: 'filter-node', pin: 'f-in' }, opts: { animated: true } },
+            { id: 'e3', from: { node: 'filter-node', pin: 'f-out' }, to: { node: 'composite-stack-1', pin: 'in_b' }, opts: { animated: true } },
+            { id: 'e4', from: { node: 'composite-stack-1', pin: 'out_b' }, to: { node: 'dest-node', pin: 'dest-in' }, opts: { animated: true } },
+          ]
+        };
+
+        function drawSlotWidget(ctx, { width, height, value }, title) {
+          const isSelected = !!value;
+          ctx.clearRect(0, 0, width, height);
+          
+          ctx.fillStyle = isSelected ? 'rgba(252, 180, 0, 0.12)' : 'rgba(20, 20, 20, 0.9)';
+          ctx.fillRect(2, 2, width - 4, height - 4);
+          
+          if (isSelected) {
+            ctx.strokeStyle = '#FCB400';
+            ctx.shadowColor = '#FCB400';
+            ctx.shadowBlur = 8;
+            ctx.lineWidth = 1.5;
+          } else {
+            ctx.strokeStyle = 'rgba(252, 180, 0, 0.3)';
+            ctx.shadowBlur = 0;
+            ctx.lineWidth = 1;
+          }
+          
+          ctx.strokeRect(2, 2, width - 4, height - 4);
+          ctx.shadowBlur = 0;
+          ctx.shadowColor = 'transparent';
+          
+          const cy = height / 2;
+          ctx.textBaseline = 'middle';
+          ctx.fillStyle = isSelected ? '#FCB400' : 'rgba(255, 255, 255, 0.85)';
+          ctx.font = isSelected ? 'bold 10px sans-serif' : '10px sans-serif';
+          ctx.textAlign = 'left';
+          ctx.fillText(title, 12, cy);
+        }
+
+        let editor;
+
+        async function init() {
+          try {
+            editor = await XenolithEditor.init('#editor-container', {
+              theme: customTheme, minimap: true, zoomBounds: [0.1, 2]
+            });
+
+            editor.registerWidget('subAWidget', {
+              draw(ctx, args) { drawSlotWidget(ctx, args, 'Sub Unit A : Compress (圧縮)'); },
+              onPointer(phase, x, y, args) {
+                console.log('【デバッグ】SubA onPointer:', phase, x, y);
+                if (phase === 'down') {
+                  editor.setWidgetValue(args.node.id, 'in_b', false);
+                  return true;
+                }
+              }
+            });
+
+            editor.registerWidget('subBWidget', {
+              draw(ctx, args) { drawSlotWidget(ctx, args, 'Sub Unit B : Encrypt (暗号化)'); },
+              onPointer(phase, x, y, args) {
+                console.log('【デバッグ】SubB onPointer:', phase, x, y);
+                if (phase === 'down') {
+                  editor.setWidgetValue(args.node.id, 'in_a', false);
+                  return true;
+                }
+              }
+            });
+
+            editor.registry.register(compositeStackSchema);
+            editor.registry.register(noteSchema);
+            editor.setControls({ position: 'top-right', orientation: 'horizontal' });
+            editor.setIsValidConnection(({ from, to }) => from.node !== to.node);
+            editor.loadJSON(demoGraph);
+            editor.fitView({ padding: 72, maxZoom: 1 });
+            document.body.classList.add('loaded');
+            console.log('起動完了！');
+          } catch (e) {
+            console.error(e);
+            document.getElementById('loading').textContent = 'エラーが発生しました。コンソールログを確認してください。';
+          }
+        }
+        init();
+      `;
+      document.body.appendChild(ms);
+    }
+
+    initPatch();
+  </script>
+</head>
+<body>
+  <div id="loading">XenolithGraph をロード中...</div>
+  <div id="guide">
+    <h2>1ノード化スタックノードの操作ガイド</h2>
+    <ul>
+      <li>中央の大きなノード <span class="accent">「複合スタック (1ノード)」</span> は完全に1つのノードです。</li>
+      <li>ノード内には <span class="accent">「Sub A (圧縮)」</span> と <span class="accent">「Sub B (暗号化)」</span> の2つの箱が描画されています。
+      </li>
+      <li>各端子（ピン）は箱の左右に配置されています。</li>
+    </ul>
+  </div>
+  <div id="editor-container"></div>
+  <div class="copyright">
+    &copy; 2026 XenolithEngine Authors. Released under the MIT License.
+  </div>
+</body>
+</html>

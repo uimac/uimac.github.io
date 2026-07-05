@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>XenolithGraph ライブテンプレート（サブグラフ）サンプル</title>
+  <style>
+    /* 画面いっぱいにエディタを表示するためのスタイル */
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #0b0b0b;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      color: #eeeeee;
+    }
+    #editor-container {
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+    /* ロード画面の簡易スタイル */
+    #loading {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 1.2rem;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+      z-index: 10;
+    }
+    .loaded #loading {
+      opacity: 0;
+    }
+    /* ガイド表示のスタイル */
+    #guide {
+      position: absolute;
+      bottom: 20px;
+      left: 20px;
+      background: rgba(22, 22, 22, 0.95);
+      border: 1px solid #c8963e;
+      padding: 15px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      max-width: 420px;
+      z-index: 100;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
+      pointer-events: auto;
+    }
+    #guide h2 {
+      margin-top: 0;
+      font-size: 1.1rem;
+      color: #FCB400;
+      border-bottom: 1px solid #444;
+      padding-bottom: 5px;
+    }
+    #guide ul {
+      margin: 0;
+      padding-left: 20px;
+      line-height: 1.5;
+    }
+    #guide li {
+      margin-bottom: 8px;
+    }
+    .accent {
+      color: #FCB400;
+      font-weight: bold;
+    }
+    .copyright {
+      position: absolute;
+      bottom: 20px;
+      right: 20px;
+      font-size: 0.75rem;
+      color: rgba(255, 255, 255, 0.35);
+      z-index: 100;
+      pointer-events: none;
+    }
+  </style>
+
+  <!-- importmapを使用して、ViteやWebpackなどのビルドツールなしでESMを直接ブラウザで動かします。 -->
+  <!-- file:// プロトコル（ローカルファイルを直接開く）でも動作するように、CDN（unpkg.com）経由で読み込みます。 -->
+  <script type="importmap">
+    {
+      "imports": {
+        "pixi.js": "https://unpkg.com/pixi.js@8.6.0/dist/pixi.min.mjs",
+        "@xenolithengine/graph-core": "https://unpkg.com/@xenolithengine/graph-core@0.7.0-beta.3/dist/index.js",
+        "@xenolithengine/graph-theme-xen": "https://unpkg.com/@xenolithengine/graph-theme-xen@0.7.0-beta.3/dist/index.js",
+        "@xenolithengine/graph-render-pixi": "https://unpkg.com/@xenolithengine/graph-render-pixi@0.7.0-beta.3/dist/index.js",
+        "@xenolithengine/graph-editor": "https://unpkg.com/@xenolithengine/graph-editor@0.7.0-beta.3/dist/index.js"
+      }
+    }
+  </script>
+</head>
+<body>
+  <div id="loading">XenolithGraph をロード中...</div>
+  
+  <div id="guide">
+    <h2>サブグラフの操作ガイド</h2>
+    <ul>
+      <li>中央の <span class="accent">「Backup (サブグラフ)」</span> ノードを<b>ダブルクリック</b>すると、サブグラフの内部階層（Live Template）にダイブ（潜入）して編集できます。</li>
+      <li>サブグラフ内では、画面左上に <span class="accent">「Root › Backup」</span> という<b>パンくずリスト</b>が表示されます。<b>「Root」</b>をクリックすると元のメイン階層に戻ります。</li>
+      <li>テンプレート（Backup）内の構成を書き換えると、すべての配置インスタンスにリアルタイムに変更が反映されます。</li>
+    </ul>
+  </div>
+
+  <div id="editor-container"></div>
+
+  <script type="module">
+    import { XenolithEditor } from '@xenolithengine/graph-editor';
+    import { xenTheme } from '@xenolithengine/graph-render-pixi';
+
+    // ノードのスキーマ定義
+    const noteSchema = {
+      type: "Note",
+      title: "Note",
+      category: "logic",
+      pins: [
+        { id: "in", kind: "data", direction: "in", type: "object", multiple: true },
+        { id: "out", kind: "data", direction: "out", type: "object", multiple: true }
+      ]
+    };
+
+    const stepSchema = {
+      type: "Step",
+      title: "Step",
+      category: "logic",
+      pins: [
+        { id: "in", kind: "data", direction: "in", type: "object", multiple: true },
+        { id: "out", kind: "data", direction: "out", type: "object", multiple: true }
+      ]
+    };
+
+    // デモ用のグラフデータ (ライブテンプレートを含んだ xenolith.v1 フォーマット)
+    const demoGraph = {
+      "version": "xenolith.v1",
+      "nodes": [
+        {
+          "id": "input-payload",
+          "type": "Note",
+          "position": { "x": 80, "y": 150 },
+          "render": { "title": "データ元 (Payload)", "category": "data" },
+          "pins": [
+            { "id": "ip-out", "kind": "data", "direction": "out", "type": "object", "multiple": true }
+          ]
+        },
+        {
+          "id": "input-key",
+          "type": "Note",
+          "position": { "x": 80, "y": 280 },
+          "render": { "title": "暗号鍵 (Key)", "category": "data" },
+          "pins": [
+            { "id": "ik-out", "kind": "data", "direction": "out", "type": "string", "multiple": true }
+          ]
+        },
+        // テンプレートインスタンス (Backup) の配置
+        {
+          "id": "backup-instance",
+          "type": "$templateInstance",
+          "position": { "x": 420, "y": 180 },
+          "pins": [
+            { "id": "backup.payload", "kind": "data", "direction": "in",  "type": "object", "multiple": false, "label": "Payload" },
+            { "id": "backup.key",     "kind": "data", "direction": "in",  "type": "string", "multiple": false, "label": "Key" },
+            { "id": "backup.archive", "kind": "data", "direction": "out", "type": "object", "multiple": true,  "label": "Archive" },
+            { "id": "backup.size",    "kind": "data", "direction": "out", "type": "float",  "multiple": true,  "label": "Size" }
+          ],
+          "state": {
+            "definitionId": "backup_def",
+            "pinBoundary": {
+              "backup.payload": "bk_payload",
+              "backup.key": "bk_key",
+              "backup.archive": "bk_archive",
+              "backup.size": "bk_size"
+            }
+          },
+          "render": { "category": "macro", "title": "Backup (サブグラフ)" }
+        },
+        {
+          "id": "output-archive",
+          "type": "Note",
+          "position": { "x": 820, "y": 140 },
+          "render": { "title": "保存先 (Archive)", "category": "logic" },
+          "pins": [
+            { "id": "oa-in", "kind": "data", "direction": "in", "type": "object", "multiple": true }
+          ]
+        },
+        {
+          "id": "output-size",
+          "type": "Note",
+          "position": { "x": 820, "y": 280 },
+          "render": { "title": "容量監視 (Size)", "category": "logic" },
+          "pins": [
+            { "id": "os-in", "kind": "data", "direction": "in", "type": "float", "multiple": true }
+          ]
+        }
+      ],
+      "edges": [
+        {
+          "id": "e-payload",
+          "from": { "node": "input-payload", "pin": "ip-out" },
+          "to": { "node": "backup-instance", "pin": "backup.payload" }
+        },
+        {
+          "id": "e-key",
+          "from": { "node": "input-key", "pin": "ik-out" },
+          "to": { "node": "backup-instance", "pin": "backup.key" }
+        },
+        {
+          "id": "e-archive",
+          "from": { "node": "backup-instance", "pin": "backup.archive" },
+          "to": { "node": "output-archive", "pin": "oa-in" }
+        },
+        {
+          "id": "e-size",
+          "from": { "node": "backup-instance", "pin": "backup.size" },
+          "to": { "node": "output-size", "pin": "os-in" }
+        }
+      ],
+      // テンプレートの具体的な定義 (サブグラフ内部の構造)
+      "templates": {
+        "backup_def": {
+          "title": "Backup",
+          "nodes": [
+            // 入力用ゲートウェイノード (親グラフのインプットピンと対応)
+            { 
+              "id": "bk_payload", 
+              "type": "$templateInput", 
+              "position": { "x": 50, "y": 100 },
+              "pins": [{ "id": "bk_payload.o", "kind": "data", "direction": "out", "type": "object", "multiple": true, "label": "Payload" }],
+              "render": { "category": "utility", "title": "Payload (In)" } 
+            },
+            { 
+              "id": "bk_key", 
+              "type": "$templateInput", 
+              "position": { "x": 50, "y": 250 },
+              "pins": [{ "id": "bk_key.o", "kind": "data", "direction": "out", "type": "string", "multiple": true, "label": "Key (In)" }],
+              "render": { "category": "utility", "title": "Key (In)" } 
+            },
+            // サブグラフ内部の処理ノード群
+            { 
+              "id": "bk_compress", 
+              "type": "Step", 
+              "position": { "x": 300, "y": 100 },
+              "pins": [
+                { "id": "bk_compress.i", "kind": "data", "direction": "in",  "type": "object", "multiple": false, "label": "Data" },
+                { "id": "bk_compress.o", "kind": "data", "direction": "out", "type": "object", "multiple": true,  "label": "Packed" }
+              ],
+              "render": { "category": "logic", "title": "Compress (圧縮)" } 
+            },
+            { 
+              "id": "bk_encrypt", 
+              "type": "Step", 
+              "position": { "x": 550, "y": 180 },
+              "pins": [
+                { "id": "bk_encrypt.i", "kind": "data", "direction": "in",  "type": "object", "multiple": false, "label": "Data" },
+                { "id": "bk_encrypt.k", "kind": "data", "direction": "in",  "type": "string", "multiple": false, "label": "Key" },
+                { "id": "bk_encrypt.o", "kind": "data", "direction": "out", "type": "object", "multiple": true,  "label": "Cipher" }
+              ],
+              "render": { "category": "data", "title": "Encrypt (暗号化)" } 
+            },
+            // 出力用ゲートウェイノード (親グラフのアウトプットピンと対応)
+            { 
+              "id": "bk_archive", 
+              "type": "$templateOutput", 
+              "position": { "x": 800, "y": 180 },
+              "pins": [{ "id": "bk_archive.i", "kind": "data", "direction": "in", "type": "object", "multiple": false, "label": "Archive (Out)" }],
+              "render": { "category": "utility", "title": "Archive (Out)" } 
+            },
+            { 
+              "id": "bk_size", 
+              "type": "$templateOutput", 
+              "position": { "x": 800, "y": 300 },
+              "pins": [{ "id": "bk_size.i", "kind": "data", "direction": "in", "type": "float", "multiple": false, "label": "Size (Out)" }],
+              "render": { "category": "utility", "title": "Size (Out)" } 
+            }
+          ],
+          "edges": [
+            { "id": "bk_e0", "from": { "node": "bk_payload",  "pin": "bk_payload.o" }, "to": { "node": "bk_compress", "pin": "bk_compress.i" } },
+            { "id": "bk_e1", "from": { "node": "bk_compress", "pin": "bk_compress.o" }, "to": { "node": "bk_encrypt",  "pin": "bk_encrypt.i" } },
+            { "id": "bk_e2", "from": { "node": "bk_key",      "pin": "bk_key.o" },      "to": { "node": "bk_encrypt",  "pin": "bk_encrypt.k" } },
+            { "id": "bk_e3", "from": { "node": "bk_encrypt",  "pin": "bk_encrypt.o" },  "to": { "node": "bk_archive",  "pin": "bk_archive.i" } },
+            { "id": "bk_e4", "from": { "node": "bk_compress", "pin": "bk_compress.o" }, "to": { "node": "bk_size",     "pin": "bk_size.i" } }
+          ]
+        }
+      }
+    };
+
+    async function init() {
+      try {
+        console.log("XenolithGraph エディタの初期化を開始します...");
+
+        // エディタを初期化してマウント
+        const editor = await XenolithEditor.init('#editor-container', {
+          theme: xenTheme, // デフォルトの Xen テーマ (ダーク/ゴールド) を設定
+          minimap: true,    // ミニマップを有効化
+          zoomBounds: [0.1, 2]
+        });
+
+        console.log("エディタの初期化が完了しました。スキーマを登録し、デモデータをロードします...");
+
+        // スキーマの登録
+        editor.registry.register(noteSchema);
+        editor.registry.register(stepSchema);
+
+        // 組み込みコントロールUIを表示 (ズーム、リセット、元に戻す/やり直しなど)
+        editor.setControls({ position: 'top-right', orientation: 'horizontal' });
+
+        // グラフデータをロード
+        editor.loadJSON(demoGraph);
+        
+        // グラフ全体が画面内に収まるようにビューを調整
+        editor.fitView({ padding: 72, maxZoom: 1 });
+
+        // ロード画面を非表示にする
+        document.body.classList.add('loaded');
+        console.log("XenolithGraph サンプルが正常に動作しています。");
+      } catch (error) {
+        console.error("エディタの初期化中にエラーが発生しました:", error);
+        document.getElementById('loading').textContent = "エラーが発生しました。詳細はブラウザのコンソールを確認してください。";
+      }
+    }
+
+    // ページの読み込み完了後に初期化を実行
+    window.addEventListener('DOMContentLoaded', init);
+  </script>
+  <div class="copyright">
+    &copy; 2026 XenolithEngine Authors. Released under the MIT License.
+  </div>
+</body>
+</html>

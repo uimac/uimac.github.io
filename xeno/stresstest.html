@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>XenolithGraph 10,000ノード 限界負荷テスト</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #0b0b0b;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      color: #eeeeee;
+    }
+    #editor-container {
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+    #loading {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 1.2rem;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+      z-index: 10;
+      text-align: center;
+      line-height: 1.8;
+    }
+    .loaded #loading { opacity: 0; }
+    
+    .spinner {
+      border: 4px solid rgba(252, 180, 0, 0.1);
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      border-left-color: #FCB400;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 15px;
+    }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+    #guide {
+      position: absolute;
+      bottom: 20px;
+      left: 20px;
+      background: rgba(22, 22, 22, 0.95);
+      border: 1px solid #c8963e;
+      padding: 15px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      max-width: 440px;
+      z-index: 100;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
+    }
+    #guide h2 { margin-top: 0; font-size: 1.1rem; color: #FCB400; border-bottom: 1px solid #444; padding-bottom: 5px; }
+    #guide ul { margin: 0; padding-left: 20px; line-height: 1.5; }
+    #guide li { margin-bottom: 8px; }
+    .accent { color: #FCB400; font-weight: bold; }
+    .copyright {
+      position: absolute;
+      bottom: 20px;
+      right: 20px;
+      font-size: 0.75rem;
+      color: rgba(255, 255, 255, 0.35);
+      z-index: 100;
+      pointer-events: none;
+    }
+
+    /* ─── FPS/統計情報オーバーレイの位置を100px下げるスタイル定義 ─── */
+    [data-xeno-stats] {
+      top: 112px !important; /* デフォルトの12pxから100px下げる */
+    }
+  </style>
+
+  <script>
+    // ─── 完全インメモリパッチシステム (CORS/file:// 完全対応) ───
+    // unpkgの comment-renderer.js をフェッチしてメモリ上で書き換え、
+    // importmap を用いてCDN上の絶対パス自体を Blob URL にリダイレクトします。
+
+    const BASE = 'https://unpkg.com/@xenolithengine/graph-render-pixi@0.7.0-beta.3/dist/';
+
+    async function initPatch() {
+      try {
+        console.log('パッチ処理を開始...');
+
+        // 1. comment-renderer.js のロードとパッチ
+        // PIXI.js v8.6.0 で FillGradient に .destroy() が存在しないために
+        // コメント枠の仮想化・破棄時に発生するクラッシュをガードするパッチ
+        const commentRes = await fetch(BASE + 'comment-renderer.js');
+        let commentCode = await commentRes.text();
+        
+        commentCode = commentCode.replace(
+          /highlightGrad\.destroy\(\);/g,
+          'if (highlightGrad && typeof highlightGrad.destroy === "function") highlightGrad.destroy();'
+        );
+        commentCode = commentCode.replace(
+          /rimGrad\.destroy\(\);/g,
+          'if (rimGrad && typeof rimGrad.destroy === "function") rimGrad.destroy();'
+        );
+        commentCode = commentCode.replace(
+          /headerFill\.destroy\(\);/g,
+          'if (headerFill && typeof headerFill.destroy === "function") headerFill.destroy();'
+        );
+
+        const commentBlobUrl = URL.createObjectURL(new Blob([commentCode], { type: 'application/javascript' }));
+        console.log('comment-renderer.js パッチ適用完了:', commentBlobUrl);
+
+        // 2. 動的 importmap の構築と注入
+        const im = document.createElement('script');
+        im.type = 'importmap';
+        im.textContent = JSON.stringify({
+          imports: {
+            "pixi.js": "https://unpkg.com/pixi.js@8.6.0/dist/pixi.min.mjs",
+            "@xenolithengine/graph-core": "https://unpkg.com/@xenolithengine/graph-core@0.7.0-beta.3/dist/index.js",
+            "@xenolithengine/graph-theme-xen": "https://unpkg.com/@xenolithengine/graph-theme-xen@0.7.0-beta.3/dist/index.js",
+            "@xenolithengine/graph-render-pixi": BASE + "index.js",
+            "@xenolithengine/graph-editor": "https://unpkg.com/@xenolithengine/graph-editor@0.7.0-beta.3/dist/index.js",
+            // ─── 依存関係のリダイレクト ───
+            "https://unpkg.com/@xenolithengine/graph-render-pixi@0.7.0-beta.3/dist/comment-renderer.js": commentBlobUrl
+          }
+        });
+        document.head.appendChild(im);
+        console.log('importmap 注入完了');
+
+        // 3. メインアプリケーションの起動
+        startApp();
+      } catch (e) {
+        console.error('パッチ失敗:', e);
+        document.getElementById('loading').textContent = 'パッチのフェッチまたは適用中にエラーが発生しました。';
+      }
+    }
+
+    // メインアプリケーションを動的に差し込み起動する関数
+    function startApp() {
+      const ms = document.createElement('script');
+      ms.type = 'module';
+      ms.textContent = `
+        import { XenolithEditor } from '@xenolithengine/graph-editor';
+        import { xenTheme } from '@xenolithengine/graph-render-pixi';
+
+        const customTheme = JSON.parse(JSON.stringify(xenTheme));
+
+        // ノード定義（6つの入力ウィジェット：常に全ノードに表示する）
+        const stressNodeSchema = {
+          type: 'StressNode',
+          title: '負荷テストノード',
+          category: 'logic',
+          pins: [
+            { id: 'in1', kind: 'data', direction: 'in', type: 'object', label: 'in1' },
+            { id: 'in2', kind: 'data', direction: 'in', type: 'float', label: 'in2' },
+            { id: 'in3', kind: 'data', direction: 'in', type: 'string', label: 'in3' },
+            { id: 'out1', kind: 'data', direction: 'out', type: 'object', label: 'out1' },
+            { id: 'out2', kind: 'data', direction: 'out', type: 'float', label: 'out2' },
+            { id: 'out3', kind: 'data', direction: 'out', type: 'string', label: 'out3' },
+            { id: 'out4', kind: 'data', direction: 'out', type: 'object', label: 'out4' }
+          ],
+          widgets: [
+            // visibility: 'always' にして、ワイヤーが接続されていても常に表示する
+            { id: 'in_3', type: 'text', key: 'in3', label: 'Str Input', height: 24, visibility: 'always' },
+            { id: 'in_2', type: 'number', key: 'in2', label: 'Num Input', height: 24, visibility: 'always' },
+            { id: 'slider_val', type: 'slider', label: 'Slider Value', min: 0, max: 100, height: 24, visibility: 'always' },
+            { id: 'toggle_val', type: 'toggle', label: 'Toggle Switch', height: 24, visibility: 'always' },
+            { id: 'combo_val', type: 'combo', label: 'Combo Choice', options: [{ value: 'v1', label: 'Val 1' }, { value: 'v2', label: 'Val 2' }], height: 24, visibility: 'always' },
+            { id: 'color_val', type: 'color', label: 'Color Picker', height: 24, visibility: 'always' }
+          ]
+        };
+
+        // 10,000ノード、1,000島、19,999配線の動的生成
+        function generateLargeGraph() {
+          const numIslands = 1000;
+          const nodesPerIsland = 10;
+          const cols = 40; // 40列×25行 = 1000島
+          const cellW = 1750;
+          const cellH = 900; // 島の縦幅をコンパクトに調整
+
+          const nodes = [];
+          const edges = [];
+          const comments = [];
+
+          // 10色の島カテゴリカラー
+          const colors = [
+            '#ef4444', // red
+            '#3b82f6', // blue
+            '#10b981', // green
+            '#f59e0b', // amber
+            '#8b5cf6', // purple
+            '#ec4899', // pink
+            '#14b8a6', // teal
+            '#f97316', // orange
+            '#06b6d4', // cyan
+            '#a855f7'  // violet
+          ];
+
+          // 島ごとのカスタムカラーパレット定義
+          const categories = {};
+          colors.forEach((col, idx) => {
+            categories[\`island_cat_\${idx}\`] = { color: col };
+          });
+
+          for (let k = 0; k < numIslands; k++) {
+            const col = k % cols;
+            const row = Math.floor(k / cols);
+            const islandX = col * cellW;
+            const islandY = row * cellH;
+            const colorIndex = k % colors.length;
+            const islandColor = colors[colorIndex];
+            const categoryName = \`island_cat_\${colorIndex}\`;
+
+            // 1. 島の10個のノードを生成
+            const islandNodes = [];
+            for (let i = 0; i < nodesPerIsland; i++) {
+              const nodeIndex = k * nodesPerIsland + i;
+              const nodeId = \`node_\${nodeIndex}\`;
+
+              // 重ならないように 2行×5列 グリッドで島の中に配置
+              const nCol = i % 5;
+              const nRow = Math.floor(i / 5);
+              const nodeX = islandX + nCol * 320 + 100;
+              const nodeY = islandY + nRow * 320 + 90; // 縦間隔を320pxに圧縮
+
+              nodes.push({
+                id: nodeId,
+                type: 'StressNode',
+                position: { x: nodeX, y: nodeY },
+                render: {
+                  title: \`Node \${nodeIndex + 1}\`,
+                  category: categoryName
+                },
+                state: {
+                  in_2: 42,
+                  in_3: 'Test Value',
+                  slider_val: 75,
+                  toggle_val: true,
+                  combo_val: 'v1',
+                  color_val: islandColor
+                },
+                pins: [
+                  { id: \`\${nodeId}.in1\`, kind: 'data', direction: 'in', type: 'object', label: 'in1', multiple: true },
+                  { id: \`\${nodeId}.in2\`, kind: 'data', direction: 'in', type: 'float', label: 'in2', multiple: true },
+                  { id: \`\${nodeId}.in3\`, kind: 'data', direction: 'in', type: 'string', label: 'in3', multiple: true },
+                  { id: \`\${nodeId}.out1\`, kind: 'data', direction: 'out', type: 'object', label: 'out1', multiple: true },
+                  { id: \`\${nodeId}.out2\`, kind: 'data', direction: 'out', type: 'float', label: 'out2', multiple: true },
+                  { id: \`\${nodeId}.out3\`, kind: 'data', direction: 'out', type: 'string', label: 'out3', multiple: true },
+                  { id: \`\${nodeId}.out4\`, kind: 'data', direction: 'out', type: 'object', label: 'out4', multiple: true }
+                ]
+              });
+              islandNodes.push(nodeId);
+            }
+
+            // 2. 島を囲む Comment Frame
+            comments.push({
+              id: \`frame_\${k}\`,
+              position: { x: islandX + 40, y: islandY + 40 },
+              size: { x: 1600, y: 760 }, // 島の縦幅を1340pxから760pxへコンパクト化
+              text: \`Island \${k + 1}\`,
+              color: islandColor
+            });
+
+            // 3. 島内のノード間を順に 2本の線で接続する
+            for (let i = 0; i < nodesPerIsland - 1; i++) {
+              const u = islandNodes[i];
+              const v = islandNodes[i + 1];
+              // 線1: out1 -> in1
+              edges.push({
+                id: \`edge_\${u}_\${v}_1\`,
+                from: { node: u, pin: \`\${u}.out1\` },
+                to: { node: v, pin: \`\${v}.in1\` }
+              });
+              // 線2: out2 -> in2
+              edges.push({
+                id: \`edge_\${u}_\${v}_2\`,
+                from: { node: u, pin: \`\${u}.out2\` },
+                to: { node: v, pin: \`\${v}.in2\` }
+              });
+            }
+
+            // 4. 島同士を接続（3〜7個目のノードとして、5個目の out3 から 次の島の3個目の in3 に接続）
+            if (k < numIslands - 1) {
+              const sourceNodeId = islandNodes[4]; // 5個目 (index 4)
+              const targetNodeId = \`node_\${(k + 1) * nodesPerIsland + 2}\`; // 次の島の3個目 (index 2)
+              edges.push({
+                id: \`edge_inter_\${k}\`,
+                from: { node: sourceNodeId, pin: \`\${sourceNodeId}.out3\` },
+                to: { node: targetNodeId, pin: \`\${targetNodeId}.in3\` }
+              });
+            }
+          }
+
+          return {
+            version: 'xenolith.v1',
+            categories,
+            nodes,
+            edges,
+            comments
+          };
+        }
+
+        async function init() {
+          try {
+            console.log('データ生成開始...');
+            const largeGraph = generateLargeGraph();
+            console.log('データ生成完了。エディタ初期化中...');
+
+            const editor = await XenolithEditor.init('#editor-container', {
+              theme: customTheme, minimap: true, zoomBounds: [0.03, 2]
+            });
+
+            editor.registry.register(stressNodeSchema);
+            editor.setControls({ position: 'top-right', orientation: 'horizontal' });
+            editor.setIsValidConnection(({ from, to }) => from.node !== to.node);
+            
+            console.log('グラフデータのロード中...');
+            editor.loadJSON(largeGraph);
+            editor.fitView({ padding: 150, maxZoom: 1 });
+
+            // ─── エディタの組み込み統計情報・FPS表示オーバーレイを有効化 ───
+            if (editor.chrome && typeof editor.chrome.setStatsVisible === 'function') {
+              editor.chrome.setStatsVisible(true);
+            } else if (typeof editor.setStatsVisible === 'function') {
+              editor.setStatsVisible(true);
+            }
+            
+            document.body.classList.add('loaded');
+            console.log('起動完了！');
+          } catch (e) {
+            console.error(e);
+            document.getElementById('loading').textContent = 'エラーが発生しました。コンソールログを確認してください。';
+          }
+        }
+        init();
+      `;
+      document.body.appendChild(ms);
+    }
+
+    initPatch();
+  </script>
+</head>
+<body>
+  <div id="loading">
+    <div class="spinner"></div>
+    <div id="loading-text">10,000ノード（60,000入力欄）・1,000島・19,999配線を生成中...</div>
+  </div>
+  
+  <div id="guide">
+    <h2>10,000ノード 限界負荷テスト</h2>
+    <ul>
+      <li><span class="accent">1ノードあたり6つの入力欄</span> (文字列、数値、スライダー、トグル、コンボ、カラー) を配置。合計 **60,000個の入力欄** が同時に描画されます。</li>
+      <li>画面右上にエディタ標準の <span class="accent">FPS / 統計オーバーレイ</span> を表示しています（ズーム率や総オブジェクト数、実FPSがリアルタイムで確認可能）。</li>
+      <li>各島内部のノード同士は順に <span class="accent">2つの配線線</span> で接続されています。</li>
+    </ul>
+  </div>
+  <div id="editor-container"></div>
+  <div class="copyright">
+    &copy; 2026 XenolithEngine Authors. Released under the MIT License.
+  </div>
+</body>
+</html>

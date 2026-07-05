@@ -1,1 +1,314 @@
-test
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>XenolithGraph 複合スタック検証ポータル</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #09090b;
+      --card-bg: rgba(22, 22, 26, 0.6);
+      --card-border: rgba(252, 180, 0, 0.15);
+      --card-border-hover: rgba(252, 180, 0, 0.6);
+      --accent: #FCB400;
+      --accent-glow: rgba(252, 180, 0, 0.25);
+      --text-main: #f4f4f5;
+      --text-muted: #a1a1aa;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg);
+      background-image: 
+        radial-gradient(at 0% 0%, rgba(252, 180, 0, 0.05) 0px, transparent 50%),
+        radial-gradient(at 50% 0%, rgba(252, 180, 0, 0.03) 0px, transparent 50%),
+        radial-gradient(at 100% 0%, rgba(252, 180, 0, 0.05) 0px, transparent 50%);
+      color: var(--text-main);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 20px;
+      overflow-x: hidden;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 50px;
+      animation: fadeInDown 0.8s cubic-bezier(0.16, 1, 0.3, 1) both;
+    }
+
+    h1 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 2.8rem;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      margin-bottom: 12px;
+      background: linear-gradient(135deg, #fff 30%, var(--accent) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .subtitle {
+      font-size: 1.1rem;
+      color: var(--text-muted);
+      font-weight: 300;
+      max-width: 600px;
+      margin: 0 auto;
+      line-height: 1.6;
+    }
+
+    .container {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 30px;
+      width: 100%;
+      max-width: 1100px;
+      perspective: 1000px;
+      animation: fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.2s both;
+    }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 35px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      position: relative;
+      overflow: hidden;
+      cursor: pointer;
+      text-decoration: none;
+      color: inherit;
+    }
+
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: radial-gradient(800px circle at var(--x, 0px) var(--y, 0px), rgba(252, 180, 0, 0.08), transparent 40%);
+      opacity: 0;
+      transition: opacity 0.3s;
+      pointer-events: none;
+    }
+
+    .card:hover::before {
+      opacity: 1;
+    }
+
+    .card:hover {
+      transform: translateY(-8px) scale(1.02);
+      border-color: var(--card-border-hover);
+      box-shadow: 
+        0 12px 30px rgba(0, 0, 0, 0.4),
+        0 0 20px var(--accent-glow);
+    }
+
+    .card-badge {
+      display: inline-block;
+      align-self: flex-start;
+      background: rgba(252, 180, 0, 0.1);
+      border: 1px solid rgba(252, 180, 0, 0.3);
+      color: var(--accent);
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 4px 10px;
+      border-radius: 20px;
+      margin-bottom: 20px;
+    }
+
+    .card-badge.recommend {
+      background: rgba(252, 180, 0, 0.2);
+      border-color: var(--accent);
+      box-shadow: 0 0 10px rgba(252, 180, 0, 0.2);
+    }
+
+    .card-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.5rem;
+      font-weight: 600;
+      margin-bottom: 12px;
+      transition: color 0.3s;
+    }
+
+    .card:hover .card-title {
+      color: var(--accent);
+    }
+
+    .card-description {
+      font-size: 0.95rem;
+      color: var(--text-muted);
+      line-height: 1.6;
+      margin-bottom: 30px;
+      flex-grow: 1;
+    }
+
+    .card-footer {
+      display: flex;
+      align-items: center;
+      font-weight: 600;
+      font-size: 0.9rem;
+      color: var(--text-main);
+      transition: gap 0.3s;
+    }
+
+    .card-footer span {
+      margin-right: 8px;
+    }
+
+    .card-footer svg {
+      width: 16px;
+      height: 16px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      transition: transform 0.3s;
+    }
+
+    .card:hover .card-footer svg {
+      transform: translateX(6px);
+      color: var(--accent);
+    }
+
+    footer {
+      margin-top: 60px;
+      font-size: 0.8rem;
+      color: #52525b;
+      text-align: center;
+      animation: fadeIn 1s ease-in 0.4s both;
+    }
+
+    @keyframes fadeInDown {
+      from {
+        opacity: 0;
+        transform: translateY(-20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>XenolithGraph Sandbox</h1>
+    <p class="subtitle">複合スタック表示の調整・検証用のサンプルページをまとめた開発ポータルです。</p>
+  </header>
+
+  <main class="container">
+    <a href="custom_stack_node.html" class="card">
+      <div>
+        <span class="card-badge recommend">Recommended</span>
+        <h2 class="card-title">複合スタック（インメモリパッチ完全版）</h2>
+        <p class="card-description">
+          単一ノード内に複数のサブモジュール（圧縮・暗号化）を完璧に統合したプロ仕様のスタックノード。
+          CORSエラーを起こさずクリックによる排他選択、端子の完全自動吸着、接続中の表示潰れ解消をすべて実現した最新版。
+        </p>
+      </div>
+      <div class="card-footer">
+        <span>デモを開く</span>
+        <svg viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </div>
+    </a>
+
+    <a href="stack_node.html" class="card">
+      <div>
+        <span class="card-badge">Base Layout</span>
+        <h2 class="card-title">スタックノード基本サンプル</h2>
+        <p class="card-description">
+          XenolithGraphのドラッグ同期プラグインを用いた、親子ノードの連動ドラッグ構成サンプル。
+          親コンテナノードの上に子スロットノードを物理的に重ね合わせて連動させる初期のアプローチ。
+        </p>
+      </div>
+      <div class="card-footer">
+        <span>デモを開く</span>
+        <svg viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </div>
+    </a>
+
+    <a href="subgraph.html" class="card">
+      <div>
+        <span class="card-badge">Standard Editor</span>
+        <h2 class="card-title">通常サブグラフサンプル</h2>
+        <p class="card-description">
+          標準のノード（データ供給元、外部フィルター、データ受取先）を使用した、
+          XenolithGraphエディタの基本描画・配線および操作機能のテスト用サンプル。
+        </p>
+      </div>
+      <div class="card-footer">
+        <span>デモを開く</span>
+        <svg viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </div>
+    </a>
+
+    <a href="stresstest.html" class="card">
+      <div>
+        <span class="card-badge">Stress Test</span>
+        <h2 class="card-title">10,000ノード 限界負荷テスト</h2>
+        <p class="card-description">
+          ノード10,000個、島1,000個、配線19,999本を動的生成してロードする限界負荷テスト。
+          ビューポートの範囲外ノードの仮想化（LOD機能）によるスムーズなスクロールとズームを検証可能。
+        </p>
+      </div>
+      <div class="card-footer">
+        <span>デモを開く</span>
+        <svg viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </div>
+    </a>
+  </main>
+
+  <footer>
+    <p>&copy; 2026 XenolithEngine Authors. Released under the MIT License.</p>
+    <p style="margin-top: 6px; font-size: 0.75rem; color: #3f3f46;">Powered by Antigravity IDE</p>
+  </footer>
+
+  <script>
+    // カード内のマウス移動に応じたグラデーションハイライト効果
+    document.querySelectorAll('.card').forEach(card => {
+      card.addEventListener('mousemove', e => {
+        const rect = card.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        card.style.setProperty('--x', `${x}px`);
+        card.style.setProperty('--y', `${y}px`);
+      });
+    });
+  </script>
+</body>
+</html>

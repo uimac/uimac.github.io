@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>XenolithGraph スタック式（複合）ノード同期サンプル</title>
+  <style>
+    /* 画面いっぱいにエディタを表示するためのスタイル */
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #0b0b0b;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      color: #eeeeee;
+    }
+    #editor-container {
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+    /* ロード画面 of 簡易スタイル */
+    #loading {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 1.2rem;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+      z-index: 10;
+    }
+    .loaded #loading {
+      opacity: 0;
+    }
+    /* ガイド表示のスタイル */
+    #guide {
+      position: absolute;
+      bottom: 20px;
+      left: 20px;
+      background: rgba(22, 22, 22, 0.95);
+      border: 1px solid #c8963e;
+      padding: 15px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      max-width: 420px;
+      z-index: 100;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
+      pointer-events: auto;
+    }
+    #guide h2 {
+      margin-top: 0;
+      font-size: 1.1rem;
+      color: #FCB400;
+      border-bottom: 1px solid #444;
+      padding-bottom: 5px;
+    }
+    #guide ul {
+      margin: 0;
+      padding-left: 20px;
+      line-height: 1.5;
+    }
+    #guide li {
+      margin-bottom: 8px;
+    }
+    .accent {
+      color: #FCB400;
+      font-weight: bold;
+    }
+    .copyright {
+      position: absolute;
+      bottom: 20px;
+      right: 20px;
+      font-size: 0.75rem;
+      color: rgba(255, 255, 255, 0.35);
+      z-index: 100;
+      pointer-events: none;
+    }
+  </style>
+
+  <!-- importmapを使用して、CDN（unpkg.com）経由で読み込みます。 -->
+  <script type="importmap">
+    {
+      "imports": {
+        "pixi.js": "https://unpkg.com/pixi.js@8.6.0/dist/pixi.min.mjs",
+        "@xenolithengine/graph-core": "https://unpkg.com/@xenolithengine/graph-core@0.7.0-beta.3/dist/index.js",
+        "@xenolithengine/graph-theme-xen": "https://unpkg.com/@xenolithengine/graph-theme-xen@0.7.0-beta.3/dist/index.js",
+        "@xenolithengine/graph-render-pixi": "https://unpkg.com/@xenolithengine/graph-render-pixi@0.7.0-beta.3/dist/index.js",
+        "@xenolithengine/graph-editor": "https://unpkg.com/@xenolithengine/graph-editor@0.7.0-beta.3/dist/index.js"
+      }
+    }
+  </script>
+</head>
+<body>
+  <div id="loading">XenolithGraph をロード中...</div>
+  
+  <div id="guide">
+    <h2>複合スタックノードの操作ガイド</h2>
+    <ul>
+      <li>ノードの背後に薄茶色の <span class="accent">「まとめる枠（コメント枠）」</span> が追加されました。</li>
+      <li>「まとめる枠」のヘッダー部分をドラッグすると、<b>中の全ノード（親コンテナと子ノードA・B）がまとめて一緒に移動</b>します。</li>
+      <li>「スタック親コンテナ」だけを動かした場合でも、同期スクリプトにより子ノードA・Bが<b>自動で追従移動</b>します。</li>
+    </ul>
+  </div>
+
+  <div id="editor-container"></div>
+
+  <script type="module">
+    import { XenolithEditor } from '@xenolithengine/graph-editor';
+    import { xenTheme } from '@xenolithengine/graph-render-pixi';
+
+    // ノードのスキーマ定義
+    const containerSchema = {
+      type: "StackContainer",
+      title: "Stack Container",
+      category: "macro",
+      pins: [], // 親コンテナ自体は配線端子を持たない
+      widgets: [
+        // ノードのサイズを引き伸ばすためのダミーのカスタムウィジェット (高さ 260px)
+        { id: "spacer", type: "custom", renderer: "spacerWidget", label: "", height: 260 }
+      ]
+    };
+
+    const noteSchema = {
+      type: "Note",
+      title: "Note",
+      category: "logic",
+      pins: [
+        { id: "in", kind: "data", direction: "in", type: "object", multiple: true },
+        { id: "out", kind: "data", direction: "out", type: "object", multiple: true }
+      ]
+    };
+
+    // 親と子の関係定義
+    const parentId = "stack-parent";
+    const childIds = ["stack-child-1", "stack-child-2"];
+
+    // 親からの初期の相対オフセット (子ノードが親の枠内に綺麗にスタックされるように調整)
+    const offsets = {
+      "stack-child-1": { x: 10, y: 70 },  // 1つ目のサブユニット
+      "stack-child-2": { x: 10, y: 180 }  // 2つ目のサブユニット
+    };
+
+    // デモ用初期グラフデータ (コメント枠によるビジュアル構造化を追加)
+    const demoGraph = {
+      "version": "xenolith.v1",
+      "nodes": [
+        // 外部の入力元
+        {
+          "id": "src-node",
+          "type": "Note",
+          "position": { "x": 60, "y": 200 },
+          "render": { "title": "データ供給元", "category": "data" },
+          "pins": [
+            { "id": "src-out", "kind": "data", "direction": "out", "type": "object", "multiple": true }
+          ]
+        },
+        // 1. 親コンテナノード (高さを引き伸ばしている)
+        {
+          "id": parentId,
+          "type": "StackContainer",
+          "position": { "x": 340, "y": 120 },
+          "render": { "title": "スタック親コンテナ", "category": "macro" },
+          "state": { "spacer": null }
+        },
+        // 2. 子サブユニットノード A
+        {
+          "id": "stack-child-1",
+          "type": "Note",
+          "position": { "x": 350, "y": 190 }, // 初期配置：親の位置 (340, 120) + オフセット (10, 70)
+          "render": { "title": "Sub Node A", "category": "logic" },
+          "pins": [
+            { "id": "c1-in", "kind": "data", "direction": "in", "type": "object", "multiple": true },
+            { "id": "c1-out", "kind": "data", "direction": "out", "type": "object", "multiple": true }
+          ]
+        },
+        // 3. 子サブユニットノード B
+        {
+          "id": "stack-child-2",
+          "type": "Note",
+          "position": { "x": 350, "y": 300 }, // 初期配置：親の位置 (340, 120) + オフセット (10, 180)
+          "render": { "title": "Sub Node B", "category": "logic" },
+          "pins": [
+            { "id": "c2-in", "kind": "data", "direction": "in", "type": "object", "multiple": true },
+            { "id": "c2-out", "kind": "data", "direction": "out", "type": "object", "multiple": true }
+          ]
+        },
+        // 外部の出力先
+        {
+          "id": "dest-node",
+          "type": "Note",
+          "position": { "x": 680, "y": 200 },
+          "render": { "title": "データ受取先", "category": "logic" },
+          "pins": [
+            { "id": "dest-in", "kind": "data", "direction": "in", "type": "object", "multiple": true }
+          ]
+        }
+      ],
+      "edges": [
+        // 外部 ─→ スタック内のサブユニットAへ接続
+        {
+          "id": "e-in",
+          "from": { "node": "src-node", "pin": "src-out" },
+          "to": { "node": "stack-child-1", "pin": "c1-in" },
+          "opts": { "animated": true }
+        },
+        // サブユニットA ─→ サブユニットBへ接続
+        {
+          "id": "e-mid",
+          "from": { "node": "stack-child-1", "pin": "c1-out" },
+          "to": { "node": "stack-child-2", "pin": "c2-in" },
+          "opts": { "animated": true }
+        },
+        // サブユニットB ─→ 外部へ接続
+        {
+          "id": "e-out",
+          "from": { "node": "stack-child-2", "pin": "c2-out" },
+          "to": { "node": "dest-node", "pin": "dest-in" },
+          "opts": { "animated": true }
+        }
+      ],
+      // 視覚的に全体を囲むためのコメント枠 (最も背面で描画される)
+      "comments": [
+        {
+          "id": "stack-frame-comment",
+          "position": { "x": 320, "y": 70 },
+          "size": { "x": 220, "y": 380 },
+          "text": "複合スタックユニット (Stack Node)",
+          "color": "#c8963e" // 親テーマに合わせたブラウンゴールド
+        }
+      ]
+    };
+
+    async function init() {
+      try {
+        console.log("XenolithGraph エディタの初期化を開始します...");
+
+        const editor = await XenolithEditor.init('#editor-container', {
+          theme: xenTheme,
+          minimap: true,
+          zoomBounds: [0.1, 2]
+        });
+
+        // ダミーウィジェットコントローラーの登録 (視覚的なパネル枠と薄い塗りつぶしを描画)
+        editor.registerWidget('spacerWidget', {
+          draw(ctx, { width, height }) {
+            ctx.clearRect(0, 0, width, height);
+            
+            // 半透明の薄い背景色でパネルの実体感を出す
+            ctx.fillStyle = 'rgba(252, 180, 0, 0.03)';
+            ctx.fillRect(2, 2, width - 4, height - 4);
+
+            // 境界線をよりはっきりとした実線にする
+            ctx.strokeStyle = 'rgba(252, 180, 0, 0.2)';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(2, 2, width - 4, height - 4);
+          }
+        });
+
+        // スキーマの登録
+        editor.registry.register(containerSchema);
+        editor.registry.register(noteSchema);
+
+        editor.setControls({ position: 'top-right', orientation: 'horizontal' });
+
+        // データのロード
+        editor.loadJSON(demoGraph);
+        editor.fitView({ padding: 72, maxZoom: 1 });
+
+        // ─── 親子同期ドラッグプラグインの実装 ───
+        let isSyncing = false;
+
+        editor.on('node:moved', ({ nodeId, position }) => {
+          if (isSyncing) return;
+
+          // 親コンテナが動かされた場合、子ノードを相対位置を保って追従移動させる
+          if (nodeId === parentId) {
+            isSyncing = true;
+            try {
+              for (const childId of childIds) {
+                const offset = offsets[childId];
+                editor.moveNode(childId, {
+                  x: position.x + offset.x,
+                  y: position.y + offset.y
+                });
+              }
+            } finally {
+              isSyncing = false;
+            }
+          } 
+          // 子ノードが個別に動かされた場合、親からの相対位置（オフセット）を再計算する
+          else if (childIds.includes(nodeId)) {
+            const parentNode = editor.getGraphReadonly().getNode(parentId);
+            if (parentNode) {
+              offsets[nodeId] = {
+                x: position.x - parentNode.position.x,
+                y: position.y - parentNode.position.y
+              };
+            }
+          }
+        });
+
+        // ロード画面を非表示にする
+        document.body.classList.add('loaded');
+        console.log("XenolithGraph スタックノードデモが正常に動作しています。");
+      } catch (error) {
+        console.error("エラーが発生しました:", error);
+        document.getElementById('loading').textContent = "エラーが発生しました。コンソールログを確認してください。";
+      }
+    }
+
+    window.addEventListener('DOMContentLoaded', init);
+  </script>
+  <div class="copyright">
+    &copy; 2026 XenolithEngine Authors. Released under the MIT License.
+  </div>
+</body>
+</html>
